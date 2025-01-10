@@ -1,0 +1,23 @@
+[package]
+name = "match3"
+authors = ["Troels \"Sheepyhead\" Jessen <trojes@tuta.io>"]
+version = "0.4.0"
+edition = "2021"
+description = "A logic library for quickly adding a match-3 system to any bevy project"
+license = "MIT OR Apache-2.0"
+homepage = "https://github.com/Sheepyhead/bevy_match3"
+repository = "https://github.com/Sheepyhead/bevy_match3"
+keywords = ["gamedev", "bevy"]
+categories = ["games"]
+exclude = [".vscode"]
+
+[lints]
+workspace = true
+
+[dependencies]
+bits_helpers.workspace = true
+ribbit_bits.workspace = true
+
+bevy.workspace = true
+rand.workspace = true
+queues.workspace = true

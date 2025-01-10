@@ -1,0 +1,25 @@
+# https://github.com/GitGhillie/bevy_bird
+# LICENSE : https://github.com/GitGhillie/bevy_bird/blob/main/Cargo.toml
+
+[package]
+name = "flappy_gun"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[lints]
+workspace = true
+
+[dependencies]
+bits_helpers.workspace = true
+ribbit_bits.workspace = true
+
+avian3d.workspace = true
+bevy_asset_loader.workspace = true
+bevy_kira_audio.workspace = true
+bevy_turborand.workspace = true
+bevy.workspace = true
+leafwing-input-manager.workspace = true
+log.workspace = true
+serde.workspace = true
+tracing.workspace = true

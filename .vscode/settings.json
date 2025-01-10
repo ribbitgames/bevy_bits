@@ -1,0 +1,22 @@
+// Shared vscode settings goes here.
+{
+    "editor.formatOnSave": true,
+    "files.eol": "\n",
+    "rust-analyzer.rustfmt.extraArgs": [
+        "--config",
+        "group_imports=StdExternalCrate",
+        "--config",
+        "imports_granularity=Module"
+    ],
+    "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.check.extraArgs": [
+        "--all-features",
+    ],
+    "rust-analyzer.check.workspace": true,
+    "rust-analyzer.cargo.targetDir": "target/rust-analyzer",
+    "rust-analyzer.showUnlinkedFileNotification": false,
+    "search.exclude": {
+        "Cargo.lock": true,
+        "target/**": true
+    },
+}

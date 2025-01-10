@@ -1,0 +1,35 @@
+[cargo-new]
+name = "Ribbit"
+email = "info@ribbit.com"
+vcs = "git"
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "linker=clang", "-C", "link-arg=-fuse-ld=lld"]
+
+[target.wasm32-unknown-unknown]
+runner = "wasm-server-runner"
+
+[profile.dev]
+opt-level = 1
+panic = "abort"
+
+[profile.dev.package."*"]
+opt-level = 3
+debug = false
+
+[profile.release-wasm]
+inherits = "release"
+lto = true
+codegen-units = 1
+opt-level = 'z'
+panic = "abort"
+strip = true
+
+[build]
+target-dir = "target/"

@@ -1,0 +1,16 @@
+[package]
+name = "master_mind"
+version = "0.0.1"
+publish = false
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bits_helpers.workspace = true
+ribbit_bits.workspace = true
+
+bevy.workspace = true
+rand.workspace = true
+
+[lints]
+workspace = true

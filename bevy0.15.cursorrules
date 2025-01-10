@@ -1,0 +1,62 @@
+Replace text in this format. Make sure to keep the other elements outside TextBundle.
+
+TextBundle::from_section(
+    format!("Stage: {}", game_data.current_stage),
+    TextStyle {
+        font: asset_server.load(FONT),
+        font_size: TIMER_FONT_SIZE,
+        color: Color::WHITE,
+    },
+)
+
+To
+(
+    Text::new(foramt!("Stage: {}", game_data.current_stage)),
+    TextFont {
+        font: asset_server.load(FONT),
+        font_size: TIMER_FONT_SIZE,
+        ..default()
+    },
+    TextColor(Color::WHITE),
+)
+
+Another transformation is this:
+NodeBundle {
+    style: Style {
+        width: Val::Percent(100.0),
+        height: Val::Percent(100.0),
+        flex_direction: FlexDirection::Column,
+        align_items: AlignItems::Center,
+        justify_content: JustifyContent::Center,
+        ..default()
+    },
+    ..default()
+},
+
+Becomes this:
+Node {
+    width: Val::Percent(100.0),
+    height: Val::Percent(100.0),
+    flex_direction: FlexDirection::Column,
+    align_items: AlignItems::Center,
+    justify_content: JustifyContent::Center,
+    ..default()
+}
+
+
+Another transformation is this:
+SpriteBundle {
+    sprite: Sprite {
+        custom_size: Some(Vec2::new(TILE_SIZE, TILE_SIZE)),
+        color: Color::WHITE,
+        ..Sprite::default()
+    },
+    transform: grid_pos.into(),
+    ..SpriteBundle::default()
+}
+
+Becomes this:
+.spawn((
+    Sprite::from_color(Color::WHITE, Vec2::new(TILE_SIZE, TILE_SIZE)),
+    Transform::from(grid_pos),
+))

@@ -1,0 +1,28 @@
+allow-panic-in-tests = true
+allow-unwrap-in-tests = true
+avoid-breaking-exported-api = false
+disallowed-types = [
+    { path = "crc::Crc", reason = "use xxHash familiy of hashes, ideally XXH3" },
+    { path = "std::sync::Mutex", reason = "use parking_lot::Mutex instead" },
+    { path = "std::sync::RwLock", reason = "use parking_lot::RwLock instead" },
+    { path = "std::sync::Condvar", reason = "use parking_lot::Condvar instead" },
+]
+
+allowed-idents-below-min-chars = [
+    "_",
+    "'_",
+    "e",
+    "i",
+    "j",
+    "k",
+    "n",
+    "w",
+    "x",
+    "y",
+    "z",
+]
+min-ident-chars-threshold = 2
+excessive-nesting-threshold = 6
+
+# disallowed-methods = [{ path = "std::vec::Vec::leak", reason = "no leaking memory" }]
+# enforced-import-renames = [ { path = "serde_json::Value", rename = "JsonValue" }]
