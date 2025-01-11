@@ -19,3 +19,6 @@ web-sys.workspace = true
 
 [lints]
 workspace = true
+
+[package.metadata.bevy]
+assets_path = "assets"
