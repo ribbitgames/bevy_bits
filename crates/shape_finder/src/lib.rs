@@ -1,21 +1,19 @@
-use core::time::Duration;
-
-use bevy::color::palettes::css::{BLUE, GREEN, RED, WHITE, YELLOW};
+use bevy::color::palettes::css::{GREEN, RED};
 use bevy::prelude::*;
+use bits_helpers::emoji::{self, EmojiPlugin};
 use bits_helpers::floating_score::{animate_floating_scores, spawn_floating_score};
-use bits_helpers::welcome_screen::{despawn_welcome_screen, spawn_welcome_screen_shape};
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use rand::prelude::IteratorRandom;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use ribbit::ShapeFinder;
 
 mod ribbit;
 
-const SHAPE_COUNT: usize = 50;
+// Game constants
+const EMOJI_COUNT: usize = 50;
 const GAME_DURATION: f32 = 20.0;
-const SHAPE_SPEED: f32 = 100.0;
-const CORRECT_SHAPE_COUNT: usize = 5;
+const EMOJI_SPEED: f32 = 100.0;
+const CORRECT_EMOJI_COUNT: usize = 5;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 enum GameState {
@@ -25,33 +23,9 @@ enum GameState {
     GameOver,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash, Default)]
-enum ShapeType {
-    #[default]
-    Circle,
-    Square,
-    Triangle,
-    Hexagon,
-}
-
-const SHAPES: [ShapeType; 4] = [
-    ShapeType::Circle,
-    ShapeType::Square,
-    ShapeType::Triangle,
-    ShapeType::Hexagon,
-];
-
-const COLORS: [Color; 4] = [
-    Color::Srgba(RED),
-    Color::Srgba(BLUE),
-    Color::Srgba(GREEN),
-    Color::Srgba(YELLOW),
-];
-
 #[derive(Component)]
-struct Shape {
-    type_: ShapeType,
-    color: Color,
+struct MovingEmoji {
+    index: usize,
     size: f32,
 }
 
@@ -64,14 +38,13 @@ struct GameTimer(Timer);
 #[derive(Resource, Default)]
 struct Score(i32);
 
-#[derive(Resource)]
-struct TargetShapeInfo {
-    type_: ShapeType,
-    color: Color,
+#[derive(Resource, Default)]
+struct TargetEmojiInfo {
+    index: usize,
 }
 
 #[derive(Event)]
-struct ShapeClickedEvent {
+struct EmojiClickedEvent {
     entity: Entity,
     position: Vec2,
     is_correct: bool,
@@ -83,23 +56,24 @@ pub fn run() {
         env!("CARGO_PKG_VERSION"),
     );
 
-    app.init_state::<GameState>()
+    app.add_plugins(EmojiPlugin)
+        .init_state::<GameState>()
         .init_resource::<GameTimer>()
         .init_resource::<Score>()
-        .init_resource::<TargetShapeInfo>()
-        .add_event::<ShapeClickedEvent>()
+        .init_resource::<TargetEmojiInfo>()
+        .add_event::<EmojiClickedEvent>()
         .add_systems(Startup, setup)
         .add_systems(OnEnter(GameState::Welcome), spawn_welcome_screen)
         .add_systems(OnExit(GameState::Welcome), despawn_welcome_screen)
-        .add_systems(OnEnter(GameState::Playing), (spawn_shapes, spawn_timer))
-        .add_systems(Update, handle_shape_clicked.after(handle_playing_input))
+        .add_systems(OnEnter(GameState::Playing), (spawn_emojis, spawn_timer))
+        .add_systems(Update, handle_emoji_clicked.after(handle_playing_input))
         .add_systems(
             Update,
             (
                 handle_welcome_input.run_if(in_state(GameState::Welcome)),
                 (
                     handle_playing_input,
-                    move_shapes,
+                    move_emojis,
                     update_timer,
                     animate_floating_scores,
                 )
@@ -116,33 +90,55 @@ fn setup(mut commands: Commands) {
 }
 
 fn spawn_welcome_screen(
-    commands: Commands,
-    meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<ColorMaterial>>,
-    mut target_info: ResMut<TargetShapeInfo>,
+    mut commands: Commands,
+    atlas: Option<Res<emoji::EmojiAtlas>>,
+    validation: Option<Res<emoji::AtlasValidation>>,
+    mut target_info: ResMut<TargetEmojiInfo>,
     asset_server: Res<AssetServer>,
 ) {
-    let mut rng = rand::thread_rng();
-
-    target_info.type_ = *SHAPES.choose(&mut rng).unwrap_or(&ShapeType::Circle);
-    target_info.color = *COLORS.choose(&mut rng).unwrap_or(&Color::Srgba(RED));
-
-    let target_mesh = match target_info.type_ {
-        ShapeType::Square => Mesh::from(bevy::math::primitives::Rectangle::new(40.0, 40.0)),
-        ShapeType::Triangle => Mesh::from(bevy::math::primitives::RegularPolygon::new(20.0, 3)),
-        ShapeType::Hexagon => Mesh::from(bevy::math::primitives::RegularPolygon::new(20.0, 6)),
-        ShapeType::Circle => Mesh::from(bevy::math::primitives::Circle::new(20.0)),
+    let (Some(atlas), Some(validation)) = (atlas, validation) else {
+        warn!("Emoji system not ready yet");
+        return;
     };
 
-    spawn_welcome_screen_shape(
-        commands,
-        asset_server,
-        meshes,
-        materials,
-        "Click ONLY on this shape!",
-        target_mesh,
-        target_info.color,
-    );
+    if !emoji::is_emoji_system_ready(&validation) {
+        return;
+    }
+
+    // Select random emoji index for target
+    let indices = emoji::get_random_emojis(&atlas, &validation, 1);
+    if let Some(&index) = indices.first() {
+        target_info.index = index;
+
+        // Spawn instructional text
+        commands.spawn((
+            Text::new("Find this emoji!"),
+            TextFont {
+                font: asset_server.load(FONT),
+                font_size: 32.0,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(50.0),
+                width: Val::Percent(100.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+        ));
+
+        // Spawn target emoji
+        emoji::spawn_emoji(
+            &mut commands,
+            &atlas,
+            &validation,
+            index,
+            Vec2::new(0.0, 0.0),
+            1.0,
+        );
+    }
 }
 
 fn handle_welcome_input(
@@ -156,76 +152,56 @@ fn handle_welcome_input(
     }
 }
 
-fn spawn_shapes(
+fn spawn_emojis(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    target_info: Res<TargetShapeInfo>,
+    atlas: Res<emoji::EmojiAtlas>,
+    validation: Res<emoji::AtlasValidation>,
+    target_info: Res<TargetEmojiInfo>,
 ) {
+    if !emoji::is_emoji_system_ready(&validation) {
+        return;
+    }
+
     let mut rng = rand::thread_rng();
-    let mut shapes = Vec::new();
+    let mut emojis = Vec::new();
 
-    // Spawn correct shapes
-    for _ in 0..CORRECT_SHAPE_COUNT {
-        shapes.push((target_info.type_, target_info.color));
+    // Add correct emojis
+    for _ in 0..CORRECT_EMOJI_COUNT {
+        emojis.push(target_info.index);
     }
 
-    // Spawn other shapes
-    for _ in CORRECT_SHAPE_COUNT..SHAPE_COUNT {
-        let shape_type = *SHAPES.choose(&mut rng).unwrap_or(&ShapeType::Circle);
-        let color = *COLORS.choose(&mut rng).unwrap_or(&Color::Srgba(RED));
-        if shape_type != target_info.type_ || color != target_info.color {
-            shapes.push((shape_type, color));
-        } else {
-            // If we accidentally generated a correct shape, change the color
-            let different_color = COLORS
-                .iter()
-                .filter(|&&c| c != target_info.color)
-                .choose(&mut rng)
-                .copied()
-                .unwrap_or(Color::Srgba(RED));
-            shapes.push((shape_type, different_color));
-        }
-    }
+    // Add other random emojis
+    let other_indices =
+        emoji::get_random_emojis(&atlas, &validation, EMOJI_COUNT - CORRECT_EMOJI_COUNT);
+    emojis.extend(other_indices);
+    emojis.shuffle(&mut rng);
 
-    shapes.shuffle(&mut rng);
-
-    for (shape_type, color) in shapes {
-        let size = rng.gen_range(20.0..40.0);
+    // Spawn all emojis
+    for &index in &emojis {
+        let size = rng.gen_range(40.0..80.0);
         let x = rng.gen_range(-WINDOW_WIDTH / 2.0 + size..WINDOW_WIDTH / 2.0 - size);
         let y = rng.gen_range(-WINDOW_HEIGHT / 2.0 + size..WINDOW_HEIGHT / 2.0 - size);
-
-        let mesh = match shape_type {
-            ShapeType::Circle => Mesh::from(bevy::math::primitives::Circle::new(size / 2.0)),
-            ShapeType::Square => Mesh::from(bevy::math::primitives::Rectangle::new(size, size)),
-            ShapeType::Triangle => {
-                Mesh::from(bevy::math::primitives::RegularPolygon::new(size / 2.0, 3))
-            }
-            ShapeType::Hexagon => {
-                Mesh::from(bevy::math::primitives::RegularPolygon::new(size / 2.0, 6))
-            }
-        };
-
         let velocity =
-            Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0)).normalize() * SHAPE_SPEED;
+            Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0)).normalize() * EMOJI_SPEED;
 
-        commands.spawn((
-            Mesh2d(meshes.add(mesh)),
-            MeshMaterial2d(materials.add(ColorMaterial::from(color))),
-            Transform::from_translation(Vec3::new(x, y, 0.0)),
-            Shape {
-                type_: shape_type,
-                color,
-                size,
-            },
-            Velocity(velocity),
-        ));
+        if let Some(entity) = emoji::spawn_emoji(
+            &mut commands,
+            &atlas,
+            &validation,
+            index,
+            Vec2::new(x, y),
+            size / 128.0,
+        ) {
+            commands
+                .entity(entity)
+                .insert((MovingEmoji { index, size }, Velocity(velocity)));
+        }
     }
 }
 
 fn spawn_timer(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
-        Text::new("Time: {GAME_DURATION:.1}"),
+        Text::new(format!("Time: {GAME_DURATION:.1}")),
         TextFont {
             font: asset_server.load(FONT),
             font_size: 24.0,
@@ -262,9 +238,9 @@ fn handle_playing_input(
     mouse_button_input: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
-    shapes: Query<(Entity, &Transform, &Shape)>,
-    target_info: Res<TargetShapeInfo>,
-    mut shape_clicked_events: EventWriter<ShapeClickedEvent>,
+    emojis: Query<(Entity, &Transform, &MovingEmoji)>,
+    target_info: Res<TargetEmojiInfo>,
+    mut emoji_clicked_events: EventWriter<EmojiClickedEvent>,
 ) {
     if mouse_button_input.just_pressed(MouseButton::Left) {
         let (camera, camera_transform) = camera_q.single();
@@ -279,11 +255,10 @@ fn handle_playing_input(
             .ok()
             .map(|ray| ray.origin.truncate())
         {
-            for (entity, transform, shape) in shapes.iter() {
-                if transform.translation.truncate().distance(world_position) < shape.size / 2.0 {
-                    let is_correct =
-                        shape.type_ == target_info.type_ && shape.color == target_info.color;
-                    shape_clicked_events.send(ShapeClickedEvent {
+            for (entity, transform, emoji) in emojis.iter() {
+                if transform.translation.truncate().distance(world_position) < emoji.size / 2.0 {
+                    let is_correct = emoji.index == target_info.index;
+                    emoji_clicked_events.send(EmojiClickedEvent {
                         entity,
                         position: cursor_position,
                         is_correct,
@@ -295,13 +270,13 @@ fn handle_playing_input(
     }
 }
 
-fn handle_shape_clicked(
+fn handle_emoji_clicked(
     mut commands: Commands,
-    mut shape_clicked_events: EventReader<ShapeClickedEvent>,
+    mut emoji_clicked_events: EventReader<EmojiClickedEvent>,
     mut score: ResMut<Score>,
     asset_server: Res<AssetServer>,
 ) {
-    for event in shape_clicked_events.read() {
+    for event in emoji_clicked_events.read() {
         if event.is_correct {
             score.0 += 1;
             spawn_floating_score(&mut commands, event.position, "+1", GREEN, &asset_server);
@@ -313,52 +288,52 @@ fn handle_shape_clicked(
     }
 }
 
-fn move_shapes(mut query: Query<(&mut Transform, &mut Velocity, &Shape)>, time: Res<Time>) {
+fn move_emojis(mut query: Query<(&mut Transform, &mut Velocity, &MovingEmoji)>, time: Res<Time>) {
     let mut combinations = query.iter_combinations_mut();
     while let Some(
-        [(mut transform1, mut velocity1, shape1), (mut transform2, mut velocity2, shape2)],
+        [(mut transform1, mut velocity1, emoji1), (mut transform2, mut velocity2, emoji2)],
     ) = combinations.fetch_next()
     {
         let pos1 = transform1.translation.truncate();
         let pos2 = transform2.translation.truncate();
         let distance = pos1.distance(pos2);
-        let min_distance = (shape1.size + shape2.size) / 2.0;
+        let min_distance = (emoji1.size + emoji2.size) / 2.0;
 
         if distance < min_distance {
             // Calculate collision response
             let normal = (pos2 - pos1).normalize();
             let relative_velocity = velocity2.0 - velocity1.0;
-            let impulse = 2.0 * relative_velocity.dot(normal) / 2.0; // Assuming equal mass
+            let impulse = 2.0 * relative_velocity.dot(normal) / 2.0;
 
             velocity1.0 += normal * impulse;
             velocity2.0 -= normal * impulse;
 
-            // Separate the shapes
+            // Separate the emojis
             let separation = (min_distance - distance) / 2.0;
             transform1.translation -= (normal * separation).extend(0.0);
             transform2.translation += (normal * separation).extend(0.0);
         }
     }
 
-    // Move shapes and handle wall collisions
-    for (mut transform, mut velocity, shape) in &mut query {
+    // Move emojis and handle wall collisions
+    for (mut transform, mut velocity, emoji) in &mut query {
         let mut new_pos = transform.translation + velocity.0.extend(0.0) * time.delta_secs();
 
-        if new_pos.x - shape.size / 2.0 < -WINDOW_WIDTH / 2.0
-            || new_pos.x + shape.size / 2.0 > WINDOW_WIDTH / 2.0
+        if new_pos.x - emoji.size / 2.0 < -WINDOW_WIDTH / 2.0
+            || new_pos.x + emoji.size / 2.0 > WINDOW_WIDTH / 2.0
         {
             new_pos.x = new_pos.x.clamp(
-                -WINDOW_WIDTH / 2.0 + shape.size / 2.0,
-                WINDOW_WIDTH / 2.0 - shape.size / 2.0,
+                -WINDOW_WIDTH / 2.0 + emoji.size / 2.0,
+                WINDOW_WIDTH / 2.0 - emoji.size / 2.0,
             );
             velocity.0.x *= -1.0;
         }
-        if new_pos.y - shape.size / 2.0 < -WINDOW_HEIGHT / 2.0
-            || new_pos.y + shape.size / 2.0 > WINDOW_HEIGHT / 2.0
+        if new_pos.y - emoji.size / 2.0 < -WINDOW_HEIGHT / 2.0
+            || new_pos.y + emoji.size / 2.0 > WINDOW_HEIGHT / 2.0
         {
             new_pos.y = new_pos.y.clamp(
-                -WINDOW_HEIGHT / 2.0 + shape.size / 2.0,
-                WINDOW_HEIGHT / 2.0 - shape.size / 2.0,
+                -WINDOW_HEIGHT / 2.0 + emoji.size / 2.0,
+                WINDOW_HEIGHT / 2.0 - emoji.size / 2.0,
             );
             velocity.0.y *= -1.0;
         }
@@ -390,20 +365,20 @@ fn spawn_game_over_screen(
     ));
 }
 
-impl Default for GameTimer {
-    fn default() -> Self {
-        Self(Timer::new(
-            Duration::from_secs_f32(GAME_DURATION),
-            TimerMode::Once,
-        ))
+fn despawn_welcome_screen(
+    mut commands: Commands,
+    query: Query<Entity, Or<(With<Text>, With<emoji::EmojiSprite>)>>,
+) {
+    for entity in &query {
+        commands.entity(entity).despawn_recursive();
     }
 }
 
-impl Default for TargetShapeInfo {
+impl Default for GameTimer {
     fn default() -> Self {
-        Self {
-            type_: ShapeType::Circle,
-            color: Color::Srgba(WHITE),
-        }
+        Self(Timer::new(
+            std::time::Duration::from_secs_f32(GAME_DURATION),
+            TimerMode::Once,
+        ))
     }
 }
