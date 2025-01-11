@@ -10,7 +10,7 @@ use ribbit::ShapeFinder;
 mod ribbit;
 
 // Game constants
-const EMOJI_COUNT: usize = 50;
+const EMOJI_COUNT: usize = 30;
 const GAME_DURATION: f32 = 20.0;
 const EMOJI_SPEED: f32 = 100.0;
 const CORRECT_EMOJI_COUNT: usize = 5;
@@ -28,6 +28,9 @@ struct MovingEmoji {
     index: usize,
     size: f32,
 }
+
+#[derive(Resource, Default)]
+struct CorrectEmojisFound(usize);
 
 #[derive(Component)]
 struct Velocity(Vec2);
@@ -64,6 +67,7 @@ pub fn run() {
         .init_resource::<GameTimer>()
         .init_resource::<Score>()
         .init_resource::<TargetEmojiInfo>()
+        .init_resource::<CorrectEmojisFound>()
         .add_event::<EmojiClickedEvent>()
         .add_systems(Startup, setup)
         .add_systems(OnExit(GameState::Welcome), despawn_welcome_screen)
@@ -285,12 +289,18 @@ fn handle_emoji_clicked(
     mut commands: Commands,
     mut emoji_clicked_events: EventReader<EmojiClickedEvent>,
     mut score: ResMut<Score>,
+    mut correct_emojis_found: ResMut<CorrectEmojisFound>,
     asset_server: Res<AssetServer>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     for event in emoji_clicked_events.read() {
         if event.is_correct {
             score.0 += 1;
+            correct_emojis_found.0 += 1;
             spawn_floating_score(&mut commands, event.position, "+1", GREEN, &asset_server);
+            if correct_emojis_found.0 >= CORRECT_EMOJI_COUNT {
+                next_state.set(GameState::GameOver);
+            }
         } else {
             score.0 -= 1;
             spawn_floating_score(&mut commands, event.position, "-1", RED, &asset_server);
