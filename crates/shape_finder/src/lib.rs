@@ -123,7 +123,7 @@ fn try_spawn_welcome_screen(
 
     // Spawn welcome screen entity
     let welcome_screen_entity = commands
-        .spawn((WelcomeScreen, SpatialBundle::default()))
+        .spawn((WelcomeScreen, Transform::default(), Visibility::default()))
         .id();
 
     // Spawn text as child
@@ -153,59 +153,6 @@ fn try_spawn_welcome_screen(
         commands
             .entity(emoji_entity)
             .set_parent(welcome_screen_entity);
-    }
-}
-
-fn spawn_welcome_screen(
-    mut commands: Commands,
-    atlas: Option<Res<emoji::EmojiAtlas>>,
-    validation: Option<Res<emoji::AtlasValidation>>,
-    mut target_info: ResMut<TargetEmojiInfo>,
-    asset_server: Res<AssetServer>,
-) {
-    let (Some(atlas), Some(validation)) = (atlas, validation) else {
-        warn!("Emoji system not ready yet");
-        return;
-    };
-
-    if !emoji::is_emoji_system_ready(&validation) {
-        return;
-    }
-
-    println!("Spawning welcome screen");
-
-    // Select random emoji index for target
-    let indices = emoji::get_random_emojis(&atlas, &validation, 1);
-    if let Some(&index) = indices.first() {
-        target_info.index = index;
-
-        // Spawn instructional text
-        commands.spawn((
-            // Create a Text2d with its sections
-            Text2d::new("Find this emoji!"),
-            // Add specific font information
-            TextFont {
-                font: asset_server.load(FONT),
-                font_size: 32.0,
-                ..default()
-            },
-            // Add specific text layout
-            TextLayout::new_with_justify(JustifyText::Center),
-            // Add specific text color (this was missing)
-            TextColor(Color::WHITE),
-            // Add transform
-            Transform::from_translation(Vec3::new(0.0, WINDOW_HEIGHT / 4.0, 0.0)),
-        ));
-
-        // Spawn target emoji
-        emoji::spawn_emoji(
-            &mut commands,
-            &atlas,
-            &validation,
-            index,
-            Vec2::new(0.0, 0.0),
-            1.0,
-        );
     }
 }
 
