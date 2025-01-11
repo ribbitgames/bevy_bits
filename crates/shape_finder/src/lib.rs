@@ -50,6 +50,9 @@ struct EmojiClickedEvent {
     is_correct: bool,
 }
 
+#[derive(Component)]
+struct WelcomeScreen;
+
 pub fn run() {
     let mut app = bits_helpers::get_default_app::<ShapeFinder>(
         env!("CARGO_PKG_NAME"),
@@ -63,13 +66,13 @@ pub fn run() {
         .init_resource::<TargetEmojiInfo>()
         .add_event::<EmojiClickedEvent>()
         .add_systems(Startup, setup)
-        .add_systems(OnEnter(GameState::Welcome), spawn_welcome_screen)
         .add_systems(OnExit(GameState::Welcome), despawn_welcome_screen)
         .add_systems(OnEnter(GameState::Playing), (spawn_emojis, spawn_timer))
         .add_systems(Update, handle_emoji_clicked.after(handle_playing_input))
         .add_systems(
             Update,
             (
+                try_spawn_welcome_screen.run_if(in_state(GameState::Welcome)),
                 handle_welcome_input.run_if(in_state(GameState::Welcome)),
                 (
                     handle_playing_input,
@@ -89,6 +92,70 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
 }
 
+fn try_spawn_welcome_screen(
+    mut commands: Commands,
+    atlas: Option<Res<emoji::EmojiAtlas>>,
+    validation: Option<Res<emoji::AtlasValidation>>,
+    mut target_info: ResMut<TargetEmojiInfo>,
+    asset_server: Res<AssetServer>,
+    welcome_screen: Query<&WelcomeScreen>,
+) {
+    // If we already have a welcome screen, don't spawn another
+    if !welcome_screen.is_empty() {
+        return;
+    }
+
+    let (Some(atlas), Some(validation)) = (atlas, validation) else {
+        return;
+    };
+
+    if !emoji::is_emoji_system_ready(&validation) {
+        return;
+    }
+
+    // Select random emoji index for target
+    let indices = emoji::get_random_emojis(&atlas, &validation, 1);
+    let Some(&index) = indices.first() else {
+        return;
+    };
+
+    target_info.index = index;
+
+    // Spawn welcome screen entity
+    let welcome_screen_entity = commands
+        .spawn((WelcomeScreen, SpatialBundle::default()))
+        .id();
+
+    // Spawn text as child
+    commands
+        .spawn((
+            Text2d::new("Find this emoji!"),
+            TextFont {
+                font: asset_server.load(FONT),
+                font_size: 32.0,
+                ..default()
+            },
+            TextLayout::new_with_justify(JustifyText::Center),
+            TextColor(Color::WHITE),
+            Transform::from_translation(Vec3::new(0.0, WINDOW_HEIGHT / 4.0, 0.0)),
+        ))
+        .set_parent(welcome_screen_entity);
+
+    // Spawn emoji and make it a child of welcome screen
+    if let Some(emoji_entity) = emoji::spawn_emoji(
+        &mut commands,
+        &atlas,
+        &validation,
+        index,
+        Vec2::new(0.0, 0.0),
+        1.0,
+    ) {
+        commands
+            .entity(emoji_entity)
+            .set_parent(welcome_screen_entity);
+    }
+}
+
 fn spawn_welcome_screen(
     mut commands: Commands,
     atlas: Option<Res<emoji::EmojiAtlas>>,
@@ -105,6 +172,8 @@ fn spawn_welcome_screen(
         return;
     }
 
+    println!("Spawning welcome screen");
+
     // Select random emoji index for target
     let indices = emoji::get_random_emojis(&atlas, &validation, 1);
     if let Some(&index) = indices.first() {
@@ -112,21 +181,20 @@ fn spawn_welcome_screen(
 
         // Spawn instructional text
         commands.spawn((
-            Text::new("Find this emoji!"),
+            // Create a Text2d with its sections
+            Text2d::new("Find this emoji!"),
+            // Add specific font information
             TextFont {
                 font: asset_server.load(FONT),
                 font_size: 32.0,
                 ..default()
             },
+            // Add specific text layout
+            TextLayout::new_with_justify(JustifyText::Center),
+            // Add specific text color (this was missing)
             TextColor(Color::WHITE),
-            Node {
-                position_type: PositionType::Absolute,
-                top: Val::Px(50.0),
-                width: Val::Percent(100.0),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
+            // Add transform
+            Transform::from_translation(Vec3::new(0.0, WINDOW_HEIGHT / 4.0, 0.0)),
         ));
 
         // Spawn target emoji
@@ -201,32 +269,28 @@ fn spawn_emojis(
 
 fn spawn_timer(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
-        Text::new(format!("Time: {GAME_DURATION:.1}")),
+        Text2d::new(format!("Time: {GAME_DURATION:.1}")),
         TextFont {
             font: asset_server.load(FONT),
             font_size: 24.0,
             ..default()
         },
-        TextColor(Color::WHITE),
-        Node {
-            position_type: PositionType::Absolute,
-            right: Val::Percent(2.0),
-            ..default()
-        },
+        TextLayout::new_with_justify(JustifyText::Right),
+        Transform::from_translation(Vec3::new(WINDOW_WIDTH / 2.2, WINDOW_HEIGHT / 2.2, 0.0)),
     ));
 }
 
 fn update_timer(
     time: Res<Time>,
     mut game_timer: ResMut<GameTimer>,
-    mut timer_text: Query<&mut Text>,
+    mut timer_text: Query<&mut Text2d>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     game_timer.0.tick(time.delta());
     let remaining_time = GAME_DURATION - game_timer.0.elapsed_secs();
 
     if let Ok(mut text) = timer_text.get_single_mut() {
-        text.0 = format!("Time: {:.1}", remaining_time.max(0.0));
+        *text = Text2d::new(format!("Time: {:.1}", remaining_time.max(0.0)));
     }
 
     if game_timer.0.just_finished() {
@@ -348,26 +412,20 @@ fn spawn_game_over_screen(
     score: Res<Score>,
 ) {
     commands.spawn((
-        Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
-            ..default()
-        },
-        Text::new(format!("Game Over!\nYour score: {}", score.0)),
+        Text2d::new(format!("Game Over!\nYour score: {}", score.0)),
         TextFont {
             font: asset_server.load(FONT),
-            font_size: 24.0,
+            font_size: 32.0,
             ..default()
         },
-        TextColor(Color::WHITE),
+        TextLayout::new_with_justify(JustifyText::Center),
+        Transform::from_translation(Vec3::ZERO),
     ));
 }
 
 fn despawn_welcome_screen(
     mut commands: Commands,
-    query: Query<Entity, Or<(With<Text>, With<emoji::EmojiSprite>)>>,
+    query: Query<Entity, Or<(With<Text2d>, With<emoji::EmojiSprite>)>>,
 ) {
     for entity in &query {
         commands.entity(entity).despawn_recursive();
