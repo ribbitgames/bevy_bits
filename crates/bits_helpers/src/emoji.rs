@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use bevy::prelude::*;
 use bevy::render::render_resource::TextureFormat;
 use bevy::utils::default;
@@ -31,10 +33,18 @@ impl Plugin for EmojiPlugin {
     }
 }
 
-// Constants for the emoji atlas
 const ATLAS_SIZE: UVec2 = UVec2::new(8192, 8192);
 const EMOJI_SIZE: UVec2 = UVec2::new(128, 128);
-const ATLAS_PATH: &str = "EmojiAtlas.png";
+
+fn get_atlas_path() -> String {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("assets");
+    path.push("emojis");
+    path.push("EmojiAtlas.png");
+    path.to_str()
+        .expect("Asset path contains invalid UTF-8 characters")
+        .to_string()
+}
 
 #[derive(Error, Debug)]
 pub enum AtlasError {
@@ -73,7 +83,7 @@ fn setup_emoji_atlas(
     asset_server: Res<AssetServer>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
-    let texture_handle = asset_server.load(ATLAS_PATH);
+    let texture_handle = asset_server.load(get_atlas_path());
     let cols = ATLAS_SIZE.x / EMOJI_SIZE.x;
     let rows = ATLAS_SIZE.y / EMOJI_SIZE.y;
     let layout = TextureAtlasLayout::from_grid(EMOJI_SIZE, cols, rows, None, None);
