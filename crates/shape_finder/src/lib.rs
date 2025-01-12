@@ -18,6 +18,7 @@ enum GameState {
     Welcome,
     Playing,
     GameOver,
+    StageTransition,
 }
 
 #[derive(Component)]
@@ -91,6 +92,18 @@ impl Default for StageConfig {
     }
 }
 
+#[derive(Component)]
+struct StageTransitionTimer(Timer);
+
+impl Default for StageTransitionTimer {
+    fn default() -> Self {
+        Self(Timer::new(
+            std::time::Duration::from_secs_f32(2.0),
+            TimerMode::Once,
+        ))
+    }
+}
+
 pub fn run() {
     let mut app = bits_helpers::get_default_app::<ShapeFinder>(
         env!("CARGO_PKG_NAME"),
@@ -108,6 +121,10 @@ pub fn run() {
         .add_systems(Startup, setup)
         .add_systems(OnExit(GameState::Welcome), despawn_welcome_screen)
         .add_systems(OnEnter(GameState::Playing), (spawn_emojis, spawn_timer))
+        // Add cleanup system for Playing state
+        .add_systems(OnExit(GameState::Playing), cleanup_stage)
+        // Add systems for StageTransition
+        .add_systems(OnEnter(GameState::StageTransition), handle_stage_transition)
         .add_systems(Update, handle_emoji_clicked.after(handle_playing_input))
         .add_systems(
             Update,
@@ -122,8 +139,7 @@ pub fn run() {
                 )
                     .run_if(in_state(GameState::Playing)),
             ),
-        )
-        .add_systems(OnEnter(GameState::GameOver), spawn_game_over_screen);
+        );
 
     app.run();
 }
@@ -281,6 +297,7 @@ fn update_timer(
     mut timer_text: Query<&mut Text2d>,
     stage_config: Res<StageConfig>,
     mut next_state: ResMut<NextState<GameState>>,
+    correct_emojis_found: Res<CorrectEmojisFound>,
 ) {
     game_timer.0.tick(time.delta());
     let remaining_time = stage_config.stage.time_limit - game_timer.0.elapsed_secs();
@@ -289,8 +306,9 @@ fn update_timer(
         *text = Text2d::new(format!("Time: {:.1}", remaining_time.max(0.0)));
     }
 
-    if game_timer.0.just_finished() {
-        next_state.set(GameState::GameOver);
+    // Check if timer is finished or all emojis are found
+    if game_timer.0.just_finished() || correct_emojis_found.0 >= stage_config.stage.correct_emojis {
+        next_state.set(GameState::StageTransition);
     }
 }
 
@@ -345,7 +363,7 @@ fn handle_emoji_clicked(
             correct_emojis_found.0 += 1;
             spawn_floating_score(&mut commands, event.position, "+1", GREEN, &asset_server);
             if correct_emojis_found.0 >= stage_config.stage.correct_emojis {
-                next_state.set(GameState::GameOver);
+                next_state.set(GameState::StageTransition);
             }
         } else {
             score.0 -= 1;
@@ -399,6 +417,9 @@ fn spawn_game_over_screen(
         TextLayout::new_with_justify(JustifyText::Center),
         Transform::from_translation(Vec3::ZERO),
     ));
+
+    // Spawn the transition timer
+    commands.spawn(StageTransitionTimer::default());
 }
 
 fn despawn_welcome_screen(
@@ -408,4 +429,38 @@ fn despawn_welcome_screen(
     for entity in &query {
         commands.entity(entity).despawn_recursive();
     }
+}
+
+fn cleanup_stage(
+    mut commands: Commands,
+    query: Query<Entity, Or<(With<Text2d>, With<MovingEmoji>, With<emoji::EmojiSprite>)>>,
+) {
+    for entity in &query {
+        commands.entity(entity).despawn_recursive();
+    }
+}
+
+// Modify handle_stage_transition to be an immediate transition system
+fn handle_stage_transition(
+    mut commands: Commands,
+    mut stage_config: ResMut<StageConfig>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    // Update stage config
+    stage_config.current_stage_number += 1;
+    stage_config.stage.emoji_speed *= 1.2; // Increase speed by 20%
+    stage_config.stage.total_emojis += 5; // Add 5 more emojis
+    stage_config.stage.time_limit *= 0.9; // Reduce time by 10%
+
+    // Reset correct emojis found
+    commands.insert_resource(CorrectEmojisFound(0));
+
+    // Reset the game timer
+    commands.insert_resource(GameTimer(Timer::new(
+        std::time::Duration::from_secs_f32(stage_config.stage.time_limit),
+        TimerMode::Once,
+    )));
+
+    // Move to Playing state immediately
+    next_state.set(GameState::Playing);
 }
