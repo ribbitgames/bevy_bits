@@ -86,7 +86,7 @@ pub fn get_default_app<T: RibbitMessageHandler>(bit_name: &str, bit_version: &st
     #[cfg(target_arch = "wasm32")]
     {
         app.add_plugins(RibbitCommunicationPlugin::<T>::default());
-        // app.add_systems(PreUpdate, handle_browser_resize);
+        app.add_systems(PreUpdate, handle_browser_resize);
     }
 
     app
