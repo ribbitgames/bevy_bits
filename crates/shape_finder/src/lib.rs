@@ -10,10 +10,7 @@ use ribbit::ShapeFinder;
 mod ribbit;
 
 // Game constants
-const EMOJI_COUNT: usize = 30;
 const GAME_DURATION: f32 = 20.0;
-const EMOJI_SPEED: f32 = 100.0;
-const CORRECT_EMOJI_COUNT: usize = 5;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 enum GameState {
@@ -38,6 +35,16 @@ struct Velocity(Vec2);
 #[derive(Resource)]
 struct GameTimer(Timer);
 
+impl Default for GameTimer {
+    fn default() -> Self {
+        // We'll update this in a moment to use stage_config
+        Self(Timer::new(
+            std::time::Duration::from_secs_f32(20.0), // Default fallback value
+            TimerMode::Once,
+        ))
+    }
+}
+
 #[derive(Resource, Default)]
 struct Score(i32);
 
@@ -56,6 +63,34 @@ struct EmojiClickedEvent {
 #[derive(Component)]
 struct WelcomeScreen;
 
+#[derive(Clone)]
+pub struct Stage {
+    pub total_emojis: usize,
+    pub correct_emojis: usize,
+    pub emoji_speed: f32,
+    pub time_limit: f32,
+}
+
+#[derive(Resource)]
+pub struct StageConfig {
+    pub stage: Stage,
+    pub current_stage_number: usize,
+}
+
+impl Default for StageConfig {
+    fn default() -> Self {
+        Self {
+            stage: Stage {
+                total_emojis: 30,
+                correct_emojis: 5,
+                emoji_speed: 100.0,
+                time_limit: 20.0,
+            },
+            current_stage_number: 1,
+        }
+    }
+}
+
 pub fn run() {
     let mut app = bits_helpers::get_default_app::<ShapeFinder>(
         env!("CARGO_PKG_NAME"),
@@ -68,6 +103,7 @@ pub fn run() {
         .init_resource::<Score>()
         .init_resource::<TargetEmojiInfo>()
         .init_resource::<CorrectEmojisFound>()
+        .init_resource::<StageConfig>()
         .add_event::<EmojiClickedEvent>()
         .add_systems(Startup, setup)
         .add_systems(OnExit(GameState::Welcome), despawn_welcome_screen)
@@ -176,6 +212,7 @@ fn spawn_emojis(
     atlas: Res<emoji::EmojiAtlas>,
     validation: Res<emoji::AtlasValidation>,
     target_info: Res<TargetEmojiInfo>,
+    stage_config: Res<StageConfig>,
 ) {
     if !emoji::is_emoji_system_ready(&validation) {
         return;
@@ -185,13 +222,16 @@ fn spawn_emojis(
     let mut emojis = Vec::new();
 
     // Add correct emojis
-    for _ in 0..CORRECT_EMOJI_COUNT {
+    for _ in 0..stage_config.stage.correct_emojis {
         emojis.push(target_info.index);
     }
 
     // Add other random emojis
-    let other_indices =
-        emoji::get_random_emojis(&atlas, &validation, EMOJI_COUNT - CORRECT_EMOJI_COUNT);
+    let other_indices = emoji::get_random_emojis(
+        &atlas,
+        &validation,
+        stage_config.stage.total_emojis - stage_config.stage.correct_emojis,
+    );
     emojis.extend(other_indices);
     emojis.shuffle(&mut rng);
 
@@ -200,8 +240,8 @@ fn spawn_emojis(
         let size = rng.gen_range(40.0..80.0);
         let x = rng.gen_range(-WINDOW_WIDTH / 2.0 + size..WINDOW_WIDTH / 2.0 - size);
         let y = rng.gen_range(-WINDOW_HEIGHT / 2.0 + size..WINDOW_HEIGHT / 2.0 - size);
-        let velocity =
-            Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0)).normalize() * EMOJI_SPEED;
+        let velocity = Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0)).normalize()
+            * stage_config.stage.emoji_speed;
 
         if let Some(entity) = emoji::spawn_emoji(
             &mut commands,
@@ -218,9 +258,13 @@ fn spawn_emojis(
     }
 }
 
-fn spawn_timer(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn spawn_timer(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    stage_config: Res<StageConfig>,
+) {
     commands.spawn((
-        Text2d::new(format!("Time: {GAME_DURATION:.1}")),
+        Text2d::new(format!("Time: {:.1}", stage_config.stage.time_limit)),
         TextFont {
             font: asset_server.load(FONT),
             font_size: 24.0,
@@ -235,10 +279,11 @@ fn update_timer(
     time: Res<Time>,
     mut game_timer: ResMut<GameTimer>,
     mut timer_text: Query<&mut Text2d>,
+    stage_config: Res<StageConfig>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     game_timer.0.tick(time.delta());
-    let remaining_time = GAME_DURATION - game_timer.0.elapsed_secs();
+    let remaining_time = stage_config.stage.time_limit - game_timer.0.elapsed_secs();
 
     if let Ok(mut text) = timer_text.get_single_mut() {
         *text = Text2d::new(format!("Time: {:.1}", remaining_time.max(0.0)));
@@ -290,6 +335,7 @@ fn handle_emoji_clicked(
     mut emoji_clicked_events: EventReader<EmojiClickedEvent>,
     mut score: ResMut<Score>,
     mut correct_emojis_found: ResMut<CorrectEmojisFound>,
+    stage_config: Res<StageConfig>,
     asset_server: Res<AssetServer>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
@@ -298,7 +344,7 @@ fn handle_emoji_clicked(
             score.0 += 1;
             correct_emojis_found.0 += 1;
             spawn_floating_score(&mut commands, event.position, "+1", GREEN, &asset_server);
-            if correct_emojis_found.0 >= CORRECT_EMOJI_COUNT {
+            if correct_emojis_found.0 >= stage_config.stage.correct_emojis {
                 next_state.set(GameState::GameOver);
             }
         } else {
@@ -361,14 +407,5 @@ fn despawn_welcome_screen(
 ) {
     for entity in &query {
         commands.entity(entity).despawn_recursive();
-    }
-}
-
-impl Default for GameTimer {
-    fn default() -> Self {
-        Self(Timer::new(
-            std::time::Duration::from_secs_f32(GAME_DURATION),
-            TimerMode::Once,
-        ))
     }
 }
