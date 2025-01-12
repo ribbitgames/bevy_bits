@@ -310,36 +310,11 @@ fn handle_emoji_clicked(
 }
 
 fn move_emojis(mut query: Query<(&mut Transform, &mut Velocity, &MovingEmoji)>, time: Res<Time>) {
-    let mut combinations = query.iter_combinations_mut();
-    while let Some(
-        [(mut transform1, mut velocity1, emoji1), (mut transform2, mut velocity2, emoji2)],
-    ) = combinations.fetch_next()
-    {
-        let pos1 = transform1.translation.truncate();
-        let pos2 = transform2.translation.truncate();
-        let distance = pos1.distance(pos2);
-        let min_distance = (emoji1.size + emoji2.size) / 2.0;
-
-        if distance < min_distance {
-            // Calculate collision response
-            let normal = (pos2 - pos1).normalize();
-            let relative_velocity = velocity2.0 - velocity1.0;
-            let impulse = 2.0 * relative_velocity.dot(normal) / 2.0;
-
-            velocity1.0 += normal * impulse;
-            velocity2.0 -= normal * impulse;
-
-            // Separate the emojis
-            let separation = (min_distance - distance) / 2.0;
-            transform1.translation -= (normal * separation).extend(0.0);
-            transform2.translation += (normal * separation).extend(0.0);
-        }
-    }
-
-    // Move emojis and handle wall collisions
+    // Move emojis and handle wall collisions only
     for (mut transform, mut velocity, emoji) in &mut query {
         let mut new_pos = transform.translation + velocity.0.extend(0.0) * time.delta_secs();
 
+        // Handle wall collisions
         if new_pos.x - emoji.size / 2.0 < -WINDOW_WIDTH / 2.0
             || new_pos.x + emoji.size / 2.0 > WINDOW_WIDTH / 2.0
         {
