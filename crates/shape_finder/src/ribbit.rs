@@ -5,7 +5,7 @@ use bevy::prelude::NextState;
 use bits_helpers::RibbitMessageHandler;
 use ribbit_bits::{BitDuration, BitResult};
 
-use crate::{GameState, Score, GAME_DURATION};
+use crate::{GameState, Score};
 
 #[derive(Default, Clone, Copy)]
 pub struct ShapeFinder;
@@ -30,7 +30,6 @@ impl RibbitMessageHandler for ShapeFinder {
     }
 
     fn duration(_world: &mut bevy::prelude::World) -> BitDuration {
-        // Adding 3 seconds for the splash screen.
-        BitDuration::new(Duration::from_secs_f32(GAME_DURATION) + Duration::from_secs(3))
+        BitDuration::max_duration()
     }
 }
