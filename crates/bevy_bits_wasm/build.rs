@@ -6,7 +6,7 @@ use proc_macro2::{Spacing, TokenStream, TokenTree};
 use quote::{format_ident, quote};
 use syn::parse_file;
 
-const BIT_NAME_PATH: &str = "../../../ribbit_bits/crates/ribbit_bits/src/bit_name.rs";
+const BIT_NAME_PATH: &str = "../../../ribbit_bits/src/bit_name.rs";
 
 fn main() {
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
