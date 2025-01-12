@@ -1,6 +1,6 @@
 use bevy::color::palettes::css::{GREEN, RED};
 use bevy::prelude::*;
-use bits_helpers::floating_score::spawn_floating_score;
+use bits_helpers::floating_score::{spawn_floating_score, FloatingScore};
 use bits_helpers::{emoji, FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -235,7 +235,7 @@ pub fn move_emojis(
 /// Cleans up all gameplay entities when leaving the Playing state
 pub fn cleanup_playing_state(
     mut commands: Commands,
-    query: Query<Entity, Or<(With<Text2d>, With<MovingEmoji>)>>,
+    query: Query<Entity, Or<(With<Text2d>, With<MovingEmoji>, With<FloatingScore>)>>,
 ) {
     for entity in &query {
         commands.entity(entity).despawn_recursive();
