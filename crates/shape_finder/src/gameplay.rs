@@ -12,6 +12,14 @@ use crate::core::{
 
 const UI_MARGIN: f32 = 50.0; // Height of the UI safe zone from top
 
+/// Represents a potential hit target from a click
+#[derive(Debug)]
+struct HitTarget {
+    entity: Entity,
+    distance: f32,
+    is_correct: bool,
+}
+
 /// Spawns all emojis for the current stage
 pub fn spawn_emojis(
     mut commands: Commands,
@@ -139,7 +147,7 @@ pub fn update_timer(
     }
 }
 
-/// Handles mouse input during gameplay
+/// Enhanced system to handle mouse input during gameplay with improved hit detection
 pub fn handle_playing_input(
     mouse_button_input: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
@@ -148,31 +156,87 @@ pub fn handle_playing_input(
     target_info: Res<TargetEmojiInfo>,
     mut emoji_clicked_events: EventWriter<EmojiClickedEvent>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) {
-        let (camera, camera_transform) = camera_q.single();
-        let window = windows.single();
+    if !mouse_button_input.just_pressed(MouseButton::Left) {
+        return;
+    }
 
-        let Some(cursor_position) = window.cursor_position() else {
-            return;
+    let (camera, camera_transform) = camera_q.single();
+    let window = windows.single();
+
+    let Some(cursor_position) = window.cursor_position() else {
+        return;
+    };
+
+    let Ok(world_position) = camera
+        .viewport_to_world(camera_transform, cursor_position)
+        .map(|ray| ray.origin.truncate())
+    else {
+        return;
+    };
+
+    // Collect all potential hits with adaptive hit boxes
+    let mut hits: Vec<HitTarget> = Vec::new();
+
+    for (entity, transform, emoji) in emojis.iter() {
+        let distance = transform.translation.truncate().distance(world_position);
+
+        // Adaptive hit radius based on emoji size
+        let hit_radius = if emoji.size < 50.0 {
+            emoji.size * 0.7 // 70% of size for small emojis
+        } else {
+            emoji.size * 0.6 // 60% of size for larger emojis
         };
 
-        if let Some(world_position) = camera
-            .viewport_to_world(camera_transform, cursor_position)
-            .ok()
-            .map(|ray| ray.origin.truncate())
-        {
-            for (entity, transform, emoji) in emojis.iter() {
-                if transform.translation.truncate().distance(world_position) < emoji.size / 2.0 {
-                    let is_correct = emoji.index == target_info.index;
-                    emoji_clicked_events.send(EmojiClickedEvent {
-                        entity,
-                        position: cursor_position,
-                        is_correct,
-                    });
-                    break;
-                }
-            }
+        if distance < hit_radius {
+            hits.push(HitTarget {
+                entity,
+                distance,
+                is_correct: emoji.index == target_info.index,
+            });
         }
+    }
+
+    if hits.is_empty() {
+        return;
+    }
+
+    // Sort by distance to get closest hits
+    hits.sort_by(|a, b| {
+        a.distance
+            .partial_cmp(&b.distance)
+            .expect("Distances should always be comparable")
+    });
+
+    // If we have multiple hits very close together, check if one is correct
+    if hits.len() > 1 {
+        let closest_distance = hits
+            .first()
+            .expect("We verified hits is non-empty")
+            .distance;
+
+        let close_hits: Vec<&HitTarget> = hits
+            .iter()
+            .take_while(|hit| (hit.distance - closest_distance).abs() < 10.0)
+            .collect();
+
+        // If we have multiple close hits and one is correct, prefer it
+        if let Some(correct_hit) = close_hits.iter().find(|hit| hit.is_correct) {
+            emoji_clicked_events.send(EmojiClickedEvent {
+                entity: correct_hit.entity,
+                position: cursor_position,
+                is_correct: true,
+            });
+            return;
+        }
+    }
+
+    // Otherwise, use the closest hit
+    if let Some(closest_hit) = hits.first() {
+        emoji_clicked_events.send(EmojiClickedEvent {
+            entity: closest_hit.entity,
+            position: cursor_position,
+            is_correct: closest_hit.is_correct,
+        });
     }
 }
 
