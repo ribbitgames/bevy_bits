@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bits_helpers::{emoji, FONT, WINDOW_HEIGHT};
 
-use crate::core::*;
+use crate::core::{GameState, GameTimer, StageConfig, TargetEmojiInfo};
 
 /// Component marker for welcome screen entities
 #[derive(Component)]
@@ -47,7 +47,7 @@ pub fn try_spawn_welcome_screen(
     commands
         .spawn((
             Text2d::new(format!(
-                "Stage {}\nFind {} target emojis!\nClick to start",
+                "Stage {}\nFind {} of me!",
                 stage_config.current_stage_number, stage_config.stage.correct_emojis
             )),
             TextFont {

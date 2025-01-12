@@ -9,11 +9,19 @@ mod ribbit;
 mod stage;
 mod welcome;
 
-use core::*;
+use core::{
+    CorrectEmojisFound, EmojiClickedEvent, GameState, GameTimer, Score, StageConfig,
+    TargetEmojiInfo,
+};
 
-use crate::gameplay::*;
-use crate::stage::*;
-use crate::welcome::*;
+use crate::gameplay::{
+    cleanup_playing_state, handle_emoji_clicked, handle_playing_input, move_emojis, spawn_emojis,
+    spawn_timer, update_timer,
+};
+use crate::stage::{
+    cleanup_stage_complete, handle_stage_complete_input, spawn_stage_complete_screen,
+};
+use crate::welcome::{despawn_welcome_screen, handle_welcome_input, try_spawn_welcome_screen};
 
 /// Entry point for the game
 pub fn run() {

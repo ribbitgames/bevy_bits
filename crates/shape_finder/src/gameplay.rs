@@ -5,7 +5,12 @@ use bits_helpers::{emoji, FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use rand::seq::SliceRandom;
 use rand::Rng;
 
-use crate::core::*;
+use crate::core::{
+    CorrectEmojisFound, EmojiClickedEvent, GameState, GameTimer, MovingEmoji, Score, StageConfig,
+    TargetEmojiInfo, Velocity,
+};
+
+const UI_MARGIN: f32 = 50.0; // Height of the UI safe zone from top
 
 /// Spawns all emojis for the current stage
 pub fn spawn_emojis(
@@ -40,7 +45,7 @@ pub fn spawn_emojis(
     for &index in &emojis {
         let size = rng.gen_range(40.0..80.0);
         let x = rng.gen_range(-WINDOW_WIDTH / 2.0 + size..WINDOW_WIDTH / 2.0 - size);
-        let y = rng.gen_range(-WINDOW_HEIGHT / 2.0 + size..WINDOW_HEIGHT / 2.0 - size);
+        let y = rng.gen_range(-WINDOW_HEIGHT / 2.0 + size..WINDOW_HEIGHT / 2.0 - UI_MARGIN - size);
         let velocity = Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0)).normalize()
             * stage_config.stage.emoji_speed;
 
@@ -59,13 +64,18 @@ pub fn spawn_emojis(
     }
 }
 
-/// Spawns the timer UI
+/// Spawns the timer UI elements for the game stage
+///
+/// # Parameters
+/// * `commands` - Command buffer to spawn entities
+/// * `asset_server` - Resource for loading assets like fonts
+/// * `stage_config` - Current stage configuration containing time limit and other settings
 pub fn spawn_timer(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     stage_config: Res<StageConfig>,
 ) {
-    // Timer text
+    // Timer text - positioned in top right
     commands.spawn((
         Text2d::new(format!("Time: {:.1}", stage_config.stage.time_limit)),
         TextFont {
@@ -74,10 +84,14 @@ pub fn spawn_timer(
             ..default()
         },
         TextLayout::new_with_justify(JustifyText::Right),
-        Transform::from_translation(Vec3::new(WINDOW_WIDTH / 2.2, WINDOW_HEIGHT / 2.2, 0.0)),
+        Transform::from_translation(Vec3::new(
+            WINDOW_WIDTH / 2.2 - 80.0,
+            WINDOW_HEIGHT / 2.2 - 20.0,
+            0.0,
+        )),
     ));
 
-    // Score and progress text
+    // Score and progress text - positioned in top left
     commands.spawn((
         Text2d::new(format!("Found: 0/{}", stage_config.stage.correct_emojis)),
         TextFont {
@@ -86,7 +100,11 @@ pub fn spawn_timer(
             ..default()
         },
         TextLayout::new_with_justify(JustifyText::Left),
-        Transform::from_translation(Vec3::new(-WINDOW_WIDTH / 2.2, WINDOW_HEIGHT / 2.2, 0.0)),
+        Transform::from_translation(Vec3::new(
+            -WINDOW_WIDTH / 2.2 + 80.0,
+            WINDOW_HEIGHT / 2.2 - 20.0,
+            0.0,
+        )),
     ));
 }
 
@@ -179,7 +197,7 @@ pub fn handle_emoji_clicked(
     }
 }
 
-/// Updates emoji positions and handles collisions
+/// Updates emoji positions and handles collisions while respecting UI safe zone
 pub fn move_emojis(
     mut query: Query<(&mut Transform, &mut Velocity, &MovingEmoji)>,
     time: Res<Time>,
@@ -197,13 +215,16 @@ pub fn move_emojis(
                 WINDOW_WIDTH / 2.0 - emoji.size / 2.0,
             );
         }
+
+        // Handle vertical boundaries with UI safe zone
+        let top_boundary = WINDOW_HEIGHT / 2.0 - UI_MARGIN;
         if new_pos.y - emoji.size / 2.0 < -WINDOW_HEIGHT / 2.0
-            || new_pos.y + emoji.size / 2.0 > WINDOW_HEIGHT / 2.0
+            || new_pos.y + emoji.size / 2.0 > top_boundary
         {
             velocity.0.y *= -1.0;
             new_pos.y = new_pos.y.clamp(
                 -WINDOW_HEIGHT / 2.0 + emoji.size / 2.0,
-                WINDOW_HEIGHT / 2.0 - emoji.size / 2.0,
+                top_boundary - emoji.size / 2.0,
             );
         }
 

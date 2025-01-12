@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bits_helpers::{emoji, FONT};
 
-use crate::core::*;
+use crate::core::{CorrectEmojisFound, GameState, GameTimer, Score, StageConfig, TargetEmojiInfo};
 
 /// Component marker for stage complete screen entities
 #[derive(Component)]
@@ -17,12 +17,12 @@ pub fn spawn_stage_complete_screen(
 ) {
     let completion_text = if correct_emojis_found.0 >= stage_config.stage.correct_emojis {
         format!(
-            "Stage {} Complete!\n\nYou found all {} emojis\nTotal Score: {}\n\nClick to continue",
+            "Stage {} Complete!\n\nYou found all {}\nTotal Score: {}\n\nClick to continue",
             stage_config.current_stage_number, stage_config.stage.correct_emojis, score.0
         )
     } else {
         format!(
-            "Time's Up!\n\nYou found {} of {} emojis\nTotal Score: {}\n\nClick to continue",
+            "Time's Up!\n\nYou found {} of {}\nTotal Score: {}\n\nClick to continue",
             correct_emojis_found.0, stage_config.stage.correct_emojis, score.0
         )
     };
