@@ -48,11 +48,11 @@ struct CardBackBundle {
 #[derive(Resource, Default)]
 pub struct GameState {
     /// Timer for initial face-down state
-    initial_wait_timer: Option<Timer>,
+    pub initial_wait_timer: Option<Timer>,
     /// Timer for how long cards stay revealed
-    reveal_timer: Option<Timer>,
+    pub reveal_timer: Option<Timer>,
     /// Whether we're in the initial reveal phase
-    cards_revealed: bool,
+    pub cards_revealed: bool,
 }
 
 impl GameState {

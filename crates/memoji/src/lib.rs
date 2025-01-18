@@ -2,9 +2,11 @@ use bevy::prelude::*;
 use bits_helpers::emoji::EmojiPlugin;
 
 mod cards;
+mod input;
 mod ribbit;
 
 use cards::CardPlugin;
+// use input::InputPlugin;
 
 pub fn run() {
     bits_helpers::get_default_app::<ribbit::Memoji>(
