@@ -162,11 +162,10 @@ fn spawn_emoji_grid(
                     .spawn(CardBackBundle {
                         sprite: Sprite {
                             image: card_back.0.clone(),
-                            custom_size: Some(Vec2::splat(GRID_SPACING)),
+                            custom_size: Some(Vec2::splat(GRID_SPACING * 1.5)), // card_back size doesn't match the atlas emojis unfortunately
                             ..default()
                         },
-                        transform: Transform::from_translation(Vec3::ZERO)
-                            .with_scale(Vec3::splat(0.5)),
+                        transform: Transform::from_translation(Vec3::ZERO),
                         global_transform: GlobalTransform::default(),
                         visibility: Visibility::Visible,
                         inherited_visibility: InheritedVisibility::default(),
