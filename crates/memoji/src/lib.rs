@@ -9,6 +9,7 @@ mod ribbit;
 const DISPLAY_COLS: u32 = 4;
 const DISPLAY_ROWS: u32 = 2;
 const GRID_SPACING: f32 = 70.0;
+const CARD_BACK: &str = "card_back.png";
 
 // Game state to track reveal sequence
 #[derive(Resource, Default)]
@@ -59,24 +60,18 @@ pub struct FlipState {
     pub unmatch_timer: Option<Timer>,
 }
 
-// Resource for the card back texture
 #[derive(Resource)]
 struct CardBackTexture(Handle<Image>);
 
-// Define the bundle for card back sprites
 #[derive(Bundle)]
 struct CardBackBundle {
-    // Core rendering components
-    sprite: Sprite,
-    // Handle<Image> needs to be wrapped in a specific Asset component
-    texture: Asset<Handle<Image>>,
+    sprite: Sprite, // Contains the image handle internally
     transform: Transform,
-    // Our marker component
+    global_transform: GlobalTransform,
+    visibility: Visibility,
+    inherited_visibility: InheritedVisibility,
     card_back: CardBack,
 }
-
-#[derive(Component)]
-struct Asset<T>(T);
 
 pub fn run() {
     bits_helpers::get_default_app::<Memoji>(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
@@ -101,7 +96,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
 
     // Load the card back texture
-    let card_back = asset_server.load("1f0cf.png");
+    let card_back = asset_server.load(CARD_BACK);
     commands.insert_resource(CardBackTexture(card_back));
 }
 
@@ -168,12 +163,15 @@ fn spawn_emoji_grid(
                 let card_back_entity = commands
                     .spawn(CardBackBundle {
                         sprite: Sprite {
-                            custom_size: Some(Vec2::splat(50.0)),
+                            image: card_back.0.clone(),
+                            custom_size: Some(Vec2::splat(GRID_SPACING)),
                             ..default()
                         },
-                        texture: Asset(card_back.0.clone()),
                         transform: Transform::from_xyz(position.x, position.y, 0.0)
                             .with_scale(Vec3::splat(0.5)),
+                        global_transform: GlobalTransform::default(),
+                        visibility: Visibility::Visible,
+                        inherited_visibility: InheritedVisibility::default(),
                         card_back: CardBack,
                     })
                     .id();
