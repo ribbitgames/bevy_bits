@@ -41,6 +41,7 @@ struct CardBackBundle {
     global_transform: GlobalTransform,
     visibility: Visibility,
     inherited_visibility: InheritedVisibility,
+    view_visibility: ViewVisibility,
     card_back: CardBack,
 }
 
@@ -123,7 +124,7 @@ fn spawn_emoji_grid(
             if let Some(&sprite_index) = all_indices.get(index) {
                 let x = (col as f32).mul_add(GRID_SPACING, start_x) + GRID_SPACING / 2.0;
                 let y = (-(row as f32)).mul_add(GRID_SPACING, start_y) - GRID_SPACING / 2.0;
-                let position = Vec2::new(x + 0.5, y + 0.5);
+                let _position = Vec2::new(x + 0.5, y + 0.5);
 
                 // Spawn card parent entity
                 let card_entity = commands
@@ -132,9 +133,10 @@ fn spawn_emoji_grid(
                             emoji_index: sprite_index,
                             ..Default::default()
                         },
-                        SpatialBundle::from_transform(
-                            Transform::from_xyz(x, y, 0.0).with_scale(Vec3::splat(0.5)),
-                        ), // Restore original scale
+                        Transform::from_xyz(x, y, 0.0).with_scale(Vec3::splat(0.5)),
+                        Visibility::Inherited,
+                        InheritedVisibility::default(),
+                        ViewVisibility::default(),
                     ))
                     .id();
 
@@ -168,6 +170,7 @@ fn spawn_emoji_grid(
                         global_transform: GlobalTransform::default(),
                         visibility: Visibility::Visible,
                         inherited_visibility: InheritedVisibility::default(),
+                        view_visibility: ViewVisibility::default(),
                         card_back: CardBack,
                     })
                     .id();
@@ -178,6 +181,7 @@ fn spawn_emoji_grid(
     }
 }
 
+// Remaining functions stay the same as in the original implementation
 fn handle_reveal_sequence(
     time: Res<Time>,
     mut game_state: ResMut<GameState>,

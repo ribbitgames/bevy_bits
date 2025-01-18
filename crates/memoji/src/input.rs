@@ -59,38 +59,17 @@ pub fn handle_card_clicks(
     };
 
     // Convert cursor position to world coordinates
-    let world_position = match camera.viewport_to_world_2d(camera_transform, cursor_position) {
+    let world_position: Vec2 = match camera.viewport_to_world_2d(camera_transform, cursor_position)
+    {
         Ok(pos) => pos,
         Err(_) => return,
     };
 
     // Detailed debugging of card information
-    for (entity, local_transform, global_transform, mut card) in cards.iter_mut() {
-        // Print detailed transform information
-        println!("Card Entity: {:?}", entity);
-        println!("Local Transform:");
-        println!("  Translation: {:?}", local_transform.translation);
-        println!("  Rotation: {:?}", local_transform.rotation);
-        println!("  Scale: {:?}", local_transform.scale);
-
-        println!("Global Transform:");
-        println!("  Translation: {:?}", global_transform.translation());
-        println!(
-            "  Rotation: {:?}",
-            global_transform.to_scale_rotation_translation().1
-        );
-        println!(
-            "  Scale: {:?}",
-            global_transform.to_scale_rotation_translation().0
-        );
-
+    for (entity, _local_transform, global_transform, mut card) in &mut cards {
         // Use global transform for position comparison
         let card_position = global_transform.translation().truncate();
         let distance = world_position.distance(card_position);
-
-        println!("World Position: {:?}", world_position);
-        println!("Card Position: {:?}", card_position);
-        println!("Distance: {}", distance);
 
         // Adjust click detection as needed
         if distance < 35.0 {
@@ -98,7 +77,6 @@ pub fn handle_card_clicks(
             if !card.face_up && !card.locked && flip_state.face_up_cards.len() < 2 {
                 card.face_up = true;
                 flip_state.face_up_cards.push(entity);
-                println!("Card flipped successfully!");
                 break;
             }
         }
