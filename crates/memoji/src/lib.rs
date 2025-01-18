@@ -6,7 +6,7 @@ mod input;
 mod ribbit;
 
 use cards::CardPlugin;
-// use input::InputPlugin;
+use input::InputPlugin;
 
 pub fn run() {
     bits_helpers::get_default_app::<ribbit::Memoji>(
@@ -15,6 +15,7 @@ pub fn run() {
     )
     .add_plugins(EmojiPlugin)
     .add_plugins(CardPlugin)
+    .add_plugins(InputPlugin) // Include the InputPlugin
     .add_systems(Startup, setup)
     .run();
 }

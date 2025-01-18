@@ -132,8 +132,9 @@ fn spawn_emoji_grid(
                             emoji_index: sprite_index,
                             ..Default::default()
                         },
-                        Transform::default(),
-                        Visibility::default(),
+                        SpatialBundle::from_transform(
+                            Transform::from_xyz(x, y, 0.0).with_scale(Vec3::splat(0.5)),
+                        ), // Restore original scale
                     ))
                     .id();
 
@@ -143,13 +144,14 @@ fn spawn_emoji_grid(
                     &atlas,
                     &validation,
                     sprite_index,
-                    position,
+                    Vec2::ZERO, // Relative to parent
                     0.5,
                 ) {
                     commands
                         .entity(emoji_entity)
                         .insert(CardFace)
-                        .insert(Visibility::Hidden);
+                        .insert(Visibility::Hidden)
+                        .insert(Transform::from_translation(Vec3::ZERO));
                     commands.entity(card_entity).add_child(emoji_entity);
                 }
 
@@ -161,7 +163,7 @@ fn spawn_emoji_grid(
                             custom_size: Some(Vec2::splat(GRID_SPACING)),
                             ..default()
                         },
-                        transform: Transform::from_xyz(position.x, position.y, 0.0)
+                        transform: Transform::from_translation(Vec3::ZERO)
                             .with_scale(Vec3::splat(0.5)),
                         global_transform: GlobalTransform::default(),
                         visibility: Visibility::Visible,
