@@ -20,6 +20,5 @@ bevy_kira_audio.workspace = true
 bevy_turborand.workspace = true
 bevy.workspace = true
 leafwing-input-manager.workspace = true
-log.workspace = true
 serde.workspace = true
 tracing.workspace = true

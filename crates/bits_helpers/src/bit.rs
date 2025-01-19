@@ -7,6 +7,7 @@ use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::render::settings::{WgpuSettings, WgpuSettingsPriority};
 use bevy::render::RenderPlugin;
+use bevy::window::{WindowMode, WindowResolution};
 
 #[cfg(target_arch = "wasm32")]
 use crate::window_resizing::handle_browser_resize;
@@ -46,13 +47,16 @@ pub fn get_default_app<T: RibbitMessageHandler>(bit_name: &str, bit_version: &st
         meta_check: AssetMetaCheck::Never,
     };
 
+    let resolution = WindowResolution::new(WINDOW_WIDTH, WINDOW_HEIGHT);
+
     let window_plugin = WindowPlugin {
         primary_window: Some(Window {
             title: bit_name.to_string(),
             present_mode: bevy::window::PresentMode::Fifo,
-            resolution: bevy::window::WindowResolution::new(WINDOW_WIDTH, WINDOW_HEIGHT),
+            resolution,
             canvas: Some("#bit".into()),
             fit_canvas_to_parent: true,
+            mode: WindowMode::Windowed,
             // Tells wasm not to override default event handling, like F5, Ctrl+R etc.
             prevent_default_event_handling: false,
             ..default()
@@ -62,8 +66,12 @@ pub fn get_default_app<T: RibbitMessageHandler>(bit_name: &str, bit_version: &st
 
     let render_plugin = RenderPlugin {
         render_creation: bevy::render::settings::RenderCreation::Automatic(WgpuSettings {
+            backends: Some(
+                bevy::render::settings::Backends::BROWSER_WEBGPU
+                    | bevy::render::settings::Backends::GL,
+            ),
             power_preference: bevy::render::settings::PowerPreference::HighPerformance,
-            priority: WgpuSettingsPriority::Compatibility,
+            priority: WgpuSettingsPriority::Functionality,
             ..Default::default()
         }),
         ..Default::default()
