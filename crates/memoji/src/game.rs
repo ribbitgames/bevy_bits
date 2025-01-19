@@ -1,10 +1,35 @@
 use bevy::prelude::*;
 
+use crate::cards::{Card, GameState};
+
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<GameDifficulty>();
+        app.init_resource::<GameDifficulty>()
+            .init_resource::<StageState>()
+            .add_systems(
+                Update,
+                (check_stage_completion, handle_stage_transition).chain(),
+            );
+    }
+}
+
+/// Resource to track stage completion state
+#[derive(Resource, Default)]
+pub struct StageState {
+    /// Indicates stage is complete and transition should begin
+    pub stage_complete: bool,
+    /// Optional timer for stage transition animation/delay
+    pub transition_timer: Option<Timer>,
+}
+
+impl StageState {
+    pub const fn new() -> Self {
+        Self {
+            stage_complete: false,
+            transition_timer: None,
+        }
     }
 }
 
@@ -68,5 +93,65 @@ impl GameDifficulty {
         // Times decrease quickly at first, then stabilize
         self.initial_reveal_time = hockey_stick_curve(self.stage, 3.0, 1.0, 0.4);
         self.mismatch_delay = hockey_stick_curve(self.stage, 1.5, 0.5, 0.3);
+    }
+}
+
+/// System to check if all cards are matched and stage is complete
+fn check_stage_completion(cards: Query<&Card>, mut stage_state: ResMut<StageState>) {
+    // Only check if we haven't already marked the stage as complete
+    if stage_state.stage_complete {
+        return;
+    }
+
+    // Get total number of cards
+    let total_cards = cards.iter().count();
+    if total_cards == 0 {
+        return;
+    }
+
+    // Check if all cards are matched (face up and locked)
+    let matched_cards = cards
+        .iter()
+        .filter(|card| card.face_up && card.locked)
+        .count();
+
+    // If all cards are matched, mark stage as complete
+    if matched_cards == total_cards {
+        stage_state.stage_complete = true;
+        stage_state.transition_timer = Some(Timer::from_seconds(1.0, TimerMode::Once));
+    }
+}
+
+/// System to handle stage transitions
+fn handle_stage_transition(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut stage_state: ResMut<StageState>,
+    mut game_difficulty: ResMut<GameDifficulty>,
+    mut game_state: ResMut<GameState>,
+    cards: Query<Entity, With<Card>>,
+) {
+    // Check if we're in transition and the timer is active
+    if let Some(timer) = &mut stage_state.transition_timer {
+        if timer.tick(time.delta()).just_finished() {
+            // Despawn all existing cards
+            for card_entity in cards.iter() {
+                commands.entity(card_entity).despawn_recursive();
+            }
+
+            // Advance to next stage
+            game_difficulty.advance_stage();
+
+            // Reset game state for new stage
+            *game_state = GameState::new();
+            game_state.initial_wait_timer = Some(Timer::from_seconds(
+                game_difficulty.initial_reveal_time,
+                TimerMode::Once,
+            ));
+
+            // Reset stage state
+            stage_state.stage_complete = false;
+            stage_state.transition_timer = None;
+        }
     }
 }

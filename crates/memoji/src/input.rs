@@ -65,7 +65,6 @@ pub fn handle_card_clicks(
         Err(_) => return,
     };
 
-    // Detailed debugging of card information
     for (entity, _local_transform, global_transform, mut card) in &mut cards {
         // Use global transform for position comparison
         let card_position = global_transform.translation().truncate();

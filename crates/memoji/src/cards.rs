@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
 use rand::prelude::*;
 
-use crate::game::GameDifficulty;
+use crate::game::{GameDifficulty, StageState};
 
 pub const CARD_BACK: &str = "card_back.png";
 
@@ -243,7 +243,8 @@ fn update_card_visibility(
 fn handle_card_flipping(
     mut cards: Query<(Entity, &mut Card)>,
     mut flip_state: ResMut<FlipState>,
-    difficulty: Res<GameDifficulty>, // Add this line
+    difficulty: Res<GameDifficulty>,
+    mut stage_state: ResMut<StageState>,
     time: Res<Time>,
 ) {
     // Handle unmatch timer
@@ -294,6 +295,14 @@ fn handle_card_flipping(
             }
         }
         flip_state.face_up_cards.clear();
+
+        // Check if all cards are now matched
+        let all_matched = cards.iter().all(|(_, card)| card.face_up && card.locked);
+
+        if all_matched {
+            stage_state.stage_complete = true;
+            stage_state.transition_timer = Some(Timer::from_seconds(1.0, TimerMode::Once));
+        }
     } else {
         // Start timer to flip unmatched cards
         flip_state.unmatch_timer = Some(Timer::from_seconds(
