@@ -16,14 +16,13 @@ ribbit_bits = { git = "https://github.com/ribbitgames/ribbit_bits.git" }
 # External dependencies
 anyhow = { version = "1.0.95" }
 avian3d = { version = "0.2.0", features = ["debug-plugin"] }
-bevy = { version = "0.15.1", features = ["jpeg"] }
+bevy = { version = "0.15.1", features = ["jpeg", "webgpu"] }
 bevy_asset_loader = { version = "0.22.0" }
 bevy_kira_audio = { version = "0.21.0", features = ["ogg"] }
 bevy_turborand = { version = "0.10.0", features = ["wyrand"] }
 bevy_framepace = { version = "0.18.0" }
 heck = { version = "0.5.0" }
 leafwing-input-manager = "0.16.0"
-log = { version = "0.4.22" }
 parking_lot = { version = "0.12.3" }
 proc-macro2 = { version = "1.0.92" }
 queues = { version = "1.1.0" }
