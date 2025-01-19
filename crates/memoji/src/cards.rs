@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
 use rand::prelude::*;
 
-use crate::game::GameDifficulty;
+use crate::game::{GameDifficulty, StageState};
 
 pub const CARD_BACK: &str = "card_back.png";
 
@@ -52,6 +52,12 @@ pub struct GameState {
     pub reveal_timer: Option<Timer>,
     /// Whether we're in the initial reveal phase
     pub cards_revealed: bool,
+    /// Number of mistakes made in current stage
+    pub mistakes: u32,
+    /// Maximum mistakes allowed before game over
+    pub max_mistakes: u32,
+    /// Whether the game is over due to too many mistakes
+    pub game_over: bool,
 }
 
 impl GameState {
@@ -60,7 +66,19 @@ impl GameState {
             initial_wait_timer: Some(Timer::from_seconds(1.0, TimerMode::Once)),
             reveal_timer: Some(Timer::from_seconds(2.0, TimerMode::Once)),
             cards_revealed: false,
+            mistakes: 0,
+            max_mistakes: 3,
+            game_over: false,
         }
+    }
+
+    /// Records a mistake and checks if game is over
+    pub fn record_mistake(&mut self) -> bool {
+        self.mistakes += 1;
+        if self.mistakes >= self.max_mistakes {
+            self.game_over = true;
+        }
+        self.game_over
     }
 }
 
@@ -243,22 +261,34 @@ fn update_card_visibility(
 fn handle_card_flipping(
     mut cards: Query<(Entity, &mut Card)>,
     mut flip_state: ResMut<FlipState>,
-    difficulty: Res<GameDifficulty>, // Add this line
+    difficulty: Res<GameDifficulty>,
+    mut stage_state: ResMut<StageState>,
+    mut game_state: ResMut<GameState>,
     time: Res<Time>,
 ) {
-    // Handle unmatch timer
+    // Early return if game is over
+    if game_state.game_over {
+        return;
+    }
+
+    // Handle unmatch timer - keep cards face up during the delay
     if let Some(timer) = &mut flip_state.unmatch_timer {
         if timer.tick(time.delta()).just_finished() {
-            for entity in flip_state.face_up_cards.drain(..) {
+            // Flip back the unmatched cards after the delay
+            for &entity in &flip_state.face_up_cards {
                 if let Ok((_, mut card)) = cards.get_mut(entity) {
                     if !card.locked {
                         card.face_up = false;
                     }
                 }
             }
+            // Clear the face-up cards to allow new input
+            flip_state.face_up_cards.clear();
             flip_state.unmatch_timer = None;
             return;
         }
+        // Early return while timer is active to prevent other logic
+        return;
     }
 
     // Early return if we don't have exactly 2 cards
@@ -266,39 +296,55 @@ fn handle_card_flipping(
         return;
     }
 
-    // Get indices for the two cards
-    let indices: Vec<_> = flip_state
+    // Get indices and entities for the two cards
+    let card_pairs: Vec<(Entity, usize)> = flip_state
         .face_up_cards
         .iter()
-        .filter_map(|&entity| cards.get(entity).ok())
-        .map(|(_, card)| card.emoji_index)
+        .filter_map(|&entity| {
+            cards
+                .get(entity)
+                .ok()
+                .map(|(e, card)| (e, card.emoji_index))
+        })
         .collect();
 
-    // If we don't have exactly 2 indices, something's wrong
-    if indices.len() != 2 {
+    // If we don't have exactly 2 cards, something's wrong
+    if card_pairs.len() != 2 {
         flip_state.face_up_cards.clear();
         return;
     }
 
     // Check if we have a match
-    let is_match = indices
-        .first()
-        .zip(indices.get(1))
-        .is_some_and(|(a, b)| a == b);
+    let is_match = card_pairs[0].1 == card_pairs[1].1;
 
     if is_match {
-        // Lock the matched cards
-        for &entity in &flip_state.face_up_cards {
+        // Lock the matched cards and keep them face up
+        for (entity, _) in card_pairs {
             if let Ok((_, mut card)) = cards.get_mut(entity) {
                 card.locked = true;
+                // Cards stay face up since they're matched
             }
         }
         flip_state.face_up_cards.clear();
+
+        // Check if all cards are now matched
+        let all_matched = cards.iter().all(|(_, card)| card.face_up && card.locked);
+        if all_matched {
+            stage_state.stage_complete = true;
+            stage_state.transition_timer = Some(Timer::from_seconds(1.0, TimerMode::Once));
+        }
     } else {
-        // Start timer to flip unmatched cards
+        // Record mistake and check for game over
+        if game_state.record_mistake() {
+            // Game over - keep cards visible
+            return;
+        }
+
+        // Start unmatch timer - cards stay face up during this time
         flip_state.unmatch_timer = Some(Timer::from_seconds(
             difficulty.mismatch_delay,
             TimerMode::Once,
         ));
+        // Keep face_up_cards populated to know which ones to flip back
     }
 }
