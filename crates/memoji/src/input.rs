@@ -25,7 +25,7 @@ impl Plugin for InputPlugin {
 /// Handles mouse clicks on cards to flip them
 pub fn handle_card_clicks(
     windows: Query<&Window, With<PrimaryWindow>>,
-    buttons: Res<ButtonInput<MouseButton>>,
+    buttons: Res<ButtonInput<MouseButton>>, // Add this back
     camera_q: Query<(&Camera, &GlobalTransform)>,
     mut cards: Query<(Entity, &Transform, &GlobalTransform, &mut Card)>,
     mut flip_state: ResMut<FlipState>,
@@ -40,7 +40,7 @@ pub fn handle_card_clicks(
         return;
     }
 
-    // Check for left mouse button press
+    // Check for left mouse button press - Add this check back
     if !buttons.just_pressed(MouseButton::Left) {
         return;
     }
