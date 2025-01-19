@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use crate::cards::{Card, FlipState, GameState};
+use crate::cards::Card;
+use crate::game::{FlipState, GameState};
 
 /// Component to track whether an entity is clickable
 #[derive(Component, Default)]

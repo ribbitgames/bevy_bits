@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::cards::{Card, GameState};
+use crate::cards::Card;
 
 pub struct GamePlugin;
 
@@ -8,9 +8,16 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GameDifficulty>()
             .init_resource::<StageState>()
+            .init_resource::<FlipState>()
+            .insert_resource(GameState::new())
             .add_systems(
                 Update,
-                (check_stage_completion, handle_stage_transition).chain(),
+                (
+                    check_stage_completion,
+                    handle_stage_transition,
+                    handle_reveal_sequence,
+                )
+                    .chain(),
             );
     }
 }
@@ -81,8 +88,6 @@ impl GameDifficulty {
             (max - min).mul_add(1.0 - (-x * steepness).exp(), min)
         }
 
-        // Example calculations:
-
         // Grid size grows quickly at first, then slowly
         let total_cards = hockey_stick_curve(self.stage, 8.0, 24.0, 0.3) as u32;
         // Adjust grid dimensions based on total cards
@@ -93,6 +98,84 @@ impl GameDifficulty {
         // Times decrease quickly at first, then stabilize
         self.initial_reveal_time = hockey_stick_curve(self.stage, 3.0, 1.0, 0.4);
         self.mismatch_delay = hockey_stick_curve(self.stage, 1.5, 0.5, 0.3);
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct FlipState {
+    /// Currently face-up cards that aren't locked
+    pub face_up_cards: Vec<Entity>,
+    /// Timer for automatic flip-down of unmatched pairs
+    pub unmatch_timer: Option<Timer>,
+}
+
+#[derive(Resource, Default)]
+pub struct GameState {
+    /// Timer for initial face-down state
+    pub initial_wait_timer: Option<Timer>,
+    /// Timer for how long cards stay revealed
+    pub reveal_timer: Option<Timer>,
+    /// Whether we're in the initial reveal phase
+    pub cards_revealed: bool,
+    /// Number of mistakes made in current stage
+    pub mistakes: u32,
+    /// Maximum mistakes allowed before game over
+    pub max_mistakes: u32,
+    /// Whether the game is over due to too many mistakes
+    pub game_over: bool,
+}
+
+impl GameState {
+    pub fn new() -> Self {
+        Self {
+            initial_wait_timer: Some(Timer::from_seconds(1.0, TimerMode::Once)),
+            reveal_timer: Some(Timer::from_seconds(2.0, TimerMode::Once)),
+            cards_revealed: false,
+            mistakes: 0,
+            max_mistakes: 3,
+            game_over: false,
+        }
+    }
+
+    /// Records a mistake and checks if game is over
+    pub fn record_mistake(&mut self) -> bool {
+        self.mistakes += 1;
+        if self.mistakes >= self.max_mistakes {
+            self.game_over = true;
+        }
+        self.game_over
+    }
+
+    /// Checks if two cards match and updates game state
+    pub fn check_for_match(
+        &mut self,
+        cards: &Query<(Entity, &Card)>, // Changed from &Query<&Card>
+        card1: Entity,
+        card2: Entity,
+    ) -> bool {
+        let (Ok((_, card1)), Ok((_, card2))) = (cards.get(card1), cards.get(card2)) else {
+            return false;
+        };
+
+        card1.emoji_index == card2.emoji_index
+    }
+
+    /// Handles mismatch state and returns if game is over
+    pub fn handle_mismatch(&mut self) -> bool {
+        self.record_mistake()
+    }
+
+    /// Checks if all cards are matched
+    pub fn check_all_matched(&self, cards: &Query<(Entity, &Card)>) -> bool {
+        cards.iter().all(|(_, card)| card.face_up && card.locked)
+    }
+
+    /// Returns true if game is in a state where card interaction should be blocked
+    pub fn is_interaction_blocked(&self) -> bool {
+        self.cards_revealed
+            || self.reveal_timer.is_some()
+            || self.initial_wait_timer.is_some()
+            || self.game_over
     }
 }
 
@@ -152,6 +235,40 @@ fn handle_stage_transition(
             // Reset stage state
             stage_state.stage_complete = false;
             stage_state.transition_timer = None;
+        }
+    }
+}
+
+/// System to handle the reveal sequence at the start of each stage
+fn handle_reveal_sequence(
+    time: Res<Time>,
+    mut game_state: ResMut<GameState>,
+    mut cards: Query<&mut Card>,
+) {
+    // Handle initial wait timer
+    if let Some(timer) = &mut game_state.initial_wait_timer {
+        if timer.tick(time.delta()).just_finished() {
+            // Initial wait is over, reveal all cards
+            for mut card in &mut cards {
+                card.face_up = true;
+            }
+            game_state.cards_revealed = true;
+            game_state.initial_wait_timer = None;
+        }
+        return;
+    }
+
+    // Handle reveal timer
+    if game_state.cards_revealed {
+        if let Some(timer) = &mut game_state.reveal_timer {
+            if timer.tick(time.delta()).just_finished() {
+                // Reveal time is over, hide all cards
+                for mut card in &mut cards {
+                    card.face_up = false;
+                }
+                game_state.cards_revealed = false;
+                game_state.reveal_timer = None;
+            }
         }
     }
 }
