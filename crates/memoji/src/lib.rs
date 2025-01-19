@@ -2,10 +2,12 @@ use bevy::prelude::*;
 use bits_helpers::emoji::EmojiPlugin;
 
 mod cards;
+mod game;
 mod input;
 mod ribbit;
 
 use cards::CardPlugin;
+use game::GamePlugin;
 use input::InputPlugin;
 
 pub fn run() {
@@ -15,7 +17,8 @@ pub fn run() {
     )
     .add_plugins(EmojiPlugin)
     .add_plugins(CardPlugin)
-    .add_plugins(InputPlugin) // Include the InputPlugin
+    .add_plugins(InputPlugin)
+    .add_plugins(GamePlugin)
     .add_systems(Startup, setup)
     .run();
 }

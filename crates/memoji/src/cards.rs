@@ -2,10 +2,8 @@ use bevy::prelude::*;
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
 use rand::prelude::*;
 
-// Game constants
-pub const DISPLAY_COLS: u32 = 4;
-pub const DISPLAY_ROWS: u32 = 2;
-pub const GRID_SPACING: f32 = 70.0;
+use crate::game::GameDifficulty;
+
 pub const CARD_BACK: &str = "card_back.png";
 
 #[derive(Component, Debug, Default)]
@@ -60,10 +58,7 @@ impl GameState {
     pub fn new() -> Self {
         Self {
             initial_wait_timer: Some(Timer::from_seconds(1.0, TimerMode::Once)),
-            reveal_timer: Some(Timer::from_seconds(
-                (DISPLAY_COLS * DISPLAY_ROWS) as f32 * 0.5,
-                TimerMode::Once,
-            )),
+            reveal_timer: Some(Timer::from_seconds(2.0, TimerMode::Once)),
             cards_revealed: false,
         }
     }
@@ -74,6 +69,7 @@ pub struct CardPlugin;
 impl Plugin for CardPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<FlipState>()
+            .init_resource::<GameDifficulty>()
             .insert_resource(GameState::new())
             .add_systems(Startup, setup_cards)
             .add_systems(
@@ -100,30 +96,33 @@ fn spawn_emoji_grid(
     atlas: Res<EmojiAtlas>,
     validation: Res<AtlasValidation>,
     card_back: Res<CardBackTexture>,
+    difficulty: Res<GameDifficulty>,
     query: Query<Entity, With<emoji::EmojiSprite>>,
 ) {
     if !emoji::is_emoji_system_ready(&validation) || !query.is_empty() {
         return;
     }
 
-    let selected_indices = emoji::get_random_emojis(&atlas, &validation, 4);
-    let mut all_indices = Vec::with_capacity(8);
+    let selected_indices = emoji::get_random_emojis(&atlas, &validation, difficulty.num_pairs);
+    let mut all_indices = Vec::with_capacity(difficulty.num_pairs * 2);
     for &idx in &selected_indices {
         all_indices.extend([idx, idx]);
     }
     all_indices.shuffle(&mut rand::thread_rng());
 
-    let grid_width = DISPLAY_COLS as f32 * GRID_SPACING;
-    let grid_height = DISPLAY_ROWS as f32 * GRID_SPACING;
+    let grid_width = difficulty.grid_cols as f32 * difficulty.grid_spacing;
+    let grid_height = difficulty.grid_rows as f32 * difficulty.grid_spacing;
     let start_x = -grid_width / 2.0;
     let start_y = grid_height / 2.0;
 
-    for row in 0..DISPLAY_ROWS {
-        for col in 0..DISPLAY_COLS {
-            let index = (row * DISPLAY_COLS + col) as usize;
+    for row in 0..difficulty.grid_rows {
+        for col in 0..difficulty.grid_cols {
+            let index = (row * difficulty.grid_cols + col) as usize;
             if let Some(&sprite_index) = all_indices.get(index) {
-                let x = (col as f32).mul_add(GRID_SPACING, start_x) + GRID_SPACING / 2.0;
-                let y = (-(row as f32)).mul_add(GRID_SPACING, start_y) - GRID_SPACING / 2.0;
+                let x = (col as f32).mul_add(difficulty.grid_spacing, start_x)
+                    + difficulty.grid_spacing / 2.0;
+                let y = (-(row as f32)).mul_add(difficulty.grid_spacing, start_y)
+                    - difficulty.grid_spacing / 2.0;
                 let _position = Vec2::new(x + 0.5, y + 0.5);
 
                 // Spawn card parent entity
@@ -162,7 +161,7 @@ fn spawn_emoji_grid(
                     .spawn(CardBackBundle {
                         sprite: Sprite {
                             image: card_back.0.clone(),
-                            custom_size: Some(Vec2::splat(GRID_SPACING * 1.5)), // card_back size doesn't match the atlas emojis unfortunately
+                            custom_size: Some(Vec2::splat(difficulty.grid_spacing * 1.5)), // card_back size doesn't match the atlas emojis unfortunately
                             ..default()
                         },
                         transform: Transform::from_translation(Vec3::ZERO),
@@ -244,6 +243,7 @@ fn update_card_visibility(
 fn handle_card_flipping(
     mut cards: Query<(Entity, &mut Card)>,
     mut flip_state: ResMut<FlipState>,
+    difficulty: Res<GameDifficulty>, // Add this line
     time: Res<Time>,
 ) {
     // Handle unmatch timer
@@ -296,6 +296,9 @@ fn handle_card_flipping(
         flip_state.face_up_cards.clear();
     } else {
         // Start timer to flip unmatched cards
-        flip_state.unmatch_timer = Some(Timer::from_seconds(1.0, TimerMode::Once));
+        flip_state.unmatch_timer = Some(Timer::from_seconds(
+            difficulty.mismatch_delay,
+            TimerMode::Once,
+        ));
     }
 }
