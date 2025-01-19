@@ -148,7 +148,7 @@ impl GameState {
 
     /// Checks if two cards match and updates game state
     pub fn check_for_match(
-        &mut self,
+        &self,
         cards: &Query<(Entity, &Card)>, // Changed from &Query<&Card>
         card1: Entity,
         card2: Entity,
@@ -171,7 +171,7 @@ impl GameState {
     }
 
     /// Returns true if game is in a state where card interaction should be blocked
-    pub fn is_interaction_blocked(&self) -> bool {
+    pub const fn is_interaction_blocked(&self) -> bool {
         self.cards_revealed
             || self.reveal_timer.is_some()
             || self.initial_wait_timer.is_some()
