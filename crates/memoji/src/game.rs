@@ -9,26 +9,72 @@ impl Plugin for GamePlugin {
         app.init_resource::<GameDifficulty>()
             .init_resource::<StageState>()
             .init_resource::<FlipState>()
-            .insert_resource(GameState::new())
+            .init_resource::<GameProgress>()
             .add_systems(
                 Update,
                 (
                     check_stage_completion,
                     handle_stage_transition,
-                    handle_reveal_sequence,
+                    handle_reveal_sequence.run_if(in_state(GameState::Playing)),
                 )
                     .chain(),
             );
     }
 }
 
-/// Resource to track stage completion state
 #[derive(Resource, Default)]
 pub struct StageState {
-    /// Indicates stage is complete and transition should begin
     pub stage_complete: bool,
-    /// Optional timer for stage transition animation/delay
     pub transition_timer: Option<Timer>,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States, Resource)]
+pub enum GameState {
+    #[default]
+    Welcome,
+    Playing,
+    StageComplete,
+    GameOver,
+}
+
+#[derive(Resource)]
+pub struct GameProgress {
+    pub initial_wait_timer: Option<Timer>,
+    pub reveal_timer: Option<Timer>,
+    pub cards_revealed: bool,
+    pub mistakes: u32,
+    pub max_mistakes: u32,
+    pub game_over: bool,
+}
+
+impl Default for GameProgress {
+    fn default() -> Self {
+        Self {
+            initial_wait_timer: Some(Timer::from_seconds(1.0, TimerMode::Once)),
+            reveal_timer: Some(Timer::from_seconds(2.0, TimerMode::Once)),
+            cards_revealed: false,
+            mistakes: 0,
+            max_mistakes: 3,
+            game_over: false,
+        }
+    }
+}
+
+impl GameProgress {
+    pub fn record_mistake(&mut self) -> bool {
+        self.mistakes += 1;
+        if self.mistakes >= self.max_mistakes {
+            self.game_over = true;
+        }
+        self.game_over
+    }
+
+    pub const fn is_interaction_blocked(&self) -> bool {
+        self.cards_revealed
+            || self.reveal_timer.is_some()
+            || self.initial_wait_timer.is_some()
+            || self.game_over
+    }
 }
 
 #[derive(Resource, Debug)]
@@ -94,171 +140,95 @@ impl GameDifficulty {
 
 #[derive(Resource, Default)]
 pub struct FlipState {
-    /// Currently face-up cards that aren't locked
     pub face_up_cards: Vec<Entity>,
-    /// Timer for automatic flip-down of unmatched pairs
     pub unmatch_timer: Option<Timer>,
 }
 
-#[derive(Resource, Default)]
-pub struct GameState {
-    /// Timer for initial face-down state
-    pub initial_wait_timer: Option<Timer>,
-    /// Timer for how long cards stay revealed
-    pub reveal_timer: Option<Timer>,
-    /// Whether we're in the initial reveal phase
-    pub cards_revealed: bool,
-    /// Number of mistakes made in current stage
-    pub mistakes: u32,
-    /// Maximum mistakes allowed before game over
-    pub max_mistakes: u32,
-    /// Whether the game is over due to too many mistakes
-    pub game_over: bool,
-}
-
-impl GameState {
-    pub fn new() -> Self {
-        Self {
-            initial_wait_timer: Some(Timer::from_seconds(1.0, TimerMode::Once)),
-            reveal_timer: Some(Timer::from_seconds(2.0, TimerMode::Once)),
-            cards_revealed: false,
-            mistakes: 0,
-            max_mistakes: 3,
-            game_over: false,
-        }
-    }
-
-    /// Records a mistake and checks if game is over
-    pub fn record_mistake(&mut self) -> bool {
-        self.mistakes += 1;
-        if self.mistakes >= self.max_mistakes {
-            self.game_over = true;
-        }
-        self.game_over
-    }
-
-    /// Checks if two cards match and updates game state
-    pub fn check_for_match(
-        &self,
-        cards: &Query<(Entity, &Card)>, // Changed from &Query<&Card>
-        card1: Entity,
-        card2: Entity,
-    ) -> bool {
-        let (Ok((_, card1)), Ok((_, card2))) = (cards.get(card1), cards.get(card2)) else {
-            return false;
-        };
-
-        card1.emoji_index == card2.emoji_index
-    }
-
-    /// Handles mismatch state and returns if game is over
-    pub fn handle_mismatch(&mut self) -> bool {
-        self.record_mistake()
-    }
-
-    /// Checks if all cards are matched
-    pub fn check_all_matched(&self, cards: &Query<(Entity, &Card)>) -> bool {
-        cards.iter().all(|(_, card)| card.face_up && card.locked)
-    }
-
-    /// Returns true if game is in a state where card interaction should be blocked
-    pub const fn is_interaction_blocked(&self) -> bool {
-        self.cards_revealed
-            || self.reveal_timer.is_some()
-            || self.initial_wait_timer.is_some()
-            || self.game_over
-    }
-}
-
-/// System to check if all cards are matched and stage is complete
-fn check_stage_completion(cards: Query<&Card>, mut stage_state: ResMut<StageState>) {
-    // Only check if we haven't already marked the stage as complete
-    if stage_state.stage_complete {
+fn check_stage_completion(
+    cards: Query<&Card>,
+    mut stage_state: ResMut<StageState>,
+    game_progress: ResMut<GameProgress>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if stage_state.stage_complete || game_progress.game_over {
         return;
     }
 
-    // Get total number of cards
     let total_cards = cards.iter().count();
     if total_cards == 0 {
         return;
     }
 
-    // Check if all cards are matched (face up and locked)
     let matched_cards = cards
         .iter()
         .filter(|card| card.face_up && card.locked)
         .count();
 
-    // If all cards are matched, mark stage as complete
     if matched_cards == total_cards {
         stage_state.stage_complete = true;
         stage_state.transition_timer = Some(Timer::from_seconds(1.0, TimerMode::Once));
+        next_state.set(GameState::StageComplete);
+    }
+
+    if game_progress.game_over {
+        next_state.set(GameState::GameOver);
     }
 }
 
-/// System to handle stage transitions
 fn handle_stage_transition(
     mut commands: Commands,
     time: Res<Time>,
     mut stage_state: ResMut<StageState>,
     mut game_difficulty: ResMut<GameDifficulty>,
-    mut game_state: ResMut<GameState>,
+    mut game_progress: ResMut<GameProgress>,
     cards: Query<Entity, With<Card>>,
 ) {
-    // Check if we're in transition and the timer is active
     if let Some(timer) = &mut stage_state.transition_timer {
         if timer.tick(time.delta()).just_finished() {
-            // Despawn all existing cards
             for card_entity in cards.iter() {
                 commands.entity(card_entity).despawn_recursive();
             }
 
-            // Advance to next stage
             game_difficulty.advance_stage();
 
-            // Reset game state for new stage
-            *game_state = GameState::new();
-            game_state.initial_wait_timer = Some(Timer::from_seconds(
-                game_difficulty.initial_reveal_time,
-                TimerMode::Once,
-            ));
+            *game_progress = GameProgress {
+                initial_wait_timer: Some(Timer::from_seconds(
+                    game_difficulty.initial_reveal_time,
+                    TimerMode::Once,
+                )),
+                ..default()
+            };
 
-            // Reset stage state
             stage_state.stage_complete = false;
             stage_state.transition_timer = None;
         }
     }
 }
 
-/// System to handle the reveal sequence at the start of each stage
 fn handle_reveal_sequence(
     time: Res<Time>,
-    mut game_state: ResMut<GameState>,
+    mut game_progress: ResMut<GameProgress>,
     mut cards: Query<&mut Card>,
 ) {
-    // Handle initial wait timer
-    if let Some(timer) = &mut game_state.initial_wait_timer {
+    if let Some(timer) = &mut game_progress.initial_wait_timer {
         if timer.tick(time.delta()).just_finished() {
-            // Initial wait is over, reveal all cards
             for mut card in &mut cards {
                 card.face_up = true;
             }
-            game_state.cards_revealed = true;
-            game_state.initial_wait_timer = None;
+            game_progress.cards_revealed = true;
+            game_progress.initial_wait_timer = None;
+            return;
         }
-        return;
     }
 
-    // Handle reveal timer
-    if game_state.cards_revealed {
-        if let Some(timer) = &mut game_state.reveal_timer {
+    if game_progress.cards_revealed {
+        if let Some(timer) = &mut game_progress.reveal_timer {
             if timer.tick(time.delta()).just_finished() {
-                // Reveal time is over, hide all cards
                 for mut card in &mut cards {
                     card.face_up = false;
                 }
-                game_state.cards_revealed = false;
-                game_state.reveal_timer = None;
+                game_progress.cards_revealed = false;
+                game_progress.reveal_timer = None;
             }
         }
     }

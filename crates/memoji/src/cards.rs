@@ -2,7 +2,7 @@ use bevy::prelude::{ParamSet, *};
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
 use rand::prelude::*;
 
-use crate::game::{FlipState, GameDifficulty, GameState, StageState};
+use crate::game::{FlipState, GameDifficulty, GameProgress, GameState, StageState};
 
 pub const CARD_BACK: &str = "card_back.png";
 
@@ -40,7 +40,7 @@ impl Plugin for CardPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<FlipState>()
             .init_resource::<GameDifficulty>()
-            .insert_resource(GameState::new())
+            .insert_resource(GameState::default())
             .add_systems(Startup, setup_cards)
             .add_systems(
                 Update,
@@ -50,7 +50,8 @@ impl Plugin for CardPlugin {
                     handle_card_flipping,
                     update_card_visibility,
                 )
-                    .chain(),
+                    .chain()
+                    .run_if(in_state(GameState::Playing)),
             );
     }
 }
@@ -149,35 +150,30 @@ fn spawn_emoji_grid(
     }
 }
 
-// Remaining functions stay the same as in the original implementation
 fn handle_reveal_sequence(
     time: Res<Time>,
-    mut game_state: ResMut<GameState>,
+    mut game_progress: ResMut<GameProgress>,
     mut cards: Query<&mut Card>,
 ) {
-    // Handle initial wait timer
-    if let Some(timer) = &mut game_state.initial_wait_timer {
+    if let Some(timer) = &mut game_progress.initial_wait_timer {
         if timer.tick(time.delta()).just_finished() {
-            // Initial wait is over, reveal all cards
             for mut card in &mut cards {
                 card.face_up = true;
             }
-            game_state.cards_revealed = true;
-            game_state.initial_wait_timer = None;
+            game_progress.cards_revealed = true;
+            game_progress.initial_wait_timer = None;
         }
         return;
     }
 
-    // Handle reveal timer
-    if game_state.cards_revealed {
-        if let Some(timer) = &mut game_state.reveal_timer {
+    if game_progress.cards_revealed {
+        if let Some(timer) = &mut game_progress.reveal_timer {
             if timer.tick(time.delta()).just_finished() {
-                // Reveal time is over, hide all cards
                 for mut card in &mut cards {
                     card.face_up = false;
                 }
-                game_state.cards_revealed = false;
-                game_state.reveal_timer = None;
+                game_progress.cards_revealed = false;
+                game_progress.reveal_timer = None;
             }
         }
     }
@@ -210,24 +206,20 @@ fn update_card_visibility(
     }
 }
 
-#[expect(clippy::indexing_slicing)]
 fn handle_card_flipping(
     mut card_queries: ParamSet<(Query<(Entity, &mut Card)>, Query<(Entity, &Card)>)>,
     mut flip_state: ResMut<FlipState>,
     difficulty: Res<GameDifficulty>,
     mut stage_state: ResMut<StageState>,
-    mut game_state: ResMut<GameState>,
+    mut game_progress: ResMut<GameProgress>,
     time: Res<Time>,
 ) {
-    // Early return if interaction is blocked
-    if game_state.is_interaction_blocked() {
+    if game_progress.is_interaction_blocked() {
         return;
     }
 
-    // Handle unmatch timer
     if let Some(timer) = &mut flip_state.unmatch_timer {
         if timer.tick(time.delta()).just_finished() {
-            // Flip back unmatched cards
             let mut cards = card_queries.p0();
             for &entity in &flip_state.face_up_cards {
                 if let Ok((_, mut card)) = cards.get_mut(entity) {
@@ -242,18 +234,15 @@ fn handle_card_flipping(
         return;
     }
 
-    // Early return if we don't have exactly 2 cards
     if flip_state.face_up_cards.len() != 2 {
         return;
     }
 
     let card_refs: Vec<Entity> = flip_state.face_up_cards.clone();
-
-    // Check for match using game state with immutable query
-    let is_match = game_state.check_for_match(&card_queries.p1(), card_refs[0], card_refs[1]);
+    let cards = card_queries.p1();
+    let is_match = check_for_match(&cards, card_refs[0], card_refs[1]);
 
     if is_match {
-        // Lock matched cards
         let mut cards = card_queries.p0();
         for entity in card_refs {
             if let Ok((_, mut card)) = cards.get_mut(entity) {
@@ -262,22 +251,30 @@ fn handle_card_flipping(
         }
         flip_state.face_up_cards.clear();
 
-        // Check if stage is complete with immutable query
-        if game_state.check_all_matched(&card_queries.p1()) {
+        // Switch to immutable query for check_all_matched
+        let cards = card_queries.p1();
+        if check_all_matched(&cards) {
             stage_state.stage_complete = true;
             stage_state.transition_timer = Some(Timer::from_seconds(1.0, TimerMode::Once));
         }
     } else {
-        // Handle mismatch
-        if game_state.handle_mismatch() {
-            // Game over - keep cards visible
+        if game_progress.record_mistake() {
             return;
         }
-
-        // Start unmatch timer
         flip_state.unmatch_timer = Some(Timer::from_seconds(
             difficulty.mismatch_delay,
             TimerMode::Once,
         ));
     }
+}
+
+fn check_for_match(cards: &Query<(Entity, &Card)>, card1: Entity, card2: Entity) -> bool {
+    match (cards.get(card1), cards.get(card2)) {
+        (Ok((_, card1)), Ok((_, card2))) => card1.emoji_index == card2.emoji_index,
+        _ => false,
+    }
+}
+
+fn check_all_matched(cards: &Query<(Entity, &Card)>) -> bool {
+    cards.iter().all(|(_, card)| card.face_up && card.locked)
 }

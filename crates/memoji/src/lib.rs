@@ -1,14 +1,18 @@
 use bevy::prelude::*;
 use bits_helpers::emoji::EmojiPlugin;
 
+use crate::game::GameState;
+
 mod cards;
 mod game;
 mod input;
 mod ribbit;
+mod screen;
 
 use cards::CardPlugin;
 use game::GamePlugin;
 use input::InputPlugin;
+use screen::ScreenPlugin;
 
 pub fn run() {
     bits_helpers::get_default_app::<ribbit::Memoji>(
@@ -19,6 +23,8 @@ pub fn run() {
     .add_plugins(CardPlugin)
     .add_plugins(InputPlugin)
     .add_plugins(GamePlugin)
+    .init_state::<GameState>()
+    .add_plugins(ScreenPlugin)
     .add_systems(Startup, setup)
     .run();
 }
