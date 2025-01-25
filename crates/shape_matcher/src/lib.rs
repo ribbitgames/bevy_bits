@@ -5,6 +5,7 @@ use bevy::math::Vec2;
 use bevy::prelude::*;
 use bevy::time::{Timer, TimerMode};
 use bits_helpers::floating_score::{animate_floating_scores, spawn_floating_score};
+use bits_helpers::input::just_pressed_screen_position;
 use bits_helpers::restart::{
     cleanup_marked_entities, handle_restart, CleanupMarker, RestartButton,
 };
@@ -539,122 +540,124 @@ fn handle_game_input(
     game_data.input_cooldown.tick(time.delta());
 
     // Only process input if the cooldown has finished
-    if game_data.input_cooldown.finished()
-        && (mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed())
-    {
-        let window = windows.single();
-        let Some(position) = window.cursor_position() else {
-            return;
-        };
+    if !game_data.input_cooldown.finished() {
+        return;
+    }
 
-        let grid_width = current_stage.config.grid_cols as f32 * CELL_SIZE;
-        let grid_height = current_stage.config.grid_rows as f32 * CELL_SIZE;
-        let start_x = -grid_width / 2.0;
-        let start_y = grid_height / 2.0;
+    let Some(position) =
+        just_pressed_screen_position(&mouse_button_input, &touch_input, &windows)
+    else {
+        return;
+    };
 
-        let x = position.x - window.width() / 2.0;
-        let y = window.height() / 2.0 - position.y;
+    let window = windows.single();
 
-        if x < start_x || x >= start_x + grid_width || y < start_y - grid_height || y >= start_y {
-            return;
+    let grid_width = current_stage.config.grid_cols as f32 * CELL_SIZE;
+    let grid_height = current_stage.config.grid_rows as f32 * CELL_SIZE;
+    let start_x = -grid_width / 2.0;
+    let start_y = grid_height / 2.0;
+
+    let x = position.x - window.width() / 2.0;
+    let y = window.height() / 2.0 - position.y;
+
+    if x < start_x || x >= start_x + grid_width || y < start_y - grid_height || y >= start_y {
+        return;
+    }
+
+    let col = ((x - start_x) / CELL_SIZE) as usize;
+    let row = ((start_y - y) / CELL_SIZE) as usize;
+
+    let mut revealed_entity = None;
+    for (entity, mut cell) in &mut cell_query {
+        if cell.row != row || cell.col != col || cell.is_revealed || cell.is_locked {
+            continue;
         }
+        cell.is_revealed = true;
+        revealed_entity = Some(entity);
 
-        let col = ((x - start_x) / CELL_SIZE) as usize;
-        let row = ((start_y - y) / CELL_SIZE) as usize;
-
-        let mut revealed_entity = None;
-        for (entity, mut cell) in &mut cell_query {
-            if cell.row != row || cell.col != col || cell.is_revealed || cell.is_locked {
-                continue;
-            }
-            cell.is_revealed = true;
-            revealed_entity = Some(entity);
-
-            // Reveal the shape
-            if let Ok(mut shape_visibility) = visibility_query.get_mut(cell.shape_entity) {
-                *shape_visibility = Visibility::Visible;
-            }
-            // Hide the question mark
-            if let Ok(mut question_mark_visibility) =
-                visibility_query.get_mut(cell.question_mark_entity)
-            {
-                *question_mark_visibility = Visibility::Hidden;
-            }
-            break;
+        // Reveal the shape
+        if let Ok(mut shape_visibility) = visibility_query.get_mut(cell.shape_entity) {
+            *shape_visibility = Visibility::Visible;
         }
+        // Hide the question mark
+        if let Ok(mut question_mark_visibility) =
+            visibility_query.get_mut(cell.question_mark_entity)
+        {
+            *question_mark_visibility = Visibility::Hidden;
+        }
+        break;
+    }
 
-        if let Some(revealed_entity) = revealed_entity {
-            if let Some(first_revealed) = game_data.first_revealed {
-                let [(_, mut first_cell), (_, mut second_cell)] = cell_query
-                    .get_many_mut([first_revealed, revealed_entity])
-                    .expect("Failed to get both revealed cells");
-                if first_cell.shape == second_cell.shape && first_cell.color == second_cell.color {
-                    // Match found
-                    first_cell.is_matched = true;
-                    second_cell.is_matched = true;
-                    game_data.matched_pairs += 1;
-                    spawn_floating_score(
-                        &mut commands,
-                        calculate_grid_position(
-                            second_cell.row,
-                            second_cell.col,
-                            current_stage.config.grid_cols,
-                            current_stage.config.grid_rows,
-                        ),
-                        "+1",
-                        GREEN,
-                        &asset_server,
-                    );
-                    // Remove the input cooldown for correct matches
-                    game_data.input_cooldown = Timer::from_seconds(0.0, TimerMode::Once);
-                } else {
-                    // No match
-                    game_data.mistakes += 1;
-                    spawn_floating_score(
-                        &mut commands,
-                        calculate_grid_position(
-                            second_cell.row,
-                            second_cell.col,
-                            current_stage.config.grid_cols,
-                            current_stage.config.grid_rows,
-                        ),
-                        "-1",
-                        RED,
-                        &asset_server,
-                    );
-
-                    // Set up timer to hide cells
-                    commands.spawn((
-                        HideCellsTimer(Timer::from_seconds(HIDE_CELLS_DELAY, TimerMode::Once)),
-                        HideCellsData {
-                            first: first_revealed,
-                            second: revealed_entity,
-                        },
-                    ));
-
-                    // Lock the cells
-                    first_cell.is_locked = true;
-                    second_cell.is_locked = true;
-
-                    // Apply input cooldown only for mistakes
-                    game_data.input_cooldown =
-                        Timer::from_seconds(HIDE_CELLS_DELAY, TimerMode::Once);
-                }
-                game_data.first_revealed = None;
+    if let Some(revealed_entity) = revealed_entity {
+        if let Some(first_revealed) = game_data.first_revealed {
+            let [(_, mut first_cell), (_, mut second_cell)] = cell_query
+                .get_many_mut([first_revealed, revealed_entity])
+                .expect("Failed to get both revealed cells");
+            if first_cell.shape == second_cell.shape && first_cell.color == second_cell.color {
+                // Match found
+                first_cell.is_matched = true;
+                second_cell.is_matched = true;
+                game_data.matched_pairs += 1;
+                spawn_floating_score(
+                    &mut commands,
+                    calculate_grid_position(
+                        second_cell.row,
+                        second_cell.col,
+                        current_stage.config.grid_cols,
+                        current_stage.config.grid_rows,
+                    ),
+                    "+1",
+                    GREEN,
+                    &asset_server,
+                );
+                // Remove the input cooldown for correct matches
+                game_data.input_cooldown = Timer::from_seconds(0.0, TimerMode::Once);
             } else {
-                game_data.first_revealed = Some(revealed_entity);
-            }
-        }
+                // No match
+                game_data.mistakes += 1;
+                spawn_floating_score(
+                    &mut commands,
+                    calculate_grid_position(
+                        second_cell.row,
+                        second_cell.col,
+                        current_stage.config.grid_cols,
+                        current_stage.config.grid_rows,
+                    ),
+                    "-1",
+                    RED,
+                    &asset_server,
+                );
 
-        // Check if the stage is complete
-        if game_data.is_stage_complete(current_stage.config) {
-            if current_stage.advance() {
-                game_data.stage_complete_timer =
-                    Some(Timer::from_seconds(STAGE_COMPLETE_DELAY, TimerMode::Once));
-                next_state.set(GameState::StageComplete);
-            } else {
-                next_state.set(GameState::GameOver);
+                // Set up timer to hide cells
+                commands.spawn((
+                    HideCellsTimer(Timer::from_seconds(HIDE_CELLS_DELAY, TimerMode::Once)),
+                    HideCellsData {
+                        first: first_revealed,
+                        second: revealed_entity,
+                    },
+                ));
+
+                // Lock the cells
+                first_cell.is_locked = true;
+                second_cell.is_locked = true;
+
+                // Apply input cooldown only for mistakes
+                game_data.input_cooldown = Timer::from_seconds(HIDE_CELLS_DELAY, TimerMode::Once);
             }
+            game_data.first_revealed = None;
+        } else {
+            game_data.first_revealed = Some(revealed_entity);
+        }
+    }
+
+    // Check if the stage is complete
+    if game_data.is_stage_complete(current_stage.config) {
+        if current_stage.advance() {
+            game_data.stage_complete_timer =
+                Some(Timer::from_seconds(STAGE_COMPLETE_DELAY, TimerMode::Once));
+            next_state.set(GameState::StageComplete);
+        } else {
+            next_state.set(GameState::GameOver);
         }
     }
 }

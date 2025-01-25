@@ -1,6 +1,7 @@
 use bevy::color::palettes::css::{BLUE, GREEN, RED, WHITE, YELLOW};
 use bevy::math::primitives;
 use bevy::prelude::*;
+use bits_helpers::input::{just_pressed_world_position, pressed_world_position};
 use bits_helpers::welcome_screen::{despawn_welcome_screen, spawn_welcome_screen_shape};
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use rand::prelude::*;
@@ -245,43 +246,40 @@ fn paddle_movement(
     mut paddle_query: Query<(&mut Transform, &mut DragState), With<Paddle>>,
     camera_query: Query<(&Camera, &GlobalTransform)>,
 ) {
-    let window = windows.single();
-    let (camera, camera_transform) = camera_query.single();
+    let Ok((mut paddle_transform, mut drag_state)) = paddle_query.get_single_mut() else {
+        return;
+    };
 
-    if let Ok((mut paddle_transform, mut drag_state)) = paddle_query.get_single_mut() {
-        if let Some(cursor_position) = window.cursor_position() {
-            if let Ok(world_position) = camera
-                .viewport_to_world(camera_transform, cursor_position)
-                .map(|ray| ray.origin.truncate())
-            {
-                if mouse_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
-                    // Start dragging
-                    drag_state.is_dragging = true;
-                    drag_state.drag_start = world_position;
-                    drag_state.initial_paddle_pos = paddle_transform.translation.truncate();
-                } else if mouse_input.just_released(MouseButton::Left)
-                    || touch_input.any_just_released()
-                {
-                    // Stop dragging
-                    drag_state.is_dragging = false;
-                }
+    if let Some(world_position) =
+        just_pressed_world_position(&mouse_input, &touch_input, &windows, &camera_query)
+    {
+        // Start dragging
+        drag_state.is_dragging = true;
+        drag_state.drag_start = world_position;
+        drag_state.initial_paddle_pos = paddle_transform.translation.truncate();
+    } else if mouse_input.just_released(MouseButton::Left) || touch_input.any_just_released() {
+        // Stop dragging
+        drag_state.is_dragging = false;
+    }
 
-                if drag_state.is_dragging {
-                    // Calculate the drag delta
-                    let drag_delta = world_position - drag_state.drag_start;
+    if drag_state.is_dragging {
+        let Some(pressed_world_position) =
+            pressed_world_position(&mouse_input, &touch_input, &windows, &camera_query)
+        else {
+            return;
+        };
+        // Calculate the drag delta
+        let drag_delta = pressed_world_position - drag_state.drag_start;
 
-                    // Update paddle position based on drag
-                    let new_x = drag_state.initial_paddle_pos.x + drag_delta.x;
+        // Update paddle position based on drag
+        let new_x = drag_state.initial_paddle_pos.x + drag_delta.x;
 
-                    // Clamp the paddle position to stay within the screen bounds
-                    let half_paddle_width = PADDLE_SIZE.x / 2.0;
-                    paddle_transform.translation.x = new_x.clamp(
-                        -WINDOW_WIDTH / 2.0 + half_paddle_width,
-                        WINDOW_WIDTH / 2.0 - half_paddle_width,
-                    );
-                }
-            }
-        }
+        // Clamp the paddle position to stay within the screen bounds
+        let half_paddle_width = PADDLE_SIZE.x / 2.0;
+        paddle_transform.translation.x = new_x.clamp(
+            -WINDOW_WIDTH / 2.0 + half_paddle_width,
+            WINDOW_WIDTH / 2.0 - half_paddle_width,
+        );
     }
 }
 

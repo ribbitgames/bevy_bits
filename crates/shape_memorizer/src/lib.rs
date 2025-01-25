@@ -3,6 +3,7 @@ use core::time::Duration;
 use bevy::color::palettes::css::{BLUE, GREEN, RED, YELLOW};
 use bevy::prelude::*;
 use bits_helpers::floating_score::{animate_floating_scores, spawn_floating_score};
+use bits_helpers::input::just_pressed_screen_position;
 use bits_helpers::welcome_screen::{despawn_welcome_screen, spawn_welcome_screen_shape};
 use bits_helpers::FONT;
 use rand::seq::SliceRandom;
@@ -340,79 +341,77 @@ fn handle_game_input(
     mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
-        let window = windows.single();
-        let Some(position) = window.cursor_position() else {
-            return;
+    let Some(position) = just_pressed_screen_position(&mouse_button_input, &touch_input, &windows)
+    else {
+        return;
+    };
+
+    let window = windows.single();
+
+    let grid_width = GRID_COLS as f32 * CELL_SIZE;
+    let grid_height = GRID_ROWS as f32 * CELL_SIZE;
+    let start_x = -grid_width / 2.0;
+    let start_y = grid_height / 2.0;
+
+    let x = position.x - window.width() / 2.0;
+    let y = window.height() / 2.0 - position.y;
+
+    if x < start_x || x >= start_x + grid_width || y < start_y - grid_height || y >= start_y {
+        return;
+    }
+
+    let col = ((x - start_x) / CELL_SIZE) as usize;
+    let row = ((start_y - y) / CELL_SIZE) as usize;
+
+    for (entity, mut cell) in &mut cell_query {
+        if cell.row != row || cell.col != col || cell.is_revealed {
+            continue;
+        }
+        cell.is_revealed = true;
+
+        commands.entity(entity).despawn();
+
+        let x = (col as f32).mul_add(CELL_SIZE, start_x) + CELL_SIZE / 2.0;
+        let y = (row as f32).mul_add(-CELL_SIZE, start_y) - CELL_SIZE / 2.0;
+
+        let mesh = match cell.shape {
+            Shape::Circle => Mesh::from(bevy::math::primitives::Circle::new(CELL_SIZE * 0.4)),
+            Shape::Square => Mesh::from(bevy::math::primitives::Rectangle::new(
+                CELL_SIZE * 0.8,
+                CELL_SIZE * 0.8,
+            )),
+            Shape::Triangle => Mesh::from(bevy::math::primitives::RegularPolygon::new(
+                CELL_SIZE * 0.4,
+                3,
+            )),
+            Shape::Hexagon => Mesh::from(bevy::math::primitives::RegularPolygon::new(
+                CELL_SIZE * 0.4,
+                6,
+            )),
         };
 
-        let grid_width = GRID_COLS as f32 * CELL_SIZE;
-        let grid_height = GRID_ROWS as f32 * CELL_SIZE;
-        let start_x = -grid_width / 2.0;
-        let start_y = grid_height / 2.0;
+        commands.spawn((
+            Mesh2d(meshes.add(mesh)),
+            MeshMaterial2d(materials.add(ColorMaterial::from(cell.color))),
+            Transform::from_translation(Vec3::new(x, y, 0.0)),
+            Visibility::Visible,
+        ));
 
-        let x = position.x - window.width() / 2.0;
-        let y = window.height() / 2.0 - position.y;
-
-        if x < start_x || x >= start_x + grid_width || y < start_y - grid_height || y >= start_y {
-            return;
+        if cell.is_target {
+            game_data.correct_guesses += 1;
+            spawn_floating_score(&mut commands, position, "+1", GREEN, &asset_server);
+            if game_data.correct_guesses >= 3 {
+                next_state.set(GameState::GameOver);
+            }
+        } else {
+            game_data.mistakes += 1;
+            spawn_floating_score(&mut commands, position, "-1", RED, &asset_server);
+            if game_data.mistakes > MAX_MISTAKES {
+                next_state.set(GameState::GameOver);
+            }
         }
 
-        let col = ((x - start_x) / CELL_SIZE) as usize;
-        let row = ((start_y - y) / CELL_SIZE) as usize;
-
-        for (entity, mut cell) in &mut cell_query {
-            if cell.row != row || cell.col != col || cell.is_revealed {
-                continue;
-            }
-            cell.is_revealed = true;
-
-            commands.entity(entity).despawn();
-
-            let x = (col as f32).mul_add(CELL_SIZE, start_x) + CELL_SIZE / 2.0;
-            let y = (row as f32).mul_add(-CELL_SIZE, start_y) - CELL_SIZE / 2.0;
-
-            let mesh = match cell.shape {
-                Shape::Circle => Mesh::from(bevy::math::primitives::Circle::new(CELL_SIZE * 0.4)),
-                Shape::Square => Mesh::from(bevy::math::primitives::Rectangle::new(
-                    CELL_SIZE * 0.8,
-                    CELL_SIZE * 0.8,
-                )),
-                Shape::Triangle => Mesh::from(bevy::math::primitives::RegularPolygon::new(
-                    CELL_SIZE * 0.4,
-                    3,
-                )),
-                Shape::Hexagon => Mesh::from(bevy::math::primitives::RegularPolygon::new(
-                    CELL_SIZE * 0.4,
-                    6,
-                )),
-            };
-
-            commands.spawn((
-                Mesh2d(meshes.add(mesh)),
-                MeshMaterial2d(materials.add(ColorMaterial::from(cell.color))),
-                Transform::from_translation(Vec3::new(x, y, 0.0)),
-                Visibility::Visible,
-            ));
-
-            let world_position = Vec2::new(x, y);
-
-            if cell.is_target {
-                game_data.correct_guesses += 1;
-                spawn_floating_score(&mut commands, world_position, "+1", GREEN, &asset_server);
-                if game_data.correct_guesses >= 3 {
-                    next_state.set(GameState::GameOver);
-                }
-            } else {
-                game_data.mistakes += 1;
-                spawn_floating_score(&mut commands, world_position, "-1", RED, &asset_server);
-                if game_data.mistakes > MAX_MISTAKES {
-                    next_state.set(GameState::GameOver);
-                }
-            }
-
-            break;
-        }
+        break;
     }
 }
 

@@ -12,12 +12,12 @@ impl Plugin for GamePlugin {
             .init_resource::<GameProgress>()
             .add_systems(
                 Update,
-                (
-                    check_stage_completion,
-                    handle_stage_transition,
-                    handle_reveal_sequence.run_if(in_state(GameState::Playing)),
-                    handle_game_over_sequence.run_if(in_state(GameState::Playing)),
-                )
+                (check_stage_completion, handle_stage_transition).chain(),
+            )
+            .add_systems(
+                Update,
+                (handle_reveal_sequence, handle_game_over_sequence)
+                    .run_if(in_state(GameState::Playing))
                     .chain(),
             );
     }

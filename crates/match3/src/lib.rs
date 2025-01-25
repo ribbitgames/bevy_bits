@@ -1,10 +1,9 @@
 use bevy::input::keyboard::KeyboardInput;
-use bevy::input::mouse::MouseButtonInput;
 use bevy::input::ButtonState;
 use bevy::math::Vec3Swizzles;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
-use bevy::window::PrimaryWindow;
+use bits_helpers::input::just_pressed_world_position;
 use match3::prelude::*;
 use ribbit::RibbitMatch3;
 
@@ -246,42 +245,32 @@ fn board_pos_to_world_pos(pos: UVec2) -> Vec2 {
 struct Selection(Option<Entity>);
 
 fn input(
-    window_query: Query<&Window, With<PrimaryWindow>>,
+    window_query: Query<&Window>,
     mut selection: ResMut<Selection>,
-    mut button_events: EventReader<MouseButtonInput>,
-    camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    buttons: Res<ButtonInput<MouseButton>>,
+    camera: Query<(&Camera, &GlobalTransform)>,
     board: Query<&VisibleBoard>,
+    touch_input: Res<Touches>,
 ) {
-    for event in button_events.read() {
-        if let MouseButtonInput {
-            button: MouseButton::Left,
-            state: ButtonState::Pressed,
-            ..
-        } = event
-        {
-            let window = window_query.single();
-            let (camera, camera_transform) = camera.single();
-            if let Some(world_position) = window
-                .cursor_position()
-                .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor).ok())
-                .map(|ray| ray.origin.truncate())
-            {
-                // round down to the gem coordinate
-                let coordinates: IVec2 = (
-                    ((world_position.x + GEM_SIDE_LENGTH / 2.0) / GEM_SIDE_LENGTH) as i32,
-                    ((GEM_SIDE_LENGTH / 2.0 - world_position.y) / GEM_SIDE_LENGTH) as i32,
-                )
-                    .into();
+    let Some(world_position) =
+        just_pressed_world_position(&buttons, &touch_input, &window_query, &camera)
+    else {
+        return;
+    };
 
-                if coordinates.x >= 0 && coordinates.y >= 0 {
-                    selection.0 = board
-                        .single()
-                        .0
-                        .get::<UVec2>(&UVec2::new(coordinates.x as u32, coordinates.y as u32))
-                        .copied();
-                }
-            }
-        }
+    // round down to the gem coordinate
+    let coordinates: IVec2 = (
+        ((world_position.x + GEM_SIDE_LENGTH / 2.0) / GEM_SIDE_LENGTH) as i32,
+        ((GEM_SIDE_LENGTH / 2.0 - world_position.y) / GEM_SIDE_LENGTH) as i32,
+    )
+        .into();
+
+    if coordinates.x >= 0 && coordinates.y >= 0 {
+        selection.0 = board
+            .single()
+            .0
+            .get::<UVec2>(&UVec2::new(coordinates.x as u32, coordinates.y as u32))
+            .copied();
     }
 }
 

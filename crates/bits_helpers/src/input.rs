@@ -26,10 +26,7 @@ pub fn just_pressed_world_position(
 
     let (camera, camera_transform) = camera.single();
 
-    camera
-        .viewport_to_world(camera_transform, position)
-        .map(|ray| ray.origin.truncate())
-        .ok()
+    camera.viewport_to_world_2d(camera_transform, position).ok()
 }
 
 pub fn just_released_screen_position(
@@ -58,8 +55,31 @@ pub fn just_released_world_position(
 
     let (camera, camera_transform) = camera.single();
 
-    camera
-        .viewport_to_world(camera_transform, position)
-        .map(|ray| ray.origin.truncate())
-        .ok()
+    camera.viewport_to_world_2d(camera_transform, position).ok()
+}
+
+pub fn pressed_screen_position(
+    button_input: &Res<ButtonInput<MouseButton>>,
+    touch_input: &Res<Touches>,
+    windows: &Query<&Window>,
+) -> Option<Vec2> {
+    if button_input.pressed(MouseButton::Left) {
+        let cursor_position = windows.single().cursor_position()?;
+        Some(cursor_position)
+    } else {
+        touch_input.first_pressed_position()
+    }
+}
+
+pub fn pressed_world_position(
+    button_input: &Res<ButtonInput<MouseButton>>,
+    touch_input: &Res<Touches>,
+    windows: &Query<&Window>,
+    camera: &Query<(&Camera, &GlobalTransform)>,
+) -> Option<Vec2> {
+    let position = pressed_screen_position(button_input, touch_input, windows)?;
+
+    let (camera, camera_transform) = camera.single();
+
+    camera.viewport_to_world_2d(camera_transform, position).ok()
 }
