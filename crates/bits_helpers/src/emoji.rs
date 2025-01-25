@@ -35,7 +35,11 @@ const ATLAS_SIZE: UVec2 = UVec2::new(8192, 8192);
 const EMOJI_SIZE: UVec2 = UVec2::new(128, 128);
 
 #[cfg(not(target_arch = "wasm32"))]
-pub const ATLAS_PATH: &str = "../../bits_helpers/assets/emojis/EmojiAtlas.png";
+pub const ATLAS_PATH: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "../../bits_helpers/assets/emojis/EmojiAtlas.png"
+);
+
 #[cfg(target_arch = "wasm32")]
 pub const ATLAS_PATH: &str = concat!(
     "../../bits_helpers-",

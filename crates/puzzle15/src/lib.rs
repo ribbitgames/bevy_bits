@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
+use bits_helpers::input::{just_pressed_world_position, just_released_world_position};
 use bits_helpers::FONT;
 use puzzle15::{Panel, PuzzlePanels};
 use ribbit::Puzzle15;
@@ -263,8 +263,8 @@ fn result_puzzle(
 }
 
 fn mouse_events_puzzle(
-    window_query: Query<&Window, With<PrimaryWindow>>,
-    camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    window: Query<&Window>,
+    camera: Query<(&Camera, &GlobalTransform)>,
     mouse_button_input: Res<ButtonInput<MouseButton>>,
     touch_input: Res<Touches>,
     mut player_query: Query<&mut PuzzlePlayer>,
@@ -272,62 +272,44 @@ fn mouse_events_puzzle(
     p_query: Query<(&PanelVisual, &Sprite, &Transform)>,
     mut next_state: ResMut<NextState<PanelState>>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
-        println!("mouse pressed");
-        let window = window_query.single();
-        let (camera, camera_transform) = camera_query.single();
-        if let Some(world_cursor_position) =
-            window.cursor_position().and_then(|viewport_position| {
-                camera
-                    .viewport_to_world_2d(camera_transform, viewport_position)
-                    .ok()
-            })
-        {
-            let mut player = player_query.single_mut();
-            player.pos = world_cursor_position;
-            player.index = get_sprite_at_pos(world_cursor_position, &p_query);
-        }
-    }
-    if mouse_button_input.just_released(MouseButton::Left) || touch_input.any_just_released() {
-        println!("mouse released");
+    if let Some(world_position) =
+        just_pressed_world_position(&mouse_button_input, &touch_input, &window, &camera)
+    {
+        let mut player = player_query.single_mut();
+        player.pos = world_position;
+        player.index = get_sprite_at_pos(world_position, &p_query);
+    };
 
+    if let Some(world_position) =
+        just_released_world_position(&mouse_button_input, &touch_input, &window, &camera)
+    {
         let player = player_query.single();
         let Some(index) = player.index else {
             return;
         };
 
-        let window = window_query.single();
-        let (camera, camera_transform) = camera_query.single();
-        if let Some(world_cursor_position) =
-            window.cursor_position().and_then(|viewport_position| {
-                camera
-                    .viewport_to_world_2d(camera_transform, viewport_position)
-                    .ok()
-            })
-        {
-            let mut puzzle_panels = panels_query.single_mut();
-            let diff = world_cursor_position - player.pos;
-            if get_sprite_at_pos(world_cursor_position, &p_query) == player.index {
-                return;
-            }
-            let pos = puzzle_panels.get_index(index as i32);
-            if diff.x.abs() > diff.y.abs() {
-                let dir = IVec2::new(diff.x.signum() as i32, 0);
-                puzzle_panels.slide(IVec2::new(pos.x, pos.y), dir);
-                println!("{}", *puzzle_panels);
-                println!("released dir = {dir}");
-            } else {
-                let dir = IVec2::new(0, -diff.y.signum() as i32);
-                puzzle_panels.slide(IVec2::new(pos.x, pos.y), dir);
-                println!("{}", *puzzle_panels);
-                println!("released dir = {dir}");
-            }
-            //if puzzle_panels.is_solved() {
-            //    next_state.set(Puzzle15GameState::Result);
-            //}
-            next_state.set(PanelState::Slide);
+        let mut puzzle_panels = panels_query.single_mut();
+        let diff = world_position - player.pos;
+        if get_sprite_at_pos(world_position, &p_query) == player.index {
+            return;
         }
-    }
+        let pos = puzzle_panels.get_index(index as i32);
+        if diff.x.abs() > diff.y.abs() {
+            let dir = IVec2::new(diff.x.signum() as i32, 0);
+            puzzle_panels.slide(IVec2::new(pos.x, pos.y), dir);
+            println!("{}", *puzzle_panels);
+            println!("released dir = {dir}");
+        } else {
+            let dir = IVec2::new(0, -diff.y.signum() as i32);
+            puzzle_panels.slide(IVec2::new(pos.x, pos.y), dir);
+            println!("{}", *puzzle_panels);
+            println!("released dir = {dir}");
+        }
+        //if puzzle_panels.is_solved() {
+        //    next_state.set(Puzzle15GameState::Result);
+        //}
+        next_state.set(PanelState::Slide);
+    };
 }
 
 fn get_sprite_at_pos(

@@ -5,6 +5,7 @@ use bevy::color::palettes::css::{
 };
 use bevy::prelude::*;
 use bits_helpers::floating_score::{animate_floating_scores, spawn_floating_score};
+use bits_helpers::input::{just_pressed_screen_position, just_pressed_world_position};
 use bits_helpers::welcome_screen::{despawn_welcome_screen, spawn_welcome_screen_shape};
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use rand::seq::SliceRandom;
@@ -376,6 +377,7 @@ fn handle_game_input(
     mouse_button_input: Res<ButtonInput<MouseButton>>,
     touch_input: Res<Touches>,
     windows: Query<&Window>,
+    camera: Query<(&Camera, &GlobalTransform)>,
     clickable_shapes: Query<(Entity, &Transform, &Shape), With<ClickableShape>>,
     mut score: ResMut<Score>,
     mut click_counter_query: Query<&mut Text, With<ClickCounterText>>,
@@ -383,70 +385,63 @@ fn handle_game_input(
     target_shape: Res<TargetShape>,
     shape_pool: Res<ShapePool>,
 ) {
-    let Ok(window) = windows.get_single() else {
-        return; // Exit early if there's no window
+    let Some(screen_position) =
+        just_pressed_screen_position(&mouse_button_input, &touch_input, &windows)
+    else {
+        return;
     };
 
-    if let Some(cursor_position) = window.cursor_position() {
-        let world_position = Vec2::new(
-            cursor_position.x - window.width() / 2.0,
-            window.height() / 2.0 - cursor_position.y,
+    let Some(world_position) =
+        just_pressed_world_position(&mouse_button_input, &touch_input, &windows, &camera)
+    else {
+        return;
+    };
+
+    let mut clicked_shape = None;
+    for (entity, transform, shape) in clickable_shapes.iter() {
+        if is_point_in_shape(
+            world_position,
+            transform.translation.truncate(),
+            SHAPE_SIZE / 2.0,
+        ) {
+            clicked_shape = Some((entity, *shape));
+            break;
+        }
+    }
+
+    if let Some((_, shape)) = clicked_shape {
+        // Despawn all shapes
+        for (entity, _, _) in clickable_shapes.iter() {
+            commands.entity(entity).despawn();
+        }
+
+        // Respawn all shapes
+        spawn_all_shapes(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            &target_shape,
+            &shape_pool,
         );
 
-        if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
-            let mut clicked_shape = None;
-            for (entity, transform, shape) in clickable_shapes.iter() {
-                if is_point_in_shape(
-                    world_position,
-                    transform.translation.truncate(),
-                    SHAPE_SIZE / 2.0,
-                ) {
-                    clicked_shape = Some((entity, *shape));
-                    break;
-                }
-            }
-
-            if let Some((_, shape)) = clicked_shape {
-                // Despawn all shapes
-                for (entity, _, _) in clickable_shapes.iter() {
-                    commands.entity(entity).despawn();
-                }
-
-                // Respawn all shapes
-                spawn_all_shapes(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    &target_shape,
-                    &shape_pool,
-                );
-
-                if shape == target_shape.shape {
-                    // Clicked the correct shape
-                    score.0 += 1;
-                    spawn_floating_score(
-                        &mut commands,
-                        cursor_position,
-                        "+1",
-                        GREEN,
-                        &asset_server,
-                    );
-                } else {
-                    // Clicked the wrong shape
-                    score.0 = score.0.saturating_sub(1);
-                    spawn_floating_score(&mut commands, cursor_position, "-1", RED, &asset_server);
-                }
-            } else {
-                // Clicked outside any shape
-                score.0 = score.0.saturating_sub(1);
-                spawn_floating_score(&mut commands, cursor_position, "-1", RED, &asset_server);
-            }
-
-            // Update the click counter text
-            if let Ok(mut text) = click_counter_query.get_single_mut() {
-                text.0 = format!("Score: {}", score.0);
-            }
+        if shape == target_shape.shape {
+            // Clicked the correct shape
+            score.0 += 1;
+            spawn_floating_score(&mut commands, screen_position, "+1", GREEN, &asset_server);
+        } else {
+            // Clicked the wrong shape
+            score.0 = score.0.saturating_sub(1);
+            spawn_floating_score(&mut commands, screen_position, "-1", RED, &asset_server);
         }
+    } else {
+        // Clicked outside any shape
+        score.0 = score.0.saturating_sub(1);
+        spawn_floating_score(&mut commands, screen_position, "-1", RED, &asset_server);
+    }
+
+    // Update the click counter text
+    if let Ok(mut text) = click_counter_query.get_single_mut() {
+        text.0 = format!("Score: {}", score.0);
     }
 }
 

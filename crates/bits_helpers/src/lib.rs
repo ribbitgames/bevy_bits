@@ -3,6 +3,7 @@ pub use bit::*;
 
 pub mod emoji;
 pub mod floating_score;
+pub mod input;
 pub mod restart;
 pub mod welcome_screen;
 

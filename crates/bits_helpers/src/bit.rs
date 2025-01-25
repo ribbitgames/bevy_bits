@@ -16,7 +16,10 @@ use crate::RibbitCommunicationPlugin;
 use crate::RibbitMessageHandler;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub const FONT: &str = "../../bits_helpers/assets/fonts/FiraSans-Bold.ttf";
+pub const FONT: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/assets/fonts/FiraSans-Bold.ttf"
+);
 #[cfg(target_arch = "wasm32")]
 pub const FONT: &str = concat!(
     "../../bits_helpers-",

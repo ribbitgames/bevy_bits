@@ -1,6 +1,7 @@
 use bevy::color::palettes::css::{GREEN, RED};
 use bevy::prelude::*;
 use bits_helpers::floating_score::{spawn_floating_score, FloatingScore};
+use bits_helpers::input::{just_pressed_screen_position, just_pressed_world_position};
 use bits_helpers::{emoji, FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -157,20 +158,8 @@ pub fn handle_playing_input(
     target_info: Res<TargetEmojiInfo>,
     mut emoji_clicked_events: EventWriter<EmojiClickedEvent>,
 ) {
-    if !(mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed()) {
-        return;
-    }
-
-    let (camera, camera_transform) = camera_q.single();
-    let window = windows.single();
-
-    let Some(cursor_position) = window.cursor_position() else {
-        return;
-    };
-
-    let Ok(world_position) = camera
-        .viewport_to_world(camera_transform, cursor_position)
-        .map(|ray| ray.origin.truncate())
+    let Some(world_position) =
+        just_pressed_world_position(&mouse_button_input, &touch_input, &windows, &camera_q)
     else {
         return;
     };
@@ -207,6 +196,12 @@ pub fn handle_playing_input(
             .partial_cmp(&b.distance)
             .expect("Distances should always be comparable")
     });
+
+    let Some(cursor_position) =
+        just_pressed_screen_position(&mouse_button_input, &touch_input, &windows)
+    else {
+        return;
+    };
 
     // If we have multiple hits very close together, check if one is correct
     if hits.len() > 1 {

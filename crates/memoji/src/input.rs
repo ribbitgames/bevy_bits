@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
+use bits_helpers::input::just_pressed_world_position;
 
 use crate::cards::Card;
 use crate::game::{FlipState, GameState};
@@ -25,8 +25,8 @@ impl Plugin for InputPlugin {
 
 /// Handles mouse clicks on cards to flip them
 pub fn handle_card_clicks(
-    windows: Query<&Window, With<PrimaryWindow>>,
-    buttons: Res<ButtonInput<MouseButton>>, // Add this back
+    windows: Query<&Window>,
+    buttons: Res<ButtonInput<MouseButton>>,
     touch_input: Res<Touches>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
     mut cards: Query<(Entity, &Transform, &GlobalTransform, &mut Card)>,
@@ -42,29 +42,10 @@ pub fn handle_card_clicks(
         return;
     }
 
-    // Check for left mouse button press - Add this check back
-    if !(buttons.just_pressed(MouseButton::Left) || touch_input.any_just_pressed()) {
+    let Some(world_position) =
+        just_pressed_world_position(&buttons, &touch_input, &windows, &camera_q)
+    else {
         return;
-    }
-
-    // Get window and cursor position
-    let Ok(window) = windows.get_single() else {
-        return;
-    };
-    let Some(cursor_position) = window.cursor_position() else {
-        return;
-    };
-
-    // Get camera
-    let Ok((camera, camera_transform)) = camera_q.get_single() else {
-        return;
-    };
-
-    // Convert cursor position to world coordinates
-    let world_position: Vec2 = match camera.viewport_to_world_2d(camera_transform, cursor_position)
-    {
-        Ok(pos) => pos,
-        Err(_) => return,
     };
 
     for (entity, _local_transform, global_transform, mut card) in &mut cards {
