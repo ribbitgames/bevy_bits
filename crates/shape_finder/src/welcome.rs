@@ -79,10 +79,11 @@ pub fn try_spawn_welcome_screen(
 /// Handles input on the welcome screen
 pub fn handle_welcome_input(
     mouse_button_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
     mut game_timer: ResMut<GameTimer>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) {
+    if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
         game_timer.0.reset();
         next_state.set(GameState::Playing);
     }

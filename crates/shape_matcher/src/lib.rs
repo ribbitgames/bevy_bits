@@ -264,9 +264,10 @@ fn spawn_welcome_screen(mut commands: Commands, asset_server: Res<AssetServer>) 
 
 fn handle_welcome_input(
     mouse_button_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) {
+    if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
         next_state.set(GameState::StageSetup);
     }
 }
@@ -527,6 +528,7 @@ fn handle_game_input(
     mut cell_query: Query<(Entity, &mut GridCell)>,
     mut game_data: ResMut<GameData>,
     mouse_button_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
     asset_server: Res<AssetServer>,
     time: Res<Time>,
@@ -537,7 +539,9 @@ fn handle_game_input(
     game_data.input_cooldown.tick(time.delta());
 
     // Only process input if the cooldown has finished
-    if game_data.input_cooldown.finished() && mouse_button_input.just_pressed(MouseButton::Left) {
+    if game_data.input_cooldown.finished()
+        && (mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed())
+    {
         let window = windows.single();
         let Some(position) = window.cursor_position() else {
             return;

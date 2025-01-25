@@ -139,9 +139,10 @@ fn spawn_welcome_screen(
 
 fn handle_welcome_input(
     mouse_button_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) {
+    if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
         next_state.set(GameState::Memorization);
     }
 }
@@ -333,12 +334,13 @@ fn handle_game_input(
     mut cell_query: Query<(Entity, &mut GridCell)>,
     mut game_data: ResMut<GameData>,
     mouse_button_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) {
+    if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
         let window = windows.single();
         let Some(position) = window.cursor_position() else {
             return;

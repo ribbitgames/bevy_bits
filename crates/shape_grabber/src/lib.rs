@@ -171,9 +171,10 @@ fn spawn_welcome_screen(
 
 fn handle_welcome_input(
     mouse_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if mouse_input.just_pressed(MouseButton::Left) {
+    if mouse_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
         next_state.set(GameState::Playing);
     }
 }
@@ -239,6 +240,7 @@ fn spawn_paddle(
 
 fn paddle_movement(
     mouse_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     windows: Query<&Window>,
     mut paddle_query: Query<(&mut Transform, &mut DragState), With<Paddle>>,
     camera_query: Query<(&Camera, &GlobalTransform)>,
@@ -252,12 +254,14 @@ fn paddle_movement(
                 .viewport_to_world(camera_transform, cursor_position)
                 .map(|ray| ray.origin.truncate())
             {
-                if mouse_input.just_pressed(MouseButton::Left) {
+                if mouse_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
                     // Start dragging
                     drag_state.is_dragging = true;
                     drag_state.drag_start = world_position;
                     drag_state.initial_paddle_pos = paddle_transform.translation.truncate();
-                } else if mouse_input.just_released(MouseButton::Left) {
+                } else if mouse_input.just_released(MouseButton::Left)
+                    || touch_input.any_just_released()
+                {
                     // Stop dragging
                     drag_state.is_dragging = false;
                 }

@@ -151,12 +151,13 @@ pub fn update_timer(
 pub fn handle_playing_input(
     mouse_button_input: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
+    touch_input: Res<Touches>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
     emojis: Query<(Entity, &Transform, &MovingEmoji)>,
     target_info: Res<TargetEmojiInfo>,
     mut emoji_clicked_events: EventWriter<EmojiClickedEvent>,
 ) {
-    if !mouse_button_input.just_pressed(MouseButton::Left) {
+    if !(mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed()) {
         return;
     }
 

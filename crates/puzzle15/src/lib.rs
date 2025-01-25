@@ -1,7 +1,5 @@
 use std::time::Duration;
 
-use bevy::input::mouse::MouseButtonInput;
-use bevy::input::ButtonState;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bits_helpers::FONT;
@@ -267,78 +265,67 @@ fn result_puzzle(
 fn mouse_events_puzzle(
     window_query: Query<&Window, With<PrimaryWindow>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    mut mouse_event: EventReader<MouseButtonInput>,
+    mouse_button_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     mut player_query: Query<&mut PuzzlePlayer>,
     mut panels_query: Query<&mut PuzzlePanels>,
     p_query: Query<(&PanelVisual, &Sprite, &Transform)>,
     mut next_state: ResMut<NextState<PanelState>>,
 ) {
-    for event in mouse_event.read() {
-        if let MouseButtonInput {
-            button: MouseButton::Left,
-            state: ButtonState::Pressed,
-            ..
-        } = event
+    if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
+        println!("mouse pressed");
+        let window = window_query.single();
+        let (camera, camera_transform) = camera_query.single();
+        if let Some(world_cursor_position) =
+            window.cursor_position().and_then(|viewport_position| {
+                camera
+                    .viewport_to_world_2d(camera_transform, viewport_position)
+                    .ok()
+            })
         {
-            println!("mouse pressed");
-            let window = window_query.single();
-            let (camera, camera_transform) = camera_query.single();
-            if let Some(world_cursor_position) =
-                window.cursor_position().and_then(|viewport_position| {
-                    camera
-                        .viewport_to_world_2d(camera_transform, viewport_position)
-                        .ok()
-                })
-            {
-                let mut player = player_query.single_mut();
-                player.pos = world_cursor_position;
-                player.index = get_sprite_at_pos(world_cursor_position, &p_query);
-            }
+            let mut player = player_query.single_mut();
+            player.pos = world_cursor_position;
+            player.index = get_sprite_at_pos(world_cursor_position, &p_query);
         }
-        if let MouseButtonInput {
-            button: MouseButton::Left,
-            state: ButtonState::Released,
-            ..
-        } = event
+    }
+    if mouse_button_input.just_released(MouseButton::Left) || touch_input.any_just_released() {
+        println!("mouse released");
+
+        let player = player_query.single();
+        let Some(index) = player.index else {
+            return;
+        };
+
+        let window = window_query.single();
+        let (camera, camera_transform) = camera_query.single();
+        if let Some(world_cursor_position) =
+            window.cursor_position().and_then(|viewport_position| {
+                camera
+                    .viewport_to_world_2d(camera_transform, viewport_position)
+                    .ok()
+            })
         {
-            println!("mouse released");
-
-            let player = player_query.single();
-            let Some(index) = player.index else {
+            let mut puzzle_panels = panels_query.single_mut();
+            let diff = world_cursor_position - player.pos;
+            if get_sprite_at_pos(world_cursor_position, &p_query) == player.index {
                 return;
-            };
-
-            let window = window_query.single();
-            let (camera, camera_transform) = camera_query.single();
-            if let Some(world_cursor_position) =
-                window.cursor_position().and_then(|viewport_position| {
-                    camera
-                        .viewport_to_world_2d(camera_transform, viewport_position)
-                        .ok()
-                })
-            {
-                let mut puzzle_panels = panels_query.single_mut();
-                let diff = world_cursor_position - player.pos;
-                if get_sprite_at_pos(world_cursor_position, &p_query) == player.index {
-                    return;
-                }
-                let pos = puzzle_panels.get_index(index as i32);
-                if diff.x.abs() > diff.y.abs() {
-                    let dir = IVec2::new(diff.x.signum() as i32, 0);
-                    puzzle_panels.slide(IVec2::new(pos.x, pos.y), dir);
-                    println!("{}", *puzzle_panels);
-                    println!("released dir = {dir}");
-                } else {
-                    let dir = IVec2::new(0, -diff.y.signum() as i32);
-                    puzzle_panels.slide(IVec2::new(pos.x, pos.y), dir);
-                    println!("{}", *puzzle_panels);
-                    println!("released dir = {dir}");
-                }
-                //if puzzle_panels.is_solved() {
-                //    next_state.set(Puzzle15GameState::Result);
-                //}
-                next_state.set(PanelState::Slide);
             }
+            let pos = puzzle_panels.get_index(index as i32);
+            if diff.x.abs() > diff.y.abs() {
+                let dir = IVec2::new(diff.x.signum() as i32, 0);
+                puzzle_panels.slide(IVec2::new(pos.x, pos.y), dir);
+                println!("{}", *puzzle_panels);
+                println!("released dir = {dir}");
+            } else {
+                let dir = IVec2::new(0, -diff.y.signum() as i32);
+                puzzle_panels.slide(IVec2::new(pos.x, pos.y), dir);
+                println!("{}", *puzzle_panels);
+                println!("released dir = {dir}");
+            }
+            //if puzzle_panels.is_solved() {
+            //    next_state.set(Puzzle15GameState::Result);
+            //}
+            next_state.set(PanelState::Slide);
         }
     }
 }

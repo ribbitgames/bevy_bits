@@ -1,5 +1,3 @@
-use bevy::input::mouse::MouseButtonInput;
-use bevy::input::ButtonState;
 use bevy::prelude::*;
 use bevy::utils::Duration;
 use bevy::window::PrimaryWindow;
@@ -157,29 +155,23 @@ fn setup(
 fn mouse_events(
     window_query: Query<&Window, With<PrimaryWindow>>,
     camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    mut mouse_event: EventReader<MouseButtonInput>,
+    mouse_button_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     mut inquire_event: EventWriter<InquireEvent>,
 ) {
-    for event in mouse_event.read() {
-        if let MouseButtonInput {
-            button: MouseButton::Left,
-            state: ButtonState::Pressed,
-            ..
-        } = event
+    if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
+        let window = window_query.single();
+        let (camera, camera_transform) = camera_query.single();
+        if let Some(world_cursor_position) =
+            window.cursor_position().and_then(|viewport_position| {
+                camera
+                    .viewport_to_world_2d(camera_transform, viewport_position)
+                    .ok()
+            })
         {
-            let window = window_query.single();
-            let (camera, camera_transform) = camera_query.single();
-            if let Some(world_cursor_position) =
-                window.cursor_position().and_then(|viewport_position| {
-                    camera
-                        .viewport_to_world_2d(camera_transform, viewport_position)
-                        .ok()
-                })
-            {
-                inquire_event.send(InquireEvent {
-                    pos: world_cursor_position,
-                });
-            }
+            inquire_event.send(InquireEvent {
+                pos: world_cursor_position,
+            });
         }
     }
 }

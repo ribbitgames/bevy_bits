@@ -210,6 +210,7 @@ fn update_card_visibility(
     }
 }
 
+#[expect(clippy::indexing_slicing)]
 fn handle_card_flipping(
     mut card_queries: ParamSet<(Query<(Entity, &mut Card)>, Query<(Entity, &Card)>)>,
     mut flip_state: ResMut<FlipState>,

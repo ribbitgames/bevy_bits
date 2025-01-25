@@ -135,9 +135,10 @@ fn spawn_welcome_screen(mut commands: Commands, asset_server: Res<AssetServer>) 
 
 fn handle_welcome_input(
     mouse_button_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) {
+    if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
         next_state.set(GameState::Playing);
     }
 }

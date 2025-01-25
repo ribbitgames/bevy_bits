@@ -31,15 +31,6 @@ pub struct StageState {
     pub transition_timer: Option<Timer>,
 }
 
-impl StageState {
-    pub const fn new() -> Self {
-        Self {
-            stage_complete: false,
-            transition_timer: None,
-        }
-    }
-}
-
 #[derive(Resource, Debug)]
 pub struct GameDifficulty {
     /// Current stage/level number (starts at 1)

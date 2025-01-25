@@ -374,6 +374,7 @@ fn handle_game_input(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mouse_button_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     windows: Query<&Window>,
     clickable_shapes: Query<(Entity, &Transform, &Shape), With<ClickableShape>>,
     mut score: ResMut<Score>,
@@ -392,7 +393,7 @@ fn handle_game_input(
             window.height() / 2.0 - cursor_position.y,
         );
 
-        if mouse_button_input.just_pressed(MouseButton::Left) {
+        if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
             let mut clicked_shape = None;
             for (entity, transform, shape) in clickable_shapes.iter() {
                 if is_point_in_shape(

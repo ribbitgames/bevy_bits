@@ -216,6 +216,7 @@ fn handle_welcome_input(
 fn handle_drag_input(
     mut drag_state: ResMut<DragState>,
     mouse_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     windows: Query<&Window>,
     player_query: Query<&Transform, With<Player>>,
 ) {
@@ -233,7 +234,7 @@ fn handle_drag_input(
             window.height() / 2.0 - cursor_position.y,
         );
 
-        if mouse_input.just_pressed(MouseButton::Left) {
+        if mouse_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
             if is_point_in_triangle(
                 world_position,
                 player_transform.translation.truncate(),
@@ -243,7 +244,7 @@ fn handle_drag_input(
                 drag_state.drag_start = Some(world_position);
                 drag_state.initial_player_pos = Some(player_transform.translation.truncate());
             }
-        } else if mouse_input.just_released(MouseButton::Left) {
+        } else if mouse_input.just_released(MouseButton::Left) || touch_input.any_just_released() {
             drag_state.is_dragging = false;
             drag_state.drag_start = None;
             drag_state.initial_player_pos = None;

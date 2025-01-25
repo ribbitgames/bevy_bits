@@ -43,6 +43,7 @@ pub fn spawn_stage_complete_screen(
 /// Handles input on the stage completion screen
 pub fn handle_stage_complete_input(
     mouse_button_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
     mut stage_config: ResMut<StageConfig>,
     mut target_info: ResMut<TargetEmojiInfo>,
@@ -50,7 +51,7 @@ pub fn handle_stage_complete_input(
     validation: Res<emoji::AtlasValidation>,
     mut commands: Commands,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) {
+    if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
         // Update stage configuration
         stage_config.current_stage_number += 1;
         stage_config.stage.emoji_speed *= 1.2; // Increase speed by 20%

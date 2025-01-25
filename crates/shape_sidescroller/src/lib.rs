@@ -117,9 +117,10 @@ fn spawn_welcome_screen(
 
 fn handle_welcome_input(
     mouse_button_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) {
+    if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
         next_state.set(GameState::Playing);
     }
 }
@@ -194,6 +195,7 @@ fn move_player(
         Query<&Transform, (With<Hole>, Without<Player>)>,
     )>,
     input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
     time: Res<Time>,
 ) {
     let ground_y = player_set.p1().single().translation.y + GROUND_HEIGHT;
@@ -215,7 +217,7 @@ fn move_player(
             .iter()
             .any(|&hole_pos| (player_pos.x - hole_pos.x).abs() < PLAYER_SIZE.x / 2.0);
 
-        if input.just_pressed(MouseButton::Left) {
+        if input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
             if !player.is_jumping && !player.is_falling && !is_over_hole {
                 player.is_jumping = true;
                 player.jump_velocity = 600.0;
