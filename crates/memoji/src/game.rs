@@ -16,6 +16,7 @@ impl Plugin for GamePlugin {
                     check_stage_completion,
                     handle_stage_transition,
                     handle_reveal_sequence.run_if(in_state(GameState::Playing)),
+                    handle_game_over_sequence.run_if(in_state(GameState::Playing)),
                 )
                     .chain(),
             );
@@ -45,17 +46,19 @@ pub struct GameProgress {
     pub mistakes: u32,
     pub max_mistakes: u32,
     pub game_over: bool,
+    pub game_over_reveal_timer: Option<Timer>,
 }
 
 impl Default for GameProgress {
     fn default() -> Self {
         Self {
-            initial_wait_timer: Some(Timer::from_seconds(1.0, TimerMode::Once)),
-            reveal_timer: Some(Timer::from_seconds(2.0, TimerMode::Once)),
+            initial_wait_timer: Some(Timer::from_seconds(2.0, TimerMode::Once)),
+            reveal_timer: Some(Timer::from_seconds(7.0, TimerMode::Once)),
             cards_revealed: false,
             mistakes: 0,
             max_mistakes: 3,
             game_over: false,
+            game_over_reveal_timer: None,
         }
     }
 }
@@ -65,6 +68,7 @@ impl GameProgress {
         self.mistakes += 1;
         if self.mistakes >= self.max_mistakes {
             self.game_over = true;
+            self.game_over_reveal_timer = Some(Timer::from_seconds(3.0, TimerMode::Once));
         }
         self.game_over
     }
@@ -103,8 +107,8 @@ impl Default for GameDifficulty {
             grid_rows: 2,
             grid_spacing: 70.0,
             num_pairs: 4,
-            initial_reveal_time: 3.0,
-            mismatch_delay: 1.5,
+            initial_reveal_time: 6.0,
+            mismatch_delay: 1.0,
         }
     }
 }
@@ -132,8 +136,8 @@ impl GameDifficulty {
         self.grid_rows = total_cards.div_ceil(self.grid_cols);
         self.num_pairs = (total_cards / 2) as usize;
 
-        // Times decrease quickly at first, then stabilize
-        self.initial_reveal_time = hockey_stick_curve(self.stage, 3.0, 1.0, 0.4);
+        // Times decrease more gradually
+        self.initial_reveal_time = hockey_stick_curve(self.stage, 7.0, 4.0, 0.1);
         self.mismatch_delay = hockey_stick_curve(self.stage, 1.5, 0.5, 0.3);
     }
 }
@@ -147,10 +151,9 @@ pub struct FlipState {
 fn check_stage_completion(
     cards: Query<&Card>,
     mut stage_state: ResMut<StageState>,
-    game_progress: ResMut<GameProgress>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if stage_state.stage_complete || game_progress.game_over {
+    if stage_state.stage_complete {
         return;
     }
 
@@ -168,10 +171,6 @@ fn check_stage_completion(
         stage_state.stage_complete = true;
         stage_state.transition_timer = Some(Timer::from_seconds(1.0, TimerMode::Once));
         next_state.set(GameState::StageComplete);
-    }
-
-    if game_progress.game_over {
-        next_state.set(GameState::GameOver);
     }
 }
 
@@ -229,6 +228,31 @@ fn handle_reveal_sequence(
                 }
                 game_progress.cards_revealed = false;
                 game_progress.reveal_timer = None;
+            }
+        }
+    }
+}
+
+fn handle_game_over_sequence(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut game_progress: ResMut<GameProgress>,
+    mut cards: Query<(Entity, &mut Card)>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if game_progress.game_over && game_progress.game_over_reveal_timer.is_some() {
+        // First reveal all cards
+        for (_, mut card) in &mut cards {
+            card.face_up = true;
+        }
+
+        if let Some(timer) = &mut game_progress.game_over_reveal_timer {
+            if timer.tick(time.delta()).just_finished() {
+                // Cleanup all cards
+                for (entity, _) in cards.iter() {
+                    commands.entity(entity).despawn_recursive();
+                }
+                next_state.set(GameState::GameOver);
             }
         }
     }
