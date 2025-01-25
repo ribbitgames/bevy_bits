@@ -240,7 +240,13 @@ fn handle_card_flipping(
 
     let card_refs: Vec<Entity> = flip_state.face_up_cards.clone();
     let cards = card_queries.p1();
-    let is_match = check_for_match(&cards, card_refs[0], card_refs[1]);
+
+    let is_match = if let (Some(&first), Some(&second)) = (card_refs.first(), card_refs.get(1)) {
+        check_for_match(&cards, first, second)
+    } else {
+        flip_state.face_up_cards.clear();
+        return;
+    };
 
     if is_match {
         let mut cards = card_queries.p0();
@@ -251,7 +257,6 @@ fn handle_card_flipping(
         }
         flip_state.face_up_cards.clear();
 
-        // Switch to immutable query for check_all_matched
         let cards = card_queries.p1();
         if check_all_matched(&cards) {
             stage_state.stage_complete = true;
