@@ -61,7 +61,6 @@ fn despawn_screen<T: Component>(mut commands: Commands, query: Query<Entity, Wit
 fn try_spawn_welcome_screen(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    difficulty: Res<GameDifficulty>,
     query: Query<&WelcomeScreen>,
 ) {
     if !query.is_empty() {
@@ -70,10 +69,7 @@ fn try_spawn_welcome_screen(
 
     commands.spawn((
         WelcomeScreen,
-        Text2d::new(format!(
-            "Memory Match\nStage {}\n\nClick to Start",
-            difficulty.stage
-        )),
+        Text2d::new("Memoji\nClick to Start".to_string()),
         TextFont {
             font: asset_server.load(FONT),
             font_size: 32.0,
@@ -149,7 +145,7 @@ fn try_spawn_stage_transition(
         StageTransitionScreen,
         Text2d::new(format!(
             "Stage {} Complete!\n\nMistakes: {}/{}\nNext Stage: {}x{} Grid\nReveal Time: {:.1}s\n\nClick to Continue",
-            difficulty.stage,
+            difficulty.stage-1,
             game_progress.mistakes,
             game_progress.max_mistakes,
             difficulty.grid_rows,
@@ -172,6 +168,6 @@ fn handle_stage_transition_input(
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
-        next_state.set(GameState::Welcome);
+        next_state.set(GameState::Playing);
     }
 }

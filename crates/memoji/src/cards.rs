@@ -5,7 +5,7 @@ use rand::prelude::*;
 use crate::game::{FlipState, GameDifficulty, GameProgress, GameState, StageState};
 
 pub const CARD_BACK: &str = "card_back.png";
-const MISMATCH_COLOR: Color = Color::srgb(0.5, 0.0, 0.0);
+const MISMATCH_COLOR: Color = Color::srgb(1.0, 0.0, 0.0);
 const DEFAULT_COLOR: Color = Color::WHITE;
 /// Time to show a mismatch (seconds)
 pub const MISMATCH_DELAY: f32 = 1.5;
@@ -257,7 +257,13 @@ fn handle_card_flipping(
         let cards = card_queries.p1();
         if check_all_matched(&cards) {
             stage_state.stage_complete = true;
-            stage_state.transition_timer = Some(Timer::from_seconds(1.0, TimerMode::Once));
+            // Reveal all cards first
+            let mut cards = card_queries.p0();
+            for (_, mut card, _) in &mut cards {
+                card.face_up = true;
+            }
+            game_progress.cards_revealed = true;
+            stage_state.transition_timer = Some(Timer::from_seconds(2.0, TimerMode::Once));
         }
     } else {
         if game_progress.record_mistake() {

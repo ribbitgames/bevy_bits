@@ -19,10 +19,7 @@ impl Plugin for GamePlugin {
             .init_resource::<StageState>()
             .init_resource::<FlipState>()
             .init_resource::<GameProgress>()
-            .add_systems(
-                Update,
-                (check_stage_completion, handle_stage_transition).chain(),
-            )
+            .add_systems(Update, handle_stage_transition)
             .add_systems(
                 Update,
                 (handle_reveal_sequence, handle_game_over_sequence)
@@ -160,53 +157,32 @@ pub struct FlipState {
     pub unmatch_timer: Option<Timer>,
 }
 
-fn check_stage_completion(
-    cards: Query<&Card>,
-    mut stage_state: ResMut<StageState>,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
-    if stage_state.stage_complete {
-        return;
-    }
-
-    let total_cards = cards.iter().count();
-    if total_cards == 0 {
-        return;
-    }
-
-    let matched_cards = cards
-        .iter()
-        .filter(|card| card.face_up && card.locked)
-        .count();
-
-    if matched_cards == total_cards {
-        stage_state.stage_complete = true;
-        stage_state.transition_timer = Some(Timer::from_seconds(1.0, TimerMode::Once));
-        next_state.set(GameState::StageComplete);
-    }
-}
-
 fn handle_stage_transition(
     mut commands: Commands,
     time: Res<Time>,
     mut stage_state: ResMut<StageState>,
     mut game_difficulty: ResMut<GameDifficulty>,
     mut game_progress: ResMut<GameProgress>,
+    mut next_state: ResMut<NextState<GameState>>,
     cards: Query<Entity, With<Card>>,
 ) {
     if let Some(timer) = &mut stage_state.transition_timer {
         if timer.tick(time.delta()).just_finished() {
-            let total_cards = cards.iter().count();
+            // After cleanup, transition to stage complete
+            next_state.set(GameState::StageComplete);
+
+            // Clear cards
             for card_entity in cards.iter() {
                 commands.entity(card_entity).despawn_recursive();
             }
 
+            // Prep next stage
             game_difficulty.advance_stage();
-
             *game_progress = GameProgress {
                 initial_wait_timer: Some(Timer::from_seconds(INITIAL_WAIT_TIME, TimerMode::Once)),
                 reveal_timer: Some(Timer::from_seconds(
-                    total_cards as f32 * REVEAL_TIME_PER_CARD,
+                    (game_difficulty.grid_rows * game_difficulty.grid_cols) as f32
+                        * REVEAL_TIME_PER_CARD,
                     TimerMode::Once,
                 )),
                 cards_revealed: false,
