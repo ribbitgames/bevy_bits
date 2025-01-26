@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::math::primitives;
 use bevy::prelude::*;
-use bits_helpers::input::just_pressed_world_position;
+use bits_helpers::input::{just_pressed_world_position, pressed_world_position};
 use bits_helpers::welcome_screen::{despawn_welcome_screen, WelcomeScreenElement};
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use rand::prelude::*;
@@ -233,36 +233,26 @@ fn handle_drag_input(
 }
 
 fn player_movement(
-    mut drag_state: ResMut<DragState>,
+    drag_state: ResMut<DragState>,
     mut player_query: Query<&mut Transform, With<Player>>,
     windows: Query<&Window>,
+    mouse_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
+    camera_query: Query<(&Camera, &GlobalTransform)>,
 ) {
-    if drag_state.is_dragging {
-        let window = windows.single();
-        let mut player_transform = player_query.single_mut();
+    if !drag_state.is_dragging {
+        return;
+    };
 
-        if let (Some(drag_start), Some(initial_player_pos), Some(cursor_position)) = (
-            drag_state.drag_start,
-            drag_state.initial_player_pos,
-            window.cursor_position(),
-        ) {
-            let current_cursor_pos = Vec2::new(
-                cursor_position.x - window.width() / 2.0,
-                window.height() / 2.0 - cursor_position.y, // Flip y-coordinate
-            );
-            let drag_delta = current_cursor_pos - drag_start;
-            let new_player_pos = initial_player_pos + drag_delta;
+    let Some(world_position) =
+        pressed_world_position(&mouse_input, &touch_input, &windows, &camera_query)
+    else {
+        return;
+    };
 
-            player_transform.translation.x = new_player_pos.x.clamp(
-                -WINDOW_WIDTH / 2.0 + PLAYER_WIDTH / 2.0,
-                WINDOW_WIDTH / 2.0 - PLAYER_WIDTH / 2.0,
-            );
+    let mut player_transform = player_query.single_mut();
 
-            // Update the initial position for the next frame
-            drag_state.initial_player_pos = Some(player_transform.translation.truncate());
-            drag_state.drag_start = Some(current_cursor_pos);
-        }
-    }
+    player_transform.translation.x = world_position.x;
 }
 
 fn spawn_obstacles(
