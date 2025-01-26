@@ -4,6 +4,15 @@ use crate::cards::Card;
 
 pub struct GamePlugin;
 
+/// Fixed delay before showing cards at start of each stage (seconds)
+const INITIAL_WAIT_TIME: f32 = 2.0;
+/// Time per card to reveal during initial showing (seconds)
+pub const REVEAL_TIME_PER_CARD: f32 = 0.5;
+/// Maximum mistakes allowed before game over
+const MAX_MISTAKES: u32 = 3;
+/// Time to show all cards after game over (seconds)
+const GAME_OVER_REVEAL_TIME: f32 = 3.0;
+
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GameDifficulty>()
@@ -40,23 +49,36 @@ pub enum GameState {
 
 #[derive(Resource)]
 pub struct GameProgress {
+    /// Timer before showing cards at stage start
     pub initial_wait_timer: Option<Timer>,
+
+    /// Timer controlling how long cards stay revealed
     pub reveal_timer: Option<Timer>,
+
+    /// Whether cards are currently being shown to player
     pub cards_revealed: bool,
+
+    /// Number of incorrect matches made
     pub mistakes: u32,
+
+    /// Maximum mistakes allowed before game over
     pub max_mistakes: u32,
+
+    /// Whether player has lost by exceeding max mistakes
     pub game_over: bool,
+
+    /// Timer for showing all cards after game over
     pub game_over_reveal_timer: Option<Timer>,
 }
 
 impl Default for GameProgress {
     fn default() -> Self {
         Self {
-            initial_wait_timer: Some(Timer::from_seconds(2.0, TimerMode::Once)),
-            reveal_timer: Some(Timer::from_seconds(7.0, TimerMode::Once)),
+            initial_wait_timer: Some(Timer::from_seconds(INITIAL_WAIT_TIME, TimerMode::Once)),
+            reveal_timer: None, // Will be set based on card count when stage starts
             cards_revealed: false,
             mistakes: 0,
-            max_mistakes: 3,
+            max_mistakes: MAX_MISTAKES,
             game_over: false,
             game_over_reveal_timer: None,
         }
@@ -64,15 +86,20 @@ impl Default for GameProgress {
 }
 
 impl GameProgress {
+    /// Records a mistake and returns whether game is over
+    /// If mistakes exceed maximum, triggers game over sequence
     pub fn record_mistake(&mut self) -> bool {
         self.mistakes += 1;
         if self.mistakes >= self.max_mistakes {
             self.game_over = true;
-            self.game_over_reveal_timer = Some(Timer::from_seconds(3.0, TimerMode::Once));
+            self.game_over_reveal_timer =
+                Some(Timer::from_seconds(GAME_OVER_REVEAL_TIME, TimerMode::Once));
         }
         self.game_over
     }
 
+    /// Returns true if card interaction should be blocked
+    /// Blocks interaction during: reveals, wait times, and game over
     pub const fn is_interaction_blocked(&self) -> bool {
         self.cards_revealed
             || self.reveal_timer.is_some()
@@ -93,8 +120,6 @@ pub struct GameDifficulty {
     pub grid_spacing: f32,
     /// Number of pairs to match
     pub num_pairs: usize,
-    /// Time to show all cards at start (seconds)
-    pub initial_reveal_time: f32,
     /// Time to show mismatched cards (seconds)
     pub mismatch_delay: f32,
 }
@@ -107,7 +132,6 @@ impl Default for GameDifficulty {
             grid_rows: 2,
             grid_spacing: 70.0,
             num_pairs: 4,
-            initial_reveal_time: 6.0,
             mismatch_delay: 1.0,
         }
     }
@@ -136,8 +160,7 @@ impl GameDifficulty {
         self.grid_rows = total_cards.div_ceil(self.grid_cols);
         self.num_pairs = (total_cards / 2) as usize;
 
-        // Times decrease more gradually
-        self.initial_reveal_time = hockey_stick_curve(self.stage, 7.0, 4.0, 0.1);
+        // Mismatch delay still decreases gradually
         self.mismatch_delay = hockey_stick_curve(self.stage, 1.5, 0.5, 0.3);
     }
 }
@@ -184,6 +207,7 @@ fn handle_stage_transition(
 ) {
     if let Some(timer) = &mut stage_state.transition_timer {
         if timer.tick(time.delta()).just_finished() {
+            let total_cards = cards.iter().count();
             for card_entity in cards.iter() {
                 commands.entity(card_entity).despawn_recursive();
             }
@@ -191,11 +215,16 @@ fn handle_stage_transition(
             game_difficulty.advance_stage();
 
             *game_progress = GameProgress {
-                initial_wait_timer: Some(Timer::from_seconds(
-                    game_difficulty.initial_reveal_time,
+                initial_wait_timer: Some(Timer::from_seconds(INITIAL_WAIT_TIME, TimerMode::Once)),
+                reveal_timer: Some(Timer::from_seconds(
+                    total_cards as f32 * REVEAL_TIME_PER_CARD,
                     TimerMode::Once,
                 )),
-                ..default()
+                cards_revealed: false,
+                mistakes: 0,
+                max_mistakes: MAX_MISTAKES,
+                game_over: false,
+                game_over_reveal_timer: None,
             };
 
             stage_state.stage_complete = false;
@@ -211,13 +240,19 @@ fn handle_reveal_sequence(
 ) {
     if let Some(timer) = &mut game_progress.initial_wait_timer {
         if timer.tick(time.delta()).just_finished() {
+            let total_cards = cards.iter().count();
+
             for mut card in &mut cards {
                 card.face_up = true;
             }
             game_progress.cards_revealed = true;
             game_progress.initial_wait_timer = None;
-            return;
+            game_progress.reveal_timer = Some(Timer::from_seconds(
+                total_cards as f32 * REVEAL_TIME_PER_CARD,
+                TimerMode::Once,
+            ));
         }
+        return;
     }
 
     if game_progress.cards_revealed {

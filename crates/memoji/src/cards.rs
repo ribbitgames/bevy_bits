@@ -51,7 +51,6 @@ impl Plugin for CardPlugin {
                 Update,
                 (
                     spawn_emoji_grid,
-                    handle_reveal_sequence,
                     handle_card_flipping,
                     update_card_visibility,
                 )
@@ -150,35 +149,6 @@ fn spawn_emoji_grid(
                     .id();
 
                 commands.entity(card_entity).add_child(card_back_entity);
-            }
-        }
-    }
-}
-
-fn handle_reveal_sequence(
-    time: Res<Time>,
-    mut game_progress: ResMut<GameProgress>,
-    mut cards: Query<&mut Card>,
-) {
-    if let Some(timer) = &mut game_progress.initial_wait_timer {
-        if timer.tick(time.delta()).just_finished() {
-            for mut card in &mut cards {
-                card.face_up = true;
-            }
-            game_progress.cards_revealed = true;
-            game_progress.initial_wait_timer = None;
-        }
-        return;
-    }
-
-    if game_progress.cards_revealed {
-        if let Some(timer) = &mut game_progress.reveal_timer {
-            if timer.tick(time.delta()).just_finished() {
-                for mut card in &mut cards {
-                    card.face_up = false;
-                }
-                game_progress.cards_revealed = false;
-                game_progress.reveal_timer = None;
             }
         }
     }

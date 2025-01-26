@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bits_helpers::FONT;
 
-use crate::game::{GameDifficulty, GameProgress, GameState};
+use crate::game::{GameDifficulty, GameProgress, GameState, REVEAL_TIME_PER_CARD};
 
 #[derive(Component)]
 pub struct WelcomeScreen;
@@ -154,7 +154,7 @@ fn try_spawn_stage_transition(
             game_progress.max_mistakes,
             difficulty.grid_rows,
             difficulty.grid_cols,
-            difficulty.initial_reveal_time
+            (difficulty.grid_rows * difficulty.grid_cols) as f32 * REVEAL_TIME_PER_CARD
         )),
         TextFont {
             font: asset_server.load(FONT),
