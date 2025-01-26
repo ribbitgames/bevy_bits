@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::utils::Duration;
-use bevy::window::PrimaryWindow;
+use bits_helpers::input::just_pressed_world_position;
 use rand::prelude::SliceRandom;
 use rand::Rng;
 use ribbit::WheresWaldo;
@@ -153,26 +153,21 @@ fn setup(
 }
 
 fn mouse_events(
-    window_query: Query<&Window, With<PrimaryWindow>>,
-    camera_query: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    window_query: Query<&Window>,
+    camera_query: Query<(&Camera, &GlobalTransform)>,
     mouse_button_input: Res<ButtonInput<MouseButton>>,
     touch_input: Res<Touches>,
     mut inquire_event: EventWriter<InquireEvent>,
 ) {
-    if mouse_button_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
-        let window = window_query.single();
-        let (camera, camera_transform) = camera_query.single();
-        if let Some(world_cursor_position) =
-            window.cursor_position().and_then(|viewport_position| {
-                camera
-                    .viewport_to_world_2d(camera_transform, viewport_position)
-                    .ok()
-            })
-        {
-            inquire_event.send(InquireEvent {
-                pos: world_cursor_position,
-            });
-        }
+    if let Some(world_position) = just_pressed_world_position(
+        &mouse_button_input,
+        &touch_input,
+        &window_query,
+        &camera_query,
+    ) {
+        inquire_event.send(InquireEvent {
+            pos: world_position,
+        });
     }
 }
 

@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use bevy::math::primitives;
 use bevy::prelude::*;
+use bits_helpers::input::just_pressed_world_position;
 use bits_helpers::welcome_screen::{despawn_welcome_screen, WelcomeScreenElement};
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use rand::prelude::*;
@@ -208,31 +209,26 @@ fn handle_drag_input(
     touch_input: Res<Touches>,
     windows: Query<&Window>,
     player_query: Query<&Transform, With<Player>>,
+    camera_query: Query<(&Camera, &GlobalTransform)>,
 ) {
-    let window = windows.single();
     let player_transform = player_query.single();
 
-    if let Some(cursor_position) = window.cursor_position() {
-        let world_position = Vec2::new(
-            cursor_position.x - window.width() / 2.0,
-            window.height() / 2.0 - cursor_position.y, // Flip y-coordinate
-        );
-
-        if mouse_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
-            if is_point_in_rect(
-                world_position,
-                player_transform.translation.truncate(),
-                Vec2::new(PLAYER_WIDTH, PLAYER_HEIGHT),
-            ) {
-                drag_state.is_dragging = true;
-                drag_state.drag_start = Some(world_position);
-                drag_state.initial_player_pos = Some(player_transform.translation.truncate());
-            }
-        } else if mouse_input.just_released(MouseButton::Left) || touch_input.any_just_released() {
-            drag_state.is_dragging = false;
-            drag_state.drag_start = None;
-            drag_state.initial_player_pos = None;
+    if let Some(world_position) =
+        just_pressed_world_position(&mouse_input, &touch_input, &windows, &camera_query)
+    {
+        if is_point_in_rect(
+            world_position,
+            player_transform.translation.truncate(),
+            Vec2::new(PLAYER_WIDTH, PLAYER_HEIGHT),
+        ) {
+            drag_state.is_dragging = true;
+            drag_state.drag_start = Some(world_position);
+            drag_state.initial_player_pos = Some(player_transform.translation.truncate());
         }
+    } else if mouse_input.just_released(MouseButton::Left) || touch_input.any_just_released() {
+        drag_state.is_dragging = false;
+        drag_state.drag_start = None;
+        drag_state.initial_player_pos = None;
     }
 }
 
