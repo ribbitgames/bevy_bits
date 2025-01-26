@@ -7,6 +7,8 @@ use crate::game::{FlipState, GameDifficulty, GameProgress, GameState, StageState
 pub const CARD_BACK: &str = "card_back.png";
 const MISMATCH_COLOR: Color = Color::srgb(0.5, 0.0, 0.0);
 const DEFAULT_COLOR: Color = Color::WHITE;
+/// Time to show a mismatch (seconds)
+pub const MISMATCH_DELAY: f32 = 1.5;
 
 #[derive(Component, Debug, Default)]
 pub struct Card {
@@ -188,7 +190,6 @@ fn handle_card_flipping(
     )>,
     mut sprite_query: Query<&mut Sprite>,
     mut flip_state: ResMut<FlipState>,
-    difficulty: Res<GameDifficulty>,
     mut stage_state: ResMut<StageState>,
     mut game_progress: ResMut<GameProgress>,
     time: Res<Time>,
@@ -272,10 +273,7 @@ fn handle_card_flipping(
                 }
             }
         }
-        flip_state.unmatch_timer = Some(Timer::from_seconds(
-            difficulty.mismatch_delay,
-            TimerMode::Once,
-        ));
+        flip_state.unmatch_timer = Some(Timer::from_seconds(MISMATCH_DELAY, TimerMode::Once));
     }
 }
 

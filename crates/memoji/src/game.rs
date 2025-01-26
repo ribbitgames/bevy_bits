@@ -120,8 +120,6 @@ pub struct GameDifficulty {
     pub grid_spacing: f32,
     /// Number of pairs to match
     pub num_pairs: usize,
-    /// Time to show mismatched cards (seconds)
-    pub mismatch_delay: f32,
 }
 
 impl Default for GameDifficulty {
@@ -132,7 +130,6 @@ impl Default for GameDifficulty {
             grid_rows: 2,
             grid_spacing: 70.0,
             num_pairs: 4,
-            mismatch_delay: 1.0,
         }
     }
 }
@@ -146,22 +143,14 @@ impl GameDifficulty {
 
     /// Calculate difficulty parameters based on current stage
     fn recalculate_difficulty(&mut self) {
-        // Helper function for hockey stick curve
-        // starts steep, then levels off
-        fn hockey_stick_curve(stage: u32, min: f32, max: f32, steepness: f32) -> f32 {
-            let x = stage as f32;
-            (max - min).mul_add(1.0 - (-x * steepness).exp(), min)
-        }
+        // Start with 6 cards (3 pairs), add 2 cards (1 pair) every 2 stages
+        let total_cards = 6 + (self.stage / 2) * 2;
+        let total_cards = total_cards.min(24); // Cap at 24 cards
 
-        // Grid size grows quickly at first, then slowly
-        let total_cards = hockey_stick_curve(self.stage, 8.0, 24.0, 0.3) as u32;
         // Adjust grid dimensions based on total cards
         self.grid_cols = (total_cards as f32).sqrt().ceil() as u32;
         self.grid_rows = total_cards.div_ceil(self.grid_cols);
         self.num_pairs = (total_cards / 2) as usize;
-
-        // Mismatch delay still decreases gradually
-        self.mismatch_delay = hockey_stick_curve(self.stage, 1.5, 0.5, 0.3);
     }
 }
 
