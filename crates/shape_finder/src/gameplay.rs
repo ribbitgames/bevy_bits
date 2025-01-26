@@ -197,7 +197,7 @@ pub fn handle_playing_input(
             .expect("Distances should always be comparable")
     });
 
-    let Some(cursor_position) =
+    let Some(screen_position) =
         just_pressed_screen_position(&mouse_button_input, &touch_input, &windows)
     else {
         return;
@@ -219,7 +219,7 @@ pub fn handle_playing_input(
         if let Some(correct_hit) = close_hits.iter().find(|hit| hit.is_correct) {
             emoji_clicked_events.send(EmojiClickedEvent {
                 entity: correct_hit.entity,
-                position: cursor_position,
+                position: screen_position,
                 is_correct: true,
             });
             return;
@@ -230,7 +230,7 @@ pub fn handle_playing_input(
     if let Some(closest_hit) = hits.first() {
         emoji_clicked_events.send(EmojiClickedEvent {
             entity: closest_hit.entity,
-            position: cursor_position,
+            position: screen_position,
             is_correct: closest_hit.is_correct,
         });
     }

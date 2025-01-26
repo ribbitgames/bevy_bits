@@ -1,6 +1,6 @@
 use bevy::math::primitives;
 use bevy::prelude::*;
-use bits_helpers::input::just_pressed_world_position;
+use bits_helpers::input::{just_pressed_world_position, pressed_world_position};
 use bits_helpers::welcome_screen::{despawn_welcome_screen, WelcomeScreenElement};
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use rand::prelude::*;
@@ -249,42 +249,40 @@ fn player_movement(
     mut drag_state: ResMut<DragState>,
     mut player_query: Query<&mut Transform, With<Player>>,
     windows: Query<&Window>,
+    mouse_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
+    camera_query: Query<(&Camera, &GlobalTransform)>,
 ) {
     if !drag_state.is_dragging {
         return;
     }
 
-    let Ok(window) = windows.get_single() else {
-        return;
-    };
-
     let Ok(mut player_transform) = player_query.get_single_mut() else {
         return;
     };
 
-    if let Some(cursor_position) = window.cursor_position() {
-        let world_cursor_position = Vec2::new(
-            cursor_position.x - window.width() / 2.0,
-            window.height() / 2.0 - cursor_position.y,
-        );
+    let Some(world_position) =
+        pressed_world_position(&mouse_input, &touch_input, &windows, &camera_query)
+    else {
+        return;
+    };
 
-        let current_pos = player_transform.translation.truncate();
-        let movement = world_cursor_position - current_pos;
+    let current_pos = player_transform.translation.truncate();
+    let movement = world_position - current_pos;
 
-        let new_pos = current_pos + movement;
+    let new_pos = current_pos + movement;
 
-        player_transform.translation.x = new_pos.x.clamp(
-            -WINDOW_WIDTH / 2.0 + PLAYER_SIZE / 2.0,
-            WINDOW_WIDTH / 2.0 - PLAYER_SIZE / 2.0,
-        );
-        player_transform.translation.y = new_pos.y.clamp(
-            -WINDOW_HEIGHT / 2.0 + PLAYER_SIZE / 2.0,
-            WINDOW_HEIGHT / 2.0 - PLAYER_SIZE / 2.0,
-        );
+    player_transform.translation.x = new_pos.x.clamp(
+        -WINDOW_WIDTH / 2.0 + PLAYER_SIZE / 2.0,
+        WINDOW_WIDTH / 2.0 - PLAYER_SIZE / 2.0,
+    );
+    player_transform.translation.y = new_pos.y.clamp(
+        -WINDOW_HEIGHT / 2.0 + PLAYER_SIZE / 2.0,
+        WINDOW_HEIGHT / 2.0 - PLAYER_SIZE / 2.0,
+    );
 
-        // Update drag_state with the new position
-        drag_state.initial_player_pos = Some(player_transform.translation.truncate());
-    }
+    // Update drag_state with the new position
+    drag_state.initial_player_pos = Some(player_transform.translation.truncate());
 }
 
 fn spawn_bullets(
