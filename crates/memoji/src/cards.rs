@@ -5,6 +5,8 @@ use rand::prelude::*;
 use crate::game::{FlipState, GameDifficulty, GameProgress, GameState, StageState};
 
 pub const CARD_BACK: &str = "card_back.png";
+const MISMATCH_COLOR: Color = Color::srgb(0.5, 0.0, 0.0);
+const DEFAULT_COLOR: Color = Color::WHITE;
 
 #[derive(Component, Debug, Default)]
 pub struct Card {
@@ -12,6 +14,9 @@ pub struct Card {
     pub face_up: bool,
     pub locked: bool,
 }
+
+#[derive(Component, Default)]
+pub struct FeedbackTimer;
 
 // Components for the two types of sprites
 #[derive(Component)]
@@ -207,7 +212,11 @@ fn update_card_visibility(
 }
 
 fn handle_card_flipping(
-    mut card_queries: ParamSet<(Query<(Entity, &mut Card)>, Query<(Entity, &Card)>)>,
+    mut card_queries: ParamSet<(
+        Query<(Entity, &mut Card, &Children)>,
+        Query<(Entity, &Card)>,
+    )>,
+    mut sprite_query: Query<&mut Sprite>,
     mut flip_state: ResMut<FlipState>,
     difficulty: Res<GameDifficulty>,
     mut stage_state: ResMut<StageState>,
@@ -218,13 +227,23 @@ fn handle_card_flipping(
         return;
     }
 
+    // Handle unmatch timer if it exists
     if let Some(timer) = &mut flip_state.unmatch_timer {
         if timer.tick(time.delta()).just_finished() {
             let mut cards = card_queries.p0();
             for &entity in &flip_state.face_up_cards {
-                if let Ok((_, mut card)) = cards.get_mut(entity) {
-                    if !card.locked {
-                        card.face_up = false;
+                let Ok((_, mut card, children)) = cards.get_mut(entity) else {
+                    continue;
+                };
+
+                if card.locked {
+                    continue;
+                }
+
+                card.face_up = false;
+                for &child in children {
+                    if let Ok(mut sprite) = sprite_query.get_mut(child) {
+                        sprite.color = DEFAULT_COLOR;
                     }
                 }
             }
@@ -234,6 +253,7 @@ fn handle_card_flipping(
         return;
     }
 
+    // Check if we have a pair to evaluate
     if flip_state.face_up_cards.len() != 2 {
         return;
     }
@@ -248,11 +268,17 @@ fn handle_card_flipping(
         return;
     };
 
+    let mut cards = card_queries.p0();
     if is_match {
-        let mut cards = card_queries.p0();
         for entity in card_refs {
-            if let Ok((_, mut card)) = cards.get_mut(entity) {
+            if let Ok((_, mut card, children)) = cards.get_mut(entity) {
                 card.locked = true;
+                // Matches stay default color
+                for &child in children {
+                    if let Ok(mut sprite) = sprite_query.get_mut(child) {
+                        sprite.color = DEFAULT_COLOR;
+                    }
+                }
             }
         }
         flip_state.face_up_cards.clear();
@@ -265,6 +291,16 @@ fn handle_card_flipping(
     } else {
         if game_progress.record_mistake() {
             return;
+        }
+        // Apply mismatch color
+        for entity in &card_refs {
+            if let Ok((_, _, children)) = cards.get_mut(*entity) {
+                for &child in children {
+                    if let Ok(mut sprite) = sprite_query.get_mut(child) {
+                        sprite.color = MISMATCH_COLOR;
+                    }
+                }
+            }
         }
         flip_state.unmatch_timer = Some(Timer::from_seconds(
             difficulty.mismatch_delay,
