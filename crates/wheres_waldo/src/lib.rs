@@ -1,13 +1,12 @@
 use bevy::prelude::*;
 use bevy::utils::Duration;
+use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas, EmojiPlugin};
 use bits_helpers::input::just_pressed_world_position;
 use rand::prelude::SliceRandom;
 use rand::Rng;
 use ribbit::WheresWaldo;
 
 mod ribbit;
-
-const SPRITE_IMAGE: &str = "animals.png";
 
 const BACKGROUND_SIZE_X: f32 = bits_helpers::WINDOW_WIDTH;
 const BACKGROUND_SIZE_Y: f32 = BACKGROUND_SIZE_X;
@@ -20,9 +19,6 @@ const BACKGROUND_COLOR: Color = Color::Srgba(Srgba {
 
 const SPRITE_SIZE_X: f32 = 32.;
 const SPRITE_SIZE_Y: f32 = 32.;
-
-const ATLAS_COLUMNS: u32 = 10;
-const ATLAS_ROWS: u32 = 8;
 
 const UI_Y: f32 = -BACKGROUND_SIZE_Y * 0.5 - 32.;
 const UI_RESULT_Y: f32 = UI_Y - 32.;
@@ -47,17 +43,6 @@ struct FeedbackUI {
 }
 
 #[derive(Event)]
-struct CreatePuzzle;
-
-#[derive(Event)]
-struct ClearPuzzle;
-
-#[derive(Event)]
-struct ShowFeedback {
-    is_correct: bool,
-}
-
-#[derive(Event)]
 struct InquireEvent {
     pos: Vec2,
 }
@@ -67,58 +52,42 @@ struct Grid {
     grid: Vec<Vec2>,
 }
 
-#[derive(Resource)]
-struct TextureInfo {
-    texture_handle: Handle<Image>,
-    atlas_handle: Handle<TextureAtlasLayout>,
+#[derive(States, Default, Debug, Clone, PartialEq, Eq, Hash)]
+enum GameState {
+    #[default]
+    Init,
+    Game,
+    Result,
 }
 
 pub fn run() {
     bits_helpers::get_default_app::<WheresWaldo>(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
-        .add_event::<CreatePuzzle>()
-        .add_event::<ClearPuzzle>()
+        .add_plugins(EmojiPlugin)
+        .init_state::<GameState>()
         .add_event::<InquireEvent>()
-        .add_event::<ShowFeedback>()
-        .add_systems(Startup, setup)
+        .add_systems(OnEnter(GameState::Init), setup_static_entities)
+        .add_systems(OnEnter(GameState::Game), create_puzzle)
+        .add_systems(OnExit(GameState::Result), clear_puzzle)
         .add_systems(
             Update,
             (
                 mouse_events,
-                create_puzzle,
-                clear_puzzle,
-                inquire_position,
-                spawn_feedback_ui,
-                update_feedback_ui_timer,
+                wait_for_initialization.run_if(in_state(GameState::Init)),
+                inquire_position.run_if(in_state(GameState::Game)),
+                update_feedback_ui_timer.run_if(in_state(GameState::Game)),
+                result.run_if(in_state(GameState::Result)),
             ),
         )
         .run();
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
-    mut create_events: EventWriter<CreatePuzzle>,
-) {
+fn result(mut next_state: ResMut<NextState<GameState>>) {
+    next_state.set(GameState::Game);
+}
+
+fn setup_static_entities(mut commands: Commands) {
+    // Camera
     commands.spawn(Camera2d).insert(MainCamera);
-
-    let texture: Handle<Image> = asset_server.load(SPRITE_IMAGE);
-    let texture_atlas = TextureAtlasLayout::from_grid(
-        UVec2 {
-            x: SPRITE_SIZE_X as u32,
-            y: SPRITE_SIZE_Y as u32,
-        },
-        ATLAS_COLUMNS,
-        ATLAS_ROWS,
-        None,
-        None,
-    );
-    let texture_atlas_handle = texture_atlases.add(texture_atlas);
-    commands.insert_resource(TextureInfo {
-        texture_handle: texture,
-        atlas_handle: texture_atlas_handle,
-    });
-
     // Background
     commands.spawn((
         Sprite::from_color(
@@ -126,6 +95,7 @@ fn setup(
             Vec2::new(BACKGROUND_SIZE_X, BACKGROUND_SIZE_Y),
         ),
         BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.7)),
+        Transform::from_xyz(0., 0., -10.),
     ));
     // UI
     commands.spawn((
@@ -147,9 +117,15 @@ fn setup(
         })
         .collect();
     commands.insert_resource(Grid { grid: p });
+}
 
-    // Start the game by sending this event
-    create_events.send(CreatePuzzle);
+fn wait_for_initialization(
+    validation: Res<AtlasValidation>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if emoji::is_emoji_system_ready(&validation) {
+        next_state.set(GameState::Game);
+    }
 }
 
 fn mouse_events(
@@ -186,103 +162,72 @@ fn get_random_transform(grid_position: Vec2) -> Transform {
         rng.gen_range(-rotation_noize..rotation_noize),
     ))
 }
-fn spawn_sprite(
-    commands: &mut Commands,
-    texture_handle: Handle<Image>,
-    atlas_handle: Handle<TextureAtlasLayout>,
-    index: usize,
-    transform: Transform,
-) -> Entity {
-    let entity_id = commands
-        .spawn((
-            Sprite::from_atlas_image(
-                texture_handle,
-                TextureAtlas {
-                    layout: atlas_handle,
-                    index,
-                },
-            ),
-            transform,
-            Character,
-        ))
-        .id();
-
-    entity_id
-}
 
 fn create_puzzle(
     mut commands: Commands,
     mut grid: ResMut<Grid>,
-    texture_info: Res<TextureInfo>,
-    mut create_events: EventReader<CreatePuzzle>,
+    atlas: Res<EmojiAtlas>,
+    validation: Res<AtlasValidation>,
 ) {
-    for _ev in create_events.read() {
-        let mut rng = rand::thread_rng();
-        let length = (ATLAS_COLUMNS * ATLAS_ROWS) as usize;
+    let mut rng = rand::thread_rng();
 
-        // The one to look for
-        let index_waldo = rng.gen_range(0..length);
+    let selected_index =
+        emoji::get_random_emojis(&atlas, &validation, NUMBER_OF_CANDIDATES as usize);
 
-        grid.grid.shuffle(&mut rng);
+    grid.grid.shuffle(&mut rng);
 
-        for (count, pos) in grid.grid.clone().into_iter().enumerate() {
-            if count >= (NUMBER_OF_CANDIDATES as usize) {
-                break;
-            }
-            //println!("pos[{count}] = {pos}");
+    for (count, pos) in grid.grid.clone().into_iter().enumerate() {
+        if count >= (NUMBER_OF_CANDIDATES as usize) {
+            break;
+        }
+        //println!("pos[{count}] = {pos}");
 
-            let index = if count == 0 {
-                index_waldo
-            } else {
-                let temp = rng.gen_range(0..length - 1);
-                if temp == index_waldo {
-                    length - 1
-                } else {
-                    temp
-                }
-            };
-            let id = spawn_sprite(
-                &mut commands,
-                texture_info.texture_handle.clone(),
-                texture_info.atlas_handle.clone(),
-                index,
-                get_random_transform(pos),
-            );
+        let t = get_random_transform(pos);
+        if let Some(entity) = emoji::spawn_emoji(
+            &mut commands,
+            &atlas,
+            &validation,
+            *selected_index
+                .get(count)
+                .expect("The index is out of the range!"),
+            Vec2::new(t.translation.x, t.translation.y),
+            0.15,
+        ) {
+            commands.entity(entity).insert(Character).insert(Transform {
+                translation: t.translation,
+                rotation: t.rotation,
+                scale: Vec3::new(0.15, 0.15, 0.),
+            });
             if count == 0 {
-                commands.entity(id).insert(Waldo);
+                commands.entity(entity).insert(Waldo);
             }
         }
+    }
 
-        // The one to look for (for UI)
-        let id = spawn_sprite(
-            &mut commands,
-            texture_info.texture_handle.clone(),
-            texture_info.atlas_handle.clone(),
-            index_waldo,
-            Transform::from_translation(Vec3::new(40., UI_Y, 0.)),
-        );
-        commands.entity(id).insert(Waldo);
+    // The one to look for (for UI)
+    if let Some(entity) = emoji::spawn_emoji(
+        &mut commands,
+        &atlas,
+        &validation,
+        *selected_index
+            .first()
+            .expect("The index is out of the range!"),
+        Vec2::new(40., UI_Y),
+        0.15,
+    ) {
+        commands.entity(entity).insert(Character).insert(Waldo);
     }
 }
 
-fn clear_puzzle(
-    mut commands: Commands,
-    mut clear_events: EventReader<ClearPuzzle>,
-    mut create_events: EventWriter<CreatePuzzle>,
-    query: Query<(Entity, &Character)>,
-) {
-    for _ev in clear_events.read() {
-        for (entity, _character) in &query {
-            commands.entity(entity).despawn();
-        }
-        // Start a new game
-        create_events.send(CreatePuzzle);
+fn clear_puzzle(mut commands: Commands, query: Query<(Entity, &Character)>) {
+    for (entity, _character) in &query {
+        commands.entity(entity).despawn();
     }
 }
 
 fn inquire_position(
+    mut commands: Commands,
     mut inquire_event: EventReader<InquireEvent>,
-    mut spawn_feedback_event: EventWriter<ShowFeedback>,
     character_query: Query<(&Transform, &Character), Without<Waldo>>,
     waldo_query: Query<(&Transform, &Character), With<Waldo>>,
 ) {
@@ -297,7 +242,7 @@ fn inquire_position(
         for (transform, _character) in &waldo_query {
             let dist = ev.pos.distance_squared(transform.translation.truncate());
             if dist < squared_radius {
-                spawn_feedback_event.send(ShowFeedback { is_correct: true });
+                spawn_feedback_ui(&mut commands, true);
                 return;
             }
         }
@@ -305,46 +250,40 @@ fn inquire_position(
         for (transform, _character) in &character_query {
             let dist = ev.pos.distance_squared(transform.translation.truncate());
             if dist < squared_radius {
-                spawn_feedback_event.send(ShowFeedback { is_correct: false });
+                spawn_feedback_ui(&mut commands, false);
                 return;
             }
         }
     }
 }
 
-fn spawn_feedback_ui(mut commands: Commands, mut spawn_events: EventReader<ShowFeedback>) {
-    for ev in spawn_events.read() {
-        commands.spawn((
-            Text2d::new(if ev.is_correct {
-                "Good job!"
-            } else {
-                "It's not me!"
-            }),
-            TextFont {
-                font_size: 24.,
-                ..default()
-            },
-            TextColor(Color::WHITE),
-            Transform::from_translation(Vec3::new(0., UI_RESULT_Y, 0.)),
-            FeedbackUI {
-                timer: Timer::new(Duration::from_secs(1), TimerMode::Once),
-                should_start_new_game: ev.is_correct,
-            },
-        ));
-    }
+fn spawn_feedback_ui(commands: &mut Commands, result: bool) {
+    commands.spawn((
+        Text2d::new(if result { "Good job!" } else { "It's not me!" }),
+        TextFont {
+            font_size: 24.,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Transform::from_translation(Vec3::new(0., UI_RESULT_Y, 0.)),
+        FeedbackUI {
+            timer: Timer::new(Duration::from_secs(1), TimerMode::Once),
+            should_start_new_game: result,
+        },
+    ));
 }
 
 fn update_feedback_ui_timer(
     mut commands: Commands,
-    mut clear_events: EventWriter<ClearPuzzle>,
     mut query: Query<(Entity, &mut FeedbackUI)>,
     time: Res<Time>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     for (entity, mut feedback) in &mut query {
         feedback.timer.tick(time.delta());
         if feedback.timer.finished() {
             if feedback.should_start_new_game {
-                clear_events.send(ClearPuzzle);
+                next_state.set(GameState::Result);
             }
             commands.entity(entity).despawn();
         }

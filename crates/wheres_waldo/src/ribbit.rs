@@ -1,8 +1,9 @@
 use bevy::log::info;
+use bevy::prelude::NextState;
 use bits_helpers::RibbitMessageHandler;
 use ribbit_bits::{BitDuration, BitResult};
 
-use crate::ClearPuzzle;
+use crate::GameState;
 
 #[derive(Default, Clone, Copy)]
 pub struct WheresWaldo;
@@ -11,8 +12,8 @@ impl RibbitMessageHandler for WheresWaldo {
     fn restart(world: &mut bevy::prelude::World) {
         info!("Restarting WheresWaldo");
 
-        let mut event_writer = world.resource_mut::<bevy::ecs::event::Events<ClearPuzzle>>();
-        event_writer.send(ClearPuzzle);
+        let mut next_state = world.resource_mut::<NextState<GameState>>();
+        next_state.set(GameState::Result);
     }
 
     fn end(_world: &mut bevy::prelude::World) -> BitResult {
