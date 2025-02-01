@@ -40,6 +40,9 @@ pub fn just_released_screen_position(
     } else if touch_input.any_just_released() {
         let touch = touch_input.iter_just_released().next()?;
         Some(touch.position())
+    } else if touch_input.any_just_canceled() {
+        let touch = touch_input.iter_just_canceled().next()?;
+        Some(touch.position())
     } else {
         None
     }

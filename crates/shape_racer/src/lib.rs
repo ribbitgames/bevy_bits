@@ -225,7 +225,10 @@ fn handle_drag_input(
             drag_state.drag_start = Some(world_position);
             drag_state.initial_player_pos = Some(player_transform.translation.truncate());
         }
-    } else if mouse_input.just_released(MouseButton::Left) || touch_input.any_just_released() {
+    } else if mouse_input.just_released(MouseButton::Left)
+        || touch_input.any_just_released()
+        || touch_input.any_just_canceled()
+    {
         drag_state.is_dragging = false;
         drag_state.drag_start = None;
         drag_state.initial_player_pos = None;

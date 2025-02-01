@@ -27,6 +27,7 @@ shape_shooter = { path = "../shape_shooter" }
 wheres_waldo = { path = "../wheres_waldo" }
 
 bevy.workspace = true
+getrandom.workspace = true # This is needed for rand to work in wasm
 strum.workspace = true
 wasm-bindgen.workspace = true
 web-sys.workspace = true

@@ -257,7 +257,10 @@ fn paddle_movement(
         drag_state.is_dragging = true;
         drag_state.drag_start = world_position;
         drag_state.initial_paddle_pos = paddle_transform.translation.truncate();
-    } else if mouse_input.just_released(MouseButton::Left) || touch_input.any_just_released() {
+    } else if mouse_input.just_released(MouseButton::Left)
+        || touch_input.any_just_released()
+        || touch_input.any_just_canceled()
+    {
         // Stop dragging
         drag_state.is_dragging = false;
     }

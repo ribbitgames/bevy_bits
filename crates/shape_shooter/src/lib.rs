@@ -54,7 +54,6 @@ struct Score(u32);
 #[derive(Resource, Default)]
 struct DragState {
     is_dragging: bool,
-    is_touch: bool,
 }
 
 #[derive(Resource, Default)]
@@ -235,8 +234,9 @@ fn handle_drag_input(
         ) {
             drag_state.is_dragging = true;
         }
-    } else if !drag_state.is_touch && mouse_input.just_released(MouseButton::Left)
-        || drag_state.is_touch && touch_input.any_just_released()
+    } else if mouse_input.just_released(MouseButton::Left)
+        || touch_input.any_just_released()
+        || touch_input.any_just_canceled()
     {
         drag_state.is_dragging = false;
     }
@@ -276,18 +276,20 @@ fn spawn_bullets(
     time: Res<Time>,
     drag_state: Res<DragState>,
 ) {
-    if drag_state.is_dragging {
-        let (player_transform, mut player) = player_query.single_mut();
-        player.fire_timer.tick(time.delta());
+    if !drag_state.is_dragging {
+        return;
+    }
 
-        if player.fire_timer.just_finished() {
-            commands.spawn((
-                Mesh2d::from(meshes.add(Mesh::from(primitives::Circle::new(BULLET_SIZE / 2.0)))),
-                MeshMaterial2d(materials.add(ColorMaterial::from(Color::srgb(1.0, 1.0, 0.0)))),
-                Transform::from_translation(player_transform.translation),
-                Bullet,
-            ));
-        }
+    let (player_transform, mut player) = player_query.single_mut();
+    player.fire_timer.tick(time.delta());
+
+    if player.fire_timer.just_finished() {
+        commands.spawn((
+            Mesh2d::from(meshes.add(Mesh::from(primitives::Circle::new(BULLET_SIZE / 2.0)))),
+            MeshMaterial2d(materials.add(ColorMaterial::from(Color::srgb(1.0, 1.0, 0.0)))),
+            Transform::from_translation(player_transform.translation),
+            Bullet,
+        ));
     }
 }
 
