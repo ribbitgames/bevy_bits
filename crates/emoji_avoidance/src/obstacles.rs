@@ -49,7 +49,8 @@ pub struct Obstacle {
     /// The speed of the obstacle.
     pub speed: f32,
     /// The index of the emoji used for the obstacle.
-    pub emoji_index: usize,
+    /// Renamed to `_emoji_index` to indicate that it is intentionally unused.
+    pub _emoji_index: usize,
     /// The collision radius of the obstacle.
     pub radius: f32,
     /// The current velocity vector.
@@ -149,7 +150,7 @@ fn spawn_obstacles(
             ) {
                 commands.entity(obstacle_entity).insert(Obstacle {
                     speed,
-                    emoji_index,
+                    _emoji_index: emoji_index,
                     radius: size / 2.0,
                     // Start moving downward at the given speed.
                     velocity: Vec2::new(0.0, -speed),
@@ -177,7 +178,7 @@ fn spawn_obstacles(
 
 /// Fixed timestep physics update system.
 ///
-/// This system accumulates time using the global PhysicsTime resource and performs physics updates
+/// This system accumulates time using the global `PhysicsTime` resource and performs physics updates
 /// at a fixed rate. For each fixed update, it:
 /// - Copies the current target state into the previous state.
 /// - Updates the velocity toward a target (which includes a horizontal wobble).
@@ -190,9 +191,12 @@ fn obstacle_physics_update(
     let dt = time.delta_secs().min(1.0 / 30.0);
     physics_time.accumulator += dt;
 
-    while physics_time.accumulator >= FIXED_TIMESTEP {
-        for (mut obstacle, transform) in query.iter_mut() {
-            // Calculate all new values first
+    // Determine the number of fixed steps to perform.
+    let steps = (physics_time.accumulator / FIXED_TIMESTEP).floor() as u32;
+    for _ in 0..steps {
+        // Iterate over mutable references to query items.
+        for (mut obstacle, transform) in &mut query {
+            // Calculate all new values first.
             let new_previous_pos = obstacle.target_pos;
             let new_previous_rotation = transform.rotation;
 
@@ -205,7 +209,7 @@ fn obstacle_physics_update(
             let new_target_rotation =
                 transform.rotation * Quat::from_rotation_z(rotation_speed * FIXED_TIMESTEP);
 
-            // Apply all updates at once
+            // Apply all updates at once.
             obstacle.previous_pos = new_previous_pos;
             obstacle.previous_rotation = new_previous_rotation;
             obstacle.velocity = new_velocity;
@@ -229,7 +233,7 @@ fn interpolate_obstacles(
     mut query: Query<(&Obstacle, &mut Transform)>,
 ) {
     let alpha = physics_time.accumulator / FIXED_TIMESTEP;
-    for (obstacle, mut transform) in query.iter_mut() {
+    for (obstacle, mut transform) in &mut query {
         // Copy fields from obstacle into local variables.
         let prev_pos = obstacle.previous_pos;
         let targ_pos = obstacle.target_pos;
