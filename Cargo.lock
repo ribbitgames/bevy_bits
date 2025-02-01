@@ -511,7 +511,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_bits_wasm"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "bevy",
  "flappy_gun",
@@ -4318,7 +4318,7 @@ dependencies = [
 
 [[package]]
 name = "shape_shooter"
-version = "0.0.1"
+version = "0.2.2"
 dependencies = [
  "bevy",
  "bits_helpers",
