@@ -2033,6 +2033,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "emoji_cascade"
+version = "0.0.1"
+dependencies = [
+ "bevy",
+ "bits_helpers",
+ "rand",
+ "ribbit_bits",
+ "strum",
+]
+
+[[package]]
 name = "ena"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
