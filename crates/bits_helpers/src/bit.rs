@@ -70,9 +70,8 @@ pub fn get_default_app<T: RibbitMessageHandler>(bit_name: &str, bit_version: &st
     let render_plugin = RenderPlugin {
         render_creation: bevy::render::settings::RenderCreation::Automatic(WgpuSettings {
             backends: Some(
-                bevy::render::settings::Backends::BROWSER_WEBGPU
-                    | bevy::render::settings::Backends::GL
-                    | bevy::render::settings::Backends::VULKAN,
+                bevy::render::settings::Backends::PRIMARY
+                    | bevy::render::settings::Backends::SECONDARY,
             ),
             power_preference: bevy::render::settings::PowerPreference::HighPerformance,
             priority: WgpuSettingsPriority::Functionality,
