@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
 
 pub struct GamePlugin;
 
@@ -14,6 +13,9 @@ pub enum GameState {
     Playing,
     GameOver,
 }
+
+#[derive(Event)]
+pub struct ChainEvent(pub u32);
 
 #[derive(Resource)]
 pub struct GameProgress {
@@ -53,6 +55,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GameProgress>()
             .init_resource::<LevelConfig>()
+            .add_event::<ChainEvent>()
             .add_systems(
                 Update,
                 (handle_game_over, handle_scoring, update_difficulty)
@@ -67,11 +70,8 @@ fn handle_game_over(progress: Res<GameProgress>, mut next_state: ResMut<NextStat
     }
 }
 
-fn handle_scoring(
-    mut progress: ResMut<GameProgress>,
-    chain_count: u32, // This will be set by the grid system when matches occur
-) {
-    if chain_count > 0 {
+fn handle_scoring(mut progress: ResMut<GameProgress>, mut chain_events: EventReader<ChainEvent>) {
+    for ChainEvent(chain_count) in chain_events.read() {
         let base_score = BASE_MATCH_SCORE * chain_count;
         let chain_bonus = CHAIN_MULTIPLIER * (chain_count - 1);
         progress.score += base_score + chain_bonus;

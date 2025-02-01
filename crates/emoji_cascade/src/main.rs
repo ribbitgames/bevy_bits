@@ -1,3 +1,3 @@
 fn main() {
-    emoji_avoidance::run();
+    emoji_cascade::run();
 }

@@ -4,9 +4,11 @@ use bits_helpers::emoji::EmojiPlugin;
 mod game;
 mod grid;
 mod ribbit;
+mod screen;
 
 use game::GamePlugin;
 use grid::GridPlugin;
+// use screen::ScreenPlugin;
 
 pub fn run() {
     bits_helpers::get_default_app::<ribbit::EmojiCascade>(
@@ -16,6 +18,7 @@ pub fn run() {
     .add_plugins(EmojiPlugin)
     .add_plugins(GamePlugin)
     .add_plugins(GridPlugin)
+    //.add_plugins(ScreenPlugin)
     .init_state::<game::GameState>()
     .add_systems(Startup, setup)
     .run();
