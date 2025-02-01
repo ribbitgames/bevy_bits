@@ -54,8 +54,7 @@ struct Score(u32);
 #[derive(Resource, Default)]
 struct DragState {
     is_dragging: bool,
-    drag_start: Option<Vec2>,
-    initial_player_pos: Option<Vec2>,
+    is_touch: bool,
 }
 
 #[derive(Resource, Default)]
@@ -235,18 +234,16 @@ fn handle_drag_input(
             PLAYER_SIZE,
         ) {
             drag_state.is_dragging = true;
-            drag_state.drag_start = Some(world_position);
-            drag_state.initial_player_pos = Some(player_transform.translation.truncate());
         }
-    } else if mouse_input.just_released(MouseButton::Left) || touch_input.any_just_released() {
+    } else if !drag_state.is_touch && mouse_input.just_released(MouseButton::Left)
+        || drag_state.is_touch && touch_input.any_just_released()
+    {
         drag_state.is_dragging = false;
-        drag_state.drag_start = None;
-        drag_state.initial_player_pos = None;
     }
 }
 
 fn player_movement(
-    mut drag_state: ResMut<DragState>,
+    drag_state: ResMut<DragState>,
     mut player_query: Query<&mut Transform, With<Player>>,
     windows: Query<&Window>,
     mouse_input: Res<ButtonInput<MouseButton>>,
@@ -267,22 +264,8 @@ fn player_movement(
         return;
     };
 
-    let current_pos = player_transform.translation.truncate();
-    let movement = world_position - current_pos;
-
-    let new_pos = current_pos + movement;
-
-    player_transform.translation.x = new_pos.x.clamp(
-        -WINDOW_WIDTH / 2.0 + PLAYER_SIZE / 2.0,
-        WINDOW_WIDTH / 2.0 - PLAYER_SIZE / 2.0,
-    );
-    player_transform.translation.y = new_pos.y.clamp(
-        -WINDOW_HEIGHT / 2.0 + PLAYER_SIZE / 2.0,
-        WINDOW_HEIGHT / 2.0 - PLAYER_SIZE / 2.0,
-    );
-
-    // Update drag_state with the new position
-    drag_state.initial_player_pos = Some(player_transform.translation.truncate());
+    player_transform.translation.x = world_position.x;
+    player_transform.translation.y = world_position.y;
 }
 
 fn spawn_bullets(
