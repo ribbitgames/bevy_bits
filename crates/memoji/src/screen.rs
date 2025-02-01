@@ -145,7 +145,7 @@ fn try_spawn_stage_transition(
         StageTransitionScreen,
         Text2d::new(format!(
             "Stage {} Complete!\n\nMistakes: {}/{}\nNext Stage: {}x{} Grid\nReveal Time: {:.1}s\n\nClick to Continue",
-            difficulty.stage-1,
+            difficulty.stage,
             game_progress.mistakes,
             game_progress.max_mistakes,
             difficulty.grid_rows,

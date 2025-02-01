@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::cards::Card;
+use crate::effects::CelebrationState;
 
 pub struct GamePlugin;
 
@@ -159,42 +160,49 @@ pub struct FlipState {
 
 fn handle_stage_transition(
     mut commands: Commands,
-    time: Res<Time>,
+    celebration_state: Res<CelebrationState>,
     mut stage_state: ResMut<StageState>,
     mut game_difficulty: ResMut<GameDifficulty>,
     mut game_progress: ResMut<GameProgress>,
     mut next_state: ResMut<NextState<GameState>>,
     cards: Query<Entity, With<Card>>,
 ) {
-    if let Some(timer) = &mut stage_state.transition_timer {
-        if timer.tick(time.delta()).just_finished() {
-            // After cleanup, transition to stage complete
-            next_state.set(GameState::StageComplete);
-
-            // Clear cards
-            for card_entity in cards.iter() {
-                commands.entity(card_entity).despawn_recursive();
-            }
-
-            // Prep next stage
-            game_difficulty.advance_stage();
-            *game_progress = GameProgress {
-                initial_wait_timer: Some(Timer::from_seconds(INITIAL_WAIT_TIME, TimerMode::Once)),
-                reveal_timer: Some(Timer::from_seconds(
-                    (game_difficulty.grid_rows * game_difficulty.grid_cols) as f32
-                        * REVEAL_TIME_PER_CARD,
-                    TimerMode::Once,
-                )),
-                cards_revealed: false,
-                mistakes: 0,
-                max_mistakes: MAX_MISTAKES,
-                game_over: false,
-                game_over_reveal_timer: None,
-            };
-
-            stage_state.stage_complete = false;
-            stage_state.transition_timer = None;
+    // Only proceed with stage transition after celebration is complete
+    if stage_state.stage_complete {
+        if celebration_state.is_celebrating {
+            // Wait for celebration to finish
+            return;
         }
+
+        if stage_state.transition_timer.is_none() {
+            // Set state to StageComplete which will trigger the transition screen
+            next_state.set(GameState::StageComplete);
+            return;
+        }
+
+        // Clear current stage's cards
+        for card_entity in cards.iter() {
+            commands.entity(card_entity).despawn_recursive();
+        }
+
+        // Prep next stage
+        game_difficulty.advance_stage();
+        *game_progress = GameProgress {
+            initial_wait_timer: Some(Timer::from_seconds(INITIAL_WAIT_TIME, TimerMode::Once)),
+            reveal_timer: Some(Timer::from_seconds(
+                (game_difficulty.grid_rows * game_difficulty.grid_cols) as f32
+                    * REVEAL_TIME_PER_CARD,
+                TimerMode::Once,
+            )),
+            cards_revealed: false,
+            mistakes: 0,
+            max_mistakes: MAX_MISTAKES,
+            game_over: false,
+            game_over_reveal_timer: None,
+        };
+
+        stage_state.stage_complete = false;
+        stage_state.transition_timer = None;
     }
 }
 
