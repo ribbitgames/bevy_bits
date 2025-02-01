@@ -49,7 +49,6 @@ pub struct Obstacle {
     /// The speed of the obstacle.
     pub speed: f32,
     /// The index of the emoji used for the obstacle.
-    /// Renamed to `_emoji_index` to indicate that it is intentionally unused.
     pub _emoji_index: usize,
     /// The collision radius of the obstacle.
     pub radius: f32,
@@ -63,6 +62,8 @@ pub struct Obstacle {
     pub previous_rotation: Quat,
     /// Rotation computed in the current physics update.
     pub target_rotation: Quat,
+    /// Rotation speed in radians per second
+    pub rotation_speed: f32,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -140,6 +141,14 @@ fn spawn_obstacles(
                 .0
                 .mul_add(DIFFICULTY_INCREASE_RATE, INITIAL_OBSTACLE_SPEED);
 
+            // Random rotation speed between -2π and 2π radians per second
+            // Some emojis won't rotate (25% chance)
+            let rotation_speed = if rng.gen_bool(0.75) {
+                rng.gen_range(-2.0..2.0) * std::f32::consts::PI
+            } else {
+                0.0
+            };
+
             if let Some(obstacle_entity) = emoji::spawn_emoji(
                 &mut commands,
                 &atlas,
@@ -152,14 +161,12 @@ fn spawn_obstacles(
                     speed,
                     _emoji_index: emoji_index,
                     radius: size / 2.0,
-                    // Start moving downward at the given speed.
                     velocity: Vec2::new(0.0, -speed),
-                    // Initialize both positions to the starting point.
                     previous_pos: start_pos,
                     target_pos: start_pos,
-                    // Initialize rotations to identity.
                     previous_rotation: Quat::IDENTITY,
                     target_rotation: Quat::IDENTITY,
+                    rotation_speed,
                 });
             }
         }
@@ -205,9 +212,9 @@ fn obstacle_physics_update(
             let new_velocity = obstacle.velocity.lerp(target_velocity, 0.15);
             let new_target_pos = obstacle.target_pos + new_velocity * FIXED_TIMESTEP;
 
-            let rotation_speed = new_velocity.x * 0.01;
-            let new_target_rotation =
-                transform.rotation * Quat::from_rotation_z(rotation_speed * FIXED_TIMESTEP);
+            // Apply constant rotation based on rotation_speed
+            let new_target_rotation = transform.rotation
+                * Quat::from_rotation_z(obstacle.rotation_speed * FIXED_TIMESTEP);
 
             // Apply all updates at once.
             obstacle.previous_pos = new_previous_pos;
