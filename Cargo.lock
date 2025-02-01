@@ -2022,6 +2022,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
 
 [[package]]
+name = "emoji_avoidance"
+version = "0.0.1"
+dependencies = [
+ "bevy",
+ "bits_helpers",
+ "rand",
+ "ribbit_bits",
+ "strum",
+]
+
+[[package]]
 name = "ena"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
