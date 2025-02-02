@@ -16,34 +16,8 @@ const INITIAL_OBSTACLE_SPEED: f32 = 150.0;
 const DIFFICULTY_INCREASE_RATE: f32 = 0.1;
 /// Minimum allowed spawn interval (in seconds)
 const MIN_SPAWN_INTERVAL: f32 = 0.3;
-/// Fixed timestep duration for physics simulation (60 updates per second)
-const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Global Resource: PhysicsTime
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Global resource that accumulates delta time for physics updates.
-#[derive(Resource)]
-pub struct PhysicsTime {
-    /// Accumulated time not yet simulated.
-    pub accumulator: f32,
-}
-
-impl Default for PhysicsTime {
-    fn default() -> Self {
-        Self { accumulator: 0.0 }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Component: Obstacle
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Component representing an obstacle with its physics state.
-///
-/// This component stores both the previous state (position and rotation) and the computed target
-/// state. The render system will interpolate between these states.
 #[derive(Component)]
 pub struct Obstacle {
     /// The speed of the obstacle.
@@ -52,23 +26,9 @@ pub struct Obstacle {
     pub _emoji_index: usize,
     /// The collision radius of the obstacle.
     pub radius: f32,
-    /// The current velocity vector.
-    pub velocity: Vec2,
-    /// Position from the last physics update.
-    pub previous_pos: Vec2,
-    /// Position computed in the current physics update.
-    pub target_pos: Vec2,
-    /// Rotation from the last physics update.
-    pub previous_rotation: Quat,
-    /// Rotation computed in the current physics update.
-    pub target_rotation: Quat,
     /// Rotation speed in radians per second
     pub rotation_speed: f32,
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Resource: SpawnTimer
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Resource that handles the timer used for obstacle spawning.
 #[derive(Resource)]
@@ -83,42 +43,21 @@ impl Default for SpawnTimer {
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Plugin Registration
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /// Plugin that registers all obstacle-related systems.
 pub struct ObstaclesPlugin;
 
 impl Plugin for ObstaclesPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PhysicsTime>()
-            .init_resource::<SpawnTimer>()
-            // Spawn obstacles when the game state is Playing.
+        app.init_resource::<SpawnTimer>()
             .add_systems(Update, spawn_obstacles.run_if(in_state(GameState::Playing)))
-            // Run the fixed timestep physics update first.
             .add_systems(
                 Update,
-                obstacle_physics_update.run_if(in_state(GameState::Playing)),
-            )
-            // Then run the interpolation system; it must run after the physics update.
-            .add_systems(
-                Update,
-                interpolate_obstacles
-                    .run_if(in_state(GameState::Playing))
-                    .after(obstacle_physics_update),
+                update_obstacles.run_if(in_state(GameState::Playing)),
             );
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// System: spawn_obstacles
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /// Spawns new obstacles at the top of the screen with a random horizontal offset.
-///
-/// This system selects a random emoji from the atlas and creates an obstacle entity with initial
-/// physics state where both previous and target positions (and rotations) are identical.
 fn spawn_obstacles(
     mut commands: Commands,
     atlas: Res<EmojiAtlas>,
@@ -161,11 +100,6 @@ fn spawn_obstacles(
                     speed,
                     _emoji_index: emoji_index,
                     radius: size / 2.0,
-                    velocity: Vec2::new(0.0, -speed),
-                    previous_pos: start_pos,
-                    target_pos: start_pos,
-                    previous_rotation: Quat::IDENTITY,
-                    target_rotation: Quat::IDENTITY,
                     rotation_speed,
                 });
             }
@@ -179,97 +113,22 @@ fn spawn_obstacles(
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// System: obstacle_physics_update
-////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Updates obstacle positions and rotations using direct delta time.
+fn update_obstacles(time: Res<Time>, mut query: Query<(&Obstacle, &mut Transform)>) {
+    let dt = time.delta_secs();
 
-/// Fixed timestep physics update system.
-///
-/// This system accumulates time using the global `PhysicsTime` resource and performs physics updates
-/// at a fixed rate. For each fixed update, it:
-/// - Copies the current target state into the previous state.
-/// - Updates the velocity toward a target (which includes a horizontal wobble).
-/// - Computes new target position and rotation.
-fn obstacle_physics_update(
-    time: Res<Time>,
-    mut physics_time: ResMut<PhysicsTime>,
-    mut query: Query<(&mut Obstacle, &mut Transform)>,
-) {
-    let dt = time.delta_secs().min(1.0 / 30.0);
-    physics_time.accumulator += dt;
-
-    // Determine the number of fixed steps to perform.
-    let steps = (physics_time.accumulator / FIXED_TIMESTEP).floor() as u32;
-    for _ in 0..steps {
-        // Iterate over mutable references to query items.
-        for (mut obstacle, transform) in &mut query {
-            // Calculate all new values first.
-            let new_previous_pos = obstacle.target_pos;
-            let new_previous_rotation = transform.rotation;
-
-            let wobble = (obstacle.target_pos.y * 0.1).sin() * 5.0;
-            let target_velocity = Vec2::new(wobble, -obstacle.speed);
-            let new_velocity = obstacle.velocity.lerp(target_velocity, 0.15);
-            let new_target_pos = obstacle.target_pos + new_velocity * FIXED_TIMESTEP;
-
-            // Apply constant rotation based on rotation_speed
-            let new_target_rotation = transform.rotation
-                * Quat::from_rotation_z(obstacle.rotation_speed * FIXED_TIMESTEP);
-
-            // Apply all updates at once.
-            obstacle.previous_pos = new_previous_pos;
-            obstacle.previous_rotation = new_previous_rotation;
-            obstacle.velocity = new_velocity;
-            obstacle.target_pos = new_target_pos;
-            obstacle.target_rotation = new_target_rotation;
-        }
-        physics_time.accumulator -= FIXED_TIMESTEP;
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// System: interpolate_obstacles
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Render interpolation system.
-///
-/// This system runs every frame and interpolates each obstacle's position and rotation between
-/// their previous and target states based on the physics accumulator.
-fn interpolate_obstacles(
-    physics_time: Res<PhysicsTime>,
-    mut query: Query<(&Obstacle, &mut Transform)>,
-) {
-    let alpha = physics_time.accumulator / FIXED_TIMESTEP;
     for (obstacle, mut transform) in &mut query {
-        // Copy fields from obstacle into local variables.
-        let prev_pos = obstacle.previous_pos;
-        let targ_pos = obstacle.target_pos;
-        let interpolated_pos = prev_pos.lerp(targ_pos, alpha);
-        let current_z = transform.translation.z;
-        transform.translation = Vec3::new(interpolated_pos.x, interpolated_pos.y, current_z);
+        // Update position - moving straight down
+        transform.translation.y -= obstacle.speed * dt;
 
-        let prev_rot = obstacle.previous_rotation;
-        let targ_rot = obstacle.target_rotation;
-        let interpolated_rot = prev_rot.slerp(targ_rot, alpha);
-        transform.rotation = interpolated_rot;
+        // Update rotation
+        if obstacle.rotation_speed != 0.0 {
+            transform.rotate(Quat::from_rotation_z(obstacle.rotation_speed * dt));
+        }
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Collision Helper Function
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/// Checks collision between two circular objects by comparing the squared distance
-/// to the square of the sum of their radii.
-///
-/// # Arguments
-/// - `pos1`: The position of the first object.
-/// - `radius1`: The collision radius of the first object.
-/// - `pos2`: The position of the second object.
-/// - `radius2`: The collision radius of the second object.
-///
-/// # Returns
-/// - `true` if the objects collide; otherwise, `false`.
+/// Checks collision between two circular objects.
 pub fn check_collision(pos1: Vec2, radius1: f32, pos2: Vec2, radius2: f32) -> bool {
     pos1.distance_squared(pos2) < (radius1 + radius2).powi(2)
 }
