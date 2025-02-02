@@ -37,16 +37,47 @@ impl Default for GameProgress {
 #[derive(Resource)]
 pub struct LevelConfig {
     pub grid_size: (u32, u32), // (rows, columns)
-    pub grid_spacing: f32,
+    pub grid_spacing: f32,     // Distance between emoji centers
+    pub emoji_scale: f32,      // Scale factor for emojis
     pub num_emoji_types: usize,
 }
 
 impl Default for LevelConfig {
     fn default() -> Self {
+        // Screen dimensions and margins
+        let window_width = bits_helpers::WINDOW_WIDTH;
+        let window_height = bits_helpers::WINDOW_HEIGHT;
+        let ui_margin = 50.0_f32;
+
+        // Grid dimensions
+        let cols = 6;
+        let rows = 8;
+
+        // Emoji sizing
+        let emoji_base_size = 128.0_f32; // Base size of emoji sprites
+        let emoji_scale = 0.4_f32; // Reduce emoji size to fit better
+        let emoji_rendered_size = emoji_base_size * emoji_scale;
+        let minimum_padding = 15.0_f32; // Minimum space between emojis
+
+        // Calculate minimum spacing needed between emoji centers
+        let min_spacing = emoji_rendered_size + minimum_padding;
+
+        // Calculate available space
+        let available_width = window_width - (ui_margin * 2.0);
+        let available_height = window_height - (ui_margin * 2.0);
+
+        // Calculate spacing that will fit within screen bounds
+        let spacing_by_width = available_width / (cols as f32);
+        let spacing_by_height = available_height / (rows as f32);
+
+        // Use the larger of minimum spacing and smaller of width/height calculations
+        let grid_spacing = f32::max(min_spacing, f32::min(spacing_by_width, spacing_by_height));
+
         Self {
-            grid_size: (8, 6),  // Standard match-3 size that works well on mobile
-            grid_spacing: 70.0, // Maintaining your existing spacing
-            num_emoji_types: 6, // Standard number of different emoji types
+            grid_size: (rows, cols),
+            grid_spacing,
+            emoji_scale,
+            num_emoji_types: 6,
         }
     }
 }

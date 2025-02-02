@@ -8,7 +8,7 @@ mod screen;
 
 use game::GamePlugin;
 use grid::GridPlugin;
-// use screen::ScreenPlugin;
+use screen::ScreenPlugin;
 
 pub fn run() {
     bits_helpers::get_default_app::<ribbit::EmojiCascade>(
@@ -18,7 +18,7 @@ pub fn run() {
     .add_plugins(EmojiPlugin)
     .add_plugins(GamePlugin)
     .add_plugins(GridPlugin)
-    //.add_plugins(ScreenPlugin)
+    .add_plugins(ScreenPlugin)
     .init_state::<game::GameState>()
     .add_systems(Startup, setup)
     .run();
