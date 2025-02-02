@@ -16,6 +16,10 @@ const INITIAL_OBSTACLE_SPEED: f32 = 150.0;
 const DIFFICULTY_INCREASE_RATE: f32 = 0.1;
 /// Minimum allowed spawn interval (in seconds)
 const MIN_SPAWN_INTERVAL: f32 = 0.3;
+/// Minimum rotation speed in radians per second (approx -2π)
+const MIN_ROTATION_SPEED: f32 = -1.5 * std::f32::consts::PI;
+/// Maximum rotation speed in radians per second (approx 2π)
+const MAX_ROTATION_SPEED: f32 = 1.5 * std::f32::consts::PI;
 
 /// Component representing an obstacle with its physics state.
 #[derive(Component)]
@@ -83,7 +87,7 @@ fn spawn_obstacles(
             // Random rotation speed between -2π and 2π radians per second
             // Some emojis won't rotate (25% chance)
             let rotation_speed = if rng.gen_bool(0.75) {
-                rng.gen_range(-2.0..2.0) * std::f32::consts::PI
+                rng.gen_range(MIN_ROTATION_SPEED..MAX_ROTATION_SPEED)
             } else {
                 0.0
             };
