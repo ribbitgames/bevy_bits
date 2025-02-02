@@ -20,10 +20,15 @@ const BACKGROUND_COLOR: Color = Color::Srgba(Srgba {
 const SPRITE_SIZE_X: f32 = 32.;
 const SPRITE_SIZE_Y: f32 = 32.;
 
+// This should get from emoji::EMOJI_SIZE,
+//or we should be able to actual sprite size
+//for emoji plugin instead of specifying the scale
+const SPRITE_SCALE: f32 = SPRITE_SIZE_X / 128.0;
+
 const UI_Y: f32 = -BACKGROUND_SIZE_Y * 0.5 - 32.;
 const UI_RESULT_Y: f32 = UI_Y - 32.;
 
-const COLLISION_RADIUS: f32 = 24.0;
+const COLLISION_RADIUS: f32 = SPRITE_SIZE_X * 0.75;
 
 const NUMBER_OF_CANDIDATES: u32 = 40;
 
@@ -149,7 +154,7 @@ fn mouse_events(
 
 fn get_random_transform(grid_position: Vec2) -> Transform {
     let mut rng = rand::thread_rng();
-    let position_noize: f32 = 0.3;
+    let position_noize: f32 = 0.125;
     let rotation_noize: f32 = 0.25;
     Transform::from_translation(Vec3::new(
         rng.gen_range(-position_noize..position_noize)
@@ -171,8 +176,21 @@ fn create_puzzle(
 ) {
     let mut rng = rand::thread_rng();
 
-    let selected_index =
+    let selected_indices =
         emoji::get_random_emojis(&atlas, &validation, NUMBER_OF_CANDIDATES as usize);
+
+    // Trying to use similar emojis instead of complelte random ones
+    //let selected_index = *emoji::get_random_emojis(&atlas, &validation, 1)
+    //    .first()
+    //    .expect("");
+    //let mut selected_indices: Vec<usize> = (0..100).map(|x| selected_index + x - 50).collect();
+    //selected_indices.shuffle(&mut rng);
+    //for (index, &item) in selected_indices.iter().rev().enumerate() {
+    //    if !atlas.valid_indecies.contains(item) {
+    //        selected_indices.remove(index);
+    //    }
+    //}
+    //selected_indices.truncate(NUMBER_OF_CANDIDATES as usize);
 
     grid.grid.shuffle(&mut rng);
 
@@ -187,16 +205,16 @@ fn create_puzzle(
             &mut commands,
             &atlas,
             &validation,
-            *selected_index
+            *selected_indices
                 .get(count)
                 .expect("The index is out of the range!"),
             Vec2::new(t.translation.x, t.translation.y),
-            0.15,
+            SPRITE_SCALE,
         ) {
             commands.entity(entity).insert(Character).insert(Transform {
                 translation: t.translation,
                 rotation: t.rotation,
-                scale: Vec3::new(0.15, 0.15, 0.),
+                scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 1.),
             });
             if count == 0 {
                 commands.entity(entity).insert(Waldo);
@@ -209,11 +227,12 @@ fn create_puzzle(
         &mut commands,
         &atlas,
         &validation,
-        *selected_index
+        *selected_indices
             .first()
             .expect("The index is out of the range!"),
         Vec2::new(40., UI_Y),
-        0.15,
+        //SPRITE_SCALE,
+        0.2,
     ) {
         commands.entity(entity).insert(Character).insert(Waldo);
     }
