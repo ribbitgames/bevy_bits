@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bits_helpers::emoji::EmojiPlugin;
 use bits_helpers::floating_score::animate_floating_scores;
-use ribbit::ShapeFinder;
+use ribbit::EmojiGrabber;
 
 mod core;
 mod gameplay;
@@ -25,7 +25,7 @@ use crate::welcome::{despawn_welcome_screen, handle_welcome_input, try_spawn_wel
 
 /// Entry point for the game
 pub fn run() {
-    let mut app = bits_helpers::get_default_app::<ShapeFinder>(
+    let mut app = bits_helpers::get_default_app::<EmojiGrabber>(
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION"),
     );

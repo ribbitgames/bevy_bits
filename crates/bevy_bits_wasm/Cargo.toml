@@ -17,7 +17,7 @@ math_quiz = { path = "../math_quiz" }
 maze = { path = "../maze" }
 memoji = { path = "../memoji" }
 puzzle15 = { path = "../puzzle15" }
-shape_finder = { path = "../shape_finder" }
+emoji_grabber = { path = "../emoji_grabber" }
 shape_grabber = { path = "../shape_grabber" }
 shape_masher = { path = "../shape_masher" }
 shape_memorizer = { path = "../shape_memorizer" }
@@ -27,7 +27,7 @@ shape_shooter = { path = "../shape_shooter" }
 wheres_waldo = { path = "../wheres_waldo" }
 
 bevy.workspace = true
-getrandom.workspace = true # This is needed for rand to work in wasm
+getrandom.workspace = true    # This is needed for rand to work in wasm
 strum.workspace = true
 wasm-bindgen.workspace = true
 web-sys.workspace = true

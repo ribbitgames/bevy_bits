@@ -6,18 +6,18 @@ use ribbit_bits::{BitDuration, BitResult};
 use crate::{GameState, Score};
 
 #[derive(Default, Clone, Copy)]
-pub struct ShapeFinder;
+pub struct EmojiGrabber;
 
-impl RibbitMessageHandler for ShapeFinder {
+impl RibbitMessageHandler for EmojiGrabber {
     fn restart(world: &mut bevy::prelude::World) {
-        info!("Restarting ShapeFinder");
+        info!("Restarting EmojiGrabber");
 
         let mut next_state = world.resource_mut::<NextState<GameState>>();
         next_state.set(GameState::Welcome);
     }
 
     fn end(world: &mut bevy::prelude::World) -> BitResult {
-        info!("Ending ShapeFinder");
+        info!("Ending EmojiGrabber");
 
         let mut next_state = world.resource_mut::<NextState<GameState>>();
         next_state.set(GameState::GameOver);

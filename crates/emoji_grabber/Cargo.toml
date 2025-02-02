@@ -1,5 +1,5 @@
 [package]
-name = "shape_finder"
+name = "emoji_grabber"
 version = "0.0.1"
 publish = false
 edition.workspace = true
