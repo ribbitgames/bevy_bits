@@ -6,8 +6,8 @@ use bits_helpers::FONT;
 use crate::game::{GameState, TimerText, WINDOW_HEIGHT};
 use crate::obstacles::{check_collision, Obstacle};
 
-const PLAYER_WIDTH: f32 = 40.0;
-const PLAYER_HEIGHT: f32 = 60.0;
+pub const PLAYER_WIDTH: f32 = 40.0;
+pub const PLAYER_HEIGHT: f32 = 60.0;
 
 #[derive(Component)]
 pub struct Player {

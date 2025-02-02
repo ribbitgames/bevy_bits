@@ -3,23 +3,28 @@ use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
 use rand::prelude::*;
 
 use crate::game::{GameState, GameTimer, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::player::PLAYER_WIDTH;
 
 /// Minimum obstacle size (in pixels)
 const OBSTACLE_MIN_SIZE: f32 = 40.0;
 /// Maximum obstacle size (in pixels)
 const OBSTACLE_MAX_SIZE: f32 = 80.0;
 /// Initial time interval (in seconds) between obstacle spawns
-const INITIAL_OBSTACLE_SPAWN_RATE: f32 = 1.0;
+const INITIAL_OBSTACLE_SPAWN_RATE: f32 = 0.7;
 /// Base obstacle speed (in pixels per second)
 const INITIAL_OBSTACLE_SPEED: f32 = 150.0;
+/// Maximum speed cap (in pixels per second) to keep game playable
+const MAX_OBSTACLE_SPEED: f32 = 500.0;
 /// Rate at which obstacle speed increases over time
-const DIFFICULTY_INCREASE_RATE: f32 = 0.1;
+const DIFFICULTY_INCREASE_RATE: f32 = 0.3;
 /// Minimum allowed spawn interval (in seconds)
 const MIN_SPAWN_INTERVAL: f32 = 0.3;
 /// Minimum rotation speed in radians per second (approx -2π)
 const MIN_ROTATION_SPEED: f32 = -1.5 * std::f32::consts::PI;
 /// Maximum rotation speed in radians per second (approx 2π)
 const MAX_ROTATION_SPEED: f32 = 1.5 * std::f32::consts::PI;
+/// Minimum required gap width for player passage (with some buffer)
+const MINIMUM_PATH_WIDTH: f32 = PLAYER_WIDTH + 20.0;
 
 /// Component representing an obstacle with its physics state.
 #[derive(Component)]
@@ -61,7 +66,56 @@ impl Plugin for ObstaclesPlugin {
     }
 }
 
-/// Spawns new obstacles at the top of the screen with a random horizontal offset.
+/// Checks if a potential obstacle position would block all paths
+fn would_block_all_paths(
+    potential_pos: Vec2,
+    potential_size: f32,
+    query: &Query<(&Transform, &Obstacle)>,
+    window_width: f32,
+) -> bool {
+    // Get all obstacles in the same horizontal band
+    let relevant_obstacles: Vec<(Vec2, f32)> = query
+        .iter()
+        .filter(|(transform, _)| {
+            (transform.translation.y - potential_pos.y).abs() < MINIMUM_PATH_WIDTH
+        })
+        .map(|(transform, obstacle)| (transform.translation.truncate(), obstacle.radius * 2.0))
+        .collect();
+
+    // If there are no nearby obstacles, position is safe
+    if relevant_obstacles.is_empty() {
+        return false;
+    }
+
+    // Add the potential new obstacle to the list
+    let mut all_positions = relevant_obstacles;
+    all_positions.push((potential_pos, potential_size));
+
+    // Sort by x position for gap checking
+    all_positions.sort_by(|a, b| {
+        a.0.x
+            .partial_cmp(&b.0.x)
+            .expect("Failed to compare positions")
+    });
+
+    // Check for gaps between obstacles
+    let mut prev_right = -window_width / 2.0;
+    for (pos, size) in all_positions {
+        let left_edge = pos.x - size / 2.0;
+        let gap_width = left_edge - prev_right;
+
+        if gap_width >= MINIMUM_PATH_WIDTH {
+            return false; // Found a valid gap
+        }
+
+        prev_right = pos.x + size / 2.0;
+    }
+
+    // Check final gap on right side
+    let final_gap = window_width / 2.0 - prev_right;
+    final_gap < MINIMUM_PATH_WIDTH
+}
+
 fn spawn_obstacles(
     mut commands: Commands,
     atlas: Res<EmojiAtlas>,
@@ -69,44 +123,51 @@ fn spawn_obstacles(
     mut spawn_timer: ResMut<SpawnTimer>,
     game_timer: Res<GameTimer>,
     time: Res<Time>,
+    obstacle_query: Query<(&Transform, &Obstacle)>,
 ) {
     spawn_timer.0.tick(time.delta());
 
     if spawn_timer.0.just_finished() {
         let mut rng = rand::thread_rng();
-        let size = rng.gen_range(OBSTACLE_MIN_SIZE..OBSTACLE_MAX_SIZE);
-        let x = rng.gen_range(-WINDOW_WIDTH / 2.0 + size / 2.0..WINDOW_WIDTH / 2.0 - size / 2.0);
-        let start_pos = Vec2::new(x, WINDOW_HEIGHT / 2.0 + size / 2.0);
+        let mut attempts = 0;
+        const MAX_ATTEMPTS: i32 = 10;
 
-        let available_emojis = emoji::get_random_emojis(&atlas, &validation, 1);
-        if let Some(&emoji_index) = available_emojis.first() {
-            let speed = game_timer
-                .0
-                .mul_add(DIFFICULTY_INCREASE_RATE, INITIAL_OBSTACLE_SPEED);
+        while attempts < MAX_ATTEMPTS {
+            let size = rng.gen_range(OBSTACLE_MIN_SIZE..OBSTACLE_MAX_SIZE);
+            let x =
+                rng.gen_range(-WINDOW_WIDTH / 2.0 + size / 2.0..WINDOW_WIDTH / 2.0 - size / 2.0);
+            let start_pos = Vec2::new(x, WINDOW_HEIGHT / 2.0 + size / 2.0);
 
-            // Random rotation speed between -2π and 2π radians per second
-            // Some emojis won't rotate (25% chance)
-            let rotation_speed = if rng.gen_bool(0.75) {
-                rng.gen_range(MIN_ROTATION_SPEED..MAX_ROTATION_SPEED)
-            } else {
-                0.0
-            };
+            if !would_block_all_paths(start_pos, size, &obstacle_query, WINDOW_WIDTH) {
+                let available_emojis = emoji::get_random_emojis(&atlas, &validation, 1);
+                if let Some(&emoji_index) = available_emojis.first() {
+                    let speed = calculate_speed(game_timer.0);
 
-            if let Some(obstacle_entity) = emoji::spawn_emoji(
-                &mut commands,
-                &atlas,
-                &validation,
-                emoji_index,
-                start_pos,
-                size / OBSTACLE_MAX_SIZE,
-            ) {
-                commands.entity(obstacle_entity).insert(Obstacle {
-                    speed,
-                    _emoji_index: emoji_index,
-                    radius: size / 2.0,
-                    rotation_speed,
-                });
+                    let rotation_speed = if rng.gen_bool(0.75) {
+                        rng.gen_range(MIN_ROTATION_SPEED..MAX_ROTATION_SPEED)
+                    } else {
+                        0.0
+                    };
+
+                    if let Some(obstacle_entity) = emoji::spawn_emoji(
+                        &mut commands,
+                        &atlas,
+                        &validation,
+                        emoji_index,
+                        start_pos,
+                        size / OBSTACLE_MAX_SIZE,
+                    ) {
+                        commands.entity(obstacle_entity).insert(Obstacle {
+                            speed,
+                            _emoji_index: emoji_index,
+                            radius: size / 2.0,
+                            rotation_speed,
+                        });
+                    }
+                }
+                break;
             }
+            attempts += 1;
         }
 
         let new_spawn_rate = game_timer
@@ -115,6 +176,11 @@ fn spawn_obstacles(
             .max(MIN_SPAWN_INTERVAL);
         spawn_timer.0 = Timer::from_seconds(new_spawn_rate, TimerMode::Repeating);
     }
+}
+
+/// Helper function to calculate current speed based on game time
+fn calculate_speed(game_time: f32) -> f32 {
+    (game_time.mul_add(DIFFICULTY_INCREASE_RATE, INITIAL_OBSTACLE_SPEED)).min(MAX_OBSTACLE_SPEED)
 }
 
 /// Updates obstacle positions and rotations using direct delta time.
