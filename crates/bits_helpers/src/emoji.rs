@@ -269,3 +269,9 @@ pub fn is_emoji_system_ready(validation: &Res<AtlasValidation>) -> bool {
 pub fn get_emoji_count(validation: &Res<AtlasValidation>) -> usize {
     validation.total_emojis
 }
+
+/// Returns whether the index is valid
+#[must_use]
+pub fn is_valid_emoji_index(atlas: &Res<EmojiAtlas>, index: usize) -> bool {
+    atlas.valid_indices.contains(&index)
+}
