@@ -176,21 +176,14 @@ fn create_puzzle(
 ) {
     let mut rng = rand::thread_rng();
 
-    let selected_indices =
-        emoji::get_random_emojis(&atlas, &validation, NUMBER_OF_CANDIDATES as usize);
-
     // Trying to use similar emojis instead of complelte random ones
-    //let selected_index = *emoji::get_random_emojis(&atlas, &validation, 1)
-    //    .first()
-    //    .expect("");
-    //let mut selected_indices: Vec<usize> = (0..100).map(|x| selected_index + x - 50).collect();
-    //selected_indices.shuffle(&mut rng);
-    //for (index, &item) in selected_indices.iter().rev().enumerate() {
-    //    if !atlas.valid_indecies.contains(item) {
-    //        selected_indices.remove(index);
-    //    }
-    //}
-    //selected_indices.truncate(NUMBER_OF_CANDIDATES as usize);
+    let selected_index = *emoji::get_random_emojis(&atlas, &validation, 1)
+        .first()
+        .expect("");
+    let mut selected_indices: Vec<usize> = (0..100).map(|x| selected_index + x - 50).collect();
+    selected_indices.shuffle(&mut rng);
+    selected_indices.retain(|index| emoji::is_valid_emoji_index(&atlas, *index));
+    selected_indices.truncate(NUMBER_OF_CANDIDATES as usize);
 
     grid.grid.shuffle(&mut rng);
 
