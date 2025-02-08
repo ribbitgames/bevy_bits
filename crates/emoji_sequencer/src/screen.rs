@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bits_helpers::FONT;
+use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 
 use crate::game::{GameDifficulty, GameProgress, GameState, ScoreState, REVEAL_TIME_PER_EMOJI};
 
@@ -205,7 +205,7 @@ fn spawn_score_display(
             ..default()
         },
         TextLayout::new_with_justify(JustifyText::Left),
-        Transform::from_xyz(-380.0, 280.0, 0.0),
+        Transform::from_xyz(WINDOW_HEIGHT, WINDOW_WIDTH, 0.0),
     ));
 }
 
