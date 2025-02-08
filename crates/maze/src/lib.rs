@@ -148,7 +148,7 @@ fn reset_maze(mut commands: Commands, mut maze_query: Query<&mut MazeGenerator>)
     spawn_maze(&mut commands, &maze);
     // Get all the deadends of the maze, and shuffle them
     let mut deadends = maze.get_deadends();
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     deadends.shuffle(&mut rng);
     // Spawn the player at the 1st deadend, and spawn NUM_ITEMS items at the following deadends
     let loop_num = (NUM_ITEMS + 1).min(deadends.len());

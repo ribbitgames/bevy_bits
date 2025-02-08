@@ -49,7 +49,7 @@ impl Plugin for ScreenPlugin {
 fn spawn_welcome_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
     let font = asset_server.load(FONT);
     let base_text_font = TextFont {
-        font: font.clone(),
+        font,
         font_size: 50.0,
         ..default()
     };
@@ -91,7 +91,7 @@ fn spawn_game_over(
 ) {
     let font = asset_server.load(FONT);
     let base_text_font = TextFont {
-        font: font.clone(),
+        font,
         font_size: 50.0,
         ..default()
     };

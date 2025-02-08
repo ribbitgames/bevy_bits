@@ -307,7 +307,7 @@ fn setup_stage(
     game_data.first_revealed = None;
     game_data.input_cooldown = Timer::from_seconds(0.0, TimerMode::Once);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut available_colors = COLORS.to_vec();
     let mut available_shapes = SHAPES.to_vec();
 
@@ -328,10 +328,10 @@ fn setup_stage(
             // Ensure each shape is used at least once
             available_shapes.remove(0)
         } else {
-            available_shapes.remove(rng.gen_range(0..available_shapes.len()))
+            available_shapes.remove(rng.random_range(0..available_shapes.len()))
         };
 
-        let color = available_colors.remove(rng.gen_range(0..available_colors.len()));
+        let color = available_colors.remove(rng.random_range(0..available_colors.len()));
         combinations.push((shape, color));
     }
 
@@ -544,8 +544,7 @@ fn handle_game_input(
         return;
     }
 
-    let Some(position) =
-        just_pressed_screen_position(&mouse_button_input, &touch_input, &windows)
+    let Some(position) = just_pressed_screen_position(&mouse_button_input, &touch_input, &windows)
     else {
         return;
     };

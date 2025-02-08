@@ -117,15 +117,15 @@ impl PuzzlePanels {
         if let Some(idx) = self.get_empty_index() {
             let mut x = idx % self.w;
             let mut y = idx / self.w;
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             for i in 0..interation_count {
                 let dir = if i % 2 == 0 {
-                    let mut xx = rng.gen_range(0..self.w - 1);
+                    let mut xx = rng.random_range(0..self.w - 1);
                     xx = if x == xx { xx + 1 } else { xx };
                     std::mem::swap(&mut x, &mut xx);
                     IVec2::new((xx as i32 - x as i32).signum(), 0)
                 } else {
-                    let mut yy = rng.gen_range(0..self.h - 1);
+                    let mut yy = rng.random_range(0..self.h - 1);
                     yy = if y == yy { yy + 1 } else { yy };
                     std::mem::swap(&mut y, &mut yy);
                     IVec2::new(0, (yy as i32 - y as i32).signum())

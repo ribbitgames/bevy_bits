@@ -47,26 +47,26 @@ fn spawn_celebration_particles(
         celebration_state.is_celebrating = true;
         celebration_state.transition_timer = Some(Timer::from_seconds(2.0, TimerMode::Once)); // Increased from 1.5
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         // Spawn more particles for a more noticeable effect
         for _ in 0..100 {
             // Increased from 50
-            let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-            let speed = rng.gen_range(100.0..300.0);
+            let angle = rng.random_range(0.0..std::f32::consts::TAU);
+            let speed = rng.random_range(100.0..300.0);
             let velocity = Vec2::new(angle.cos(), angle.sin()) * speed;
 
             // Randomize starting positions around the center
-            let offset = Vec2::new(rng.gen_range(-150.0..150.0), rng.gen_range(-150.0..150.0));
+            let offset = Vec2::new(rng.random_range(-150.0..150.0), rng.random_range(-150.0..150.0));
 
             commands.spawn((
                 CelebrationParticle {
                     lifetime: Timer::from_seconds(1.5, TimerMode::Once), // Increased from 1.0
                     velocity,
-                    initial_scale: rng.gen_range(0.5..2.0),
+                    initial_scale: rng.random_range(0.5..2.0),
                 },
                 Sprite {
-                    color: Color::hsla(rng.gen_range(0.0..360.0), 0.8, 0.8, 1.0),
+                    color: Color::hsla(rng.random_range(0.0..360.0), 0.8, 0.8, 1.0),
                     custom_size: Some(Vec2::splat(10.0)),
                     ..default()
                 },

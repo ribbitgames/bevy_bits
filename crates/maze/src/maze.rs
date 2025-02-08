@@ -154,12 +154,12 @@ impl MazeGenerator {
                     }
                 }
                 if !unmade_cells.is_empty() {
-                    let mut rng = rand::thread_rng();
-                    let dir = if unmade_cells.contains(&last_dir) && rng.gen_range(0. ..1.) > 0.5 {
+                    let mut rng = rand::rng();
+                    let dir = if unmade_cells.contains(&last_dir) && rng.random_range(0. ..1.) > 0.5 {
                         last_dir
                     } else {
                         *(unmade_cells
-                            .get(rng.gen_range(0..unmade_cells.len()))
+                            .get(rng.random_range(0..unmade_cells.len()))
                             .expect("The index is out of the range, something wrong"))
                     };
                     let dst = *cell + dir;

@@ -64,19 +64,20 @@ fn find_matches(grid_state: &GridState, query: &Query<(Entity, &GridTile)>) -> V
 
         for col in 0..cols {
             if let Some(entity) = grid_state.grid_positions[row][col] {
-                if let Ok((entity, tile)) = query.get(entity) {
-                    match current_emoji {
-                        Some(emoji) if emoji == tile.emoji_index => {
-                            current_run.push(entity);
+                let Ok((entity, tile)) = query.get(entity) else {
+                    continue;
+                };
+                match current_emoji {
+                    Some(emoji) if emoji == tile.emoji_index => {
+                        current_run.push(entity);
+                    }
+                    _ => {
+                        // Check if we had a match before resetting
+                        if current_run.len() >= 3 {
+                            matches.extend(current_run);
                         }
-                        _ => {
-                            // Check if we had a match before resetting
-                            if current_run.len() >= 3 {
-                                matches.extend(current_run);
-                            }
-                            current_run = vec![entity];
-                            current_emoji = Some(tile.emoji_index);
-                        }
+                        current_run = vec![entity];
+                        current_emoji = Some(tile.emoji_index);
                     }
                 }
             } else {
@@ -175,13 +176,13 @@ fn spawn_new_tiles(
 ) {
     let (rows, cols) = config.grid_size;
     let spacing = config.grid_spacing;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let emoji_indices = emoji::get_random_emojis(atlas, validation, config.num_emoji_types);
 
     for col in 0..cols as usize {
         let mut row = 0;
         while row < rows as usize && grid_state.grid_positions[row][col].is_none() {
-            let x = col as f32 * spacing - ((cols as f32 - 1.0) * spacing / 2.0);
+            let x = (col as f32).mul_add(spacing, -((cols as f32 - 1.0) * spacing / 2.0));
             let y = -(row as f32 * spacing);
             let position = Vec2::new(x, y);
 
@@ -189,7 +190,7 @@ fn spawn_new_tiles(
             let mut attempts = 0;
             let mut emoji_idx;
             loop {
-                emoji_idx = emoji_indices[rng.gen_range(0..emoji_indices.len())];
+                emoji_idx = emoji_indices[rng.random_range(0..emoji_indices.len())];
                 if attempts > 5 || !would_create_match(row, col, emoji_idx, grid_state) {
                     break;
                 }

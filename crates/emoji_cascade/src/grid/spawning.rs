@@ -31,15 +31,15 @@ pub fn spawn_grid(
 
     // Get random emoji selection
     let emoji_indices = emoji::get_random_emojis(&atlas, &validation, config.num_emoji_types);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for row in 0..rows {
         for col in 0..cols {
-            let x = (col as f32 * spacing) + start_x + spacing / 2.0;
-            let y = -(row as f32) * spacing + start_y - spacing / 2.0; // Convert row to f32 before negation
+            let x = (col as f32).mul_add(spacing, start_x) + spacing / 2.0;
+            let y = (-(row as f32)).mul_add(spacing, start_y) - spacing / 2.0; // Convert row to f32 before negation
             let position = Vec2::new(x, y);
 
-            let emoji_idx = emoji_indices[rng.gen_range(0..emoji_indices.len())];
+            let emoji_idx = emoji_indices[rng.random_range(0..emoji_indices.len())];
 
             if let Some(entity) =
                 emoji::spawn_emoji(&mut commands, &atlas, &validation, emoji_idx, position, 0.5)

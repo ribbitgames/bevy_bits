@@ -85,7 +85,7 @@ fn spawn_emoji_grid(
     for &idx in &selected_indices {
         all_indices.extend([idx, idx]);
     }
-    all_indices.shuffle(&mut rand::thread_rng());
+    all_indices.shuffle(&mut rand::rng());
 
     let grid_width = difficulty.grid_cols as f32 * difficulty.grid_spacing;
     let grid_height = difficulty.grid_rows as f32 * difficulty.grid_spacing;

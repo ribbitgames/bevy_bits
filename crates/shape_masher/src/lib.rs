@@ -8,7 +8,7 @@ use bits_helpers::floating_score::{animate_floating_scores, spawn_floating_score
 use bits_helpers::input::{just_pressed_screen_position, just_pressed_world_position};
 use bits_helpers::welcome_screen::{despawn_welcome_screen, spawn_welcome_screen_shape};
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use rand::seq::SliceRandom;
+use rand::prelude::IndexedRandom;
 use rand::Rng;
 use ribbit::ShapeMasher;
 
@@ -137,7 +137,7 @@ pub fn run() {
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let shapes: Vec<(Shape, Color)> = (0..NUM_BAD_SHAPES)
         .map(|_| {
             let shape = *SHAPES
@@ -159,7 +159,7 @@ fn spawn_welcome_screen(
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let target_shape = *SHAPES
         .choose(&mut rng)
         .expect("SHAPES array should not be empty");
@@ -284,14 +284,14 @@ fn spawn_shape_at_random_position(
     color: Color,
     occupied_positions: &[Vec2],
 ) -> Vec2 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut position;
     let mut attempts = 0;
 
     loop {
         position = Vec2::new(
-            rng.gen_range(-WINDOW_WIDTH / 2.0 + SHAPE_SIZE..WINDOW_WIDTH / 2.0 - SHAPE_SIZE),
-            rng.gen_range(-WINDOW_HEIGHT / 2.0 + SHAPE_SIZE..WINDOW_HEIGHT / 2.0 - SHAPE_SIZE),
+            rng.random_range(-WINDOW_WIDTH / 2.0 + SHAPE_SIZE..WINDOW_WIDTH / 2.0 - SHAPE_SIZE),
+            rng.random_range(-WINDOW_HEIGHT / 2.0 + SHAPE_SIZE..WINDOW_HEIGHT / 2.0 - SHAPE_SIZE),
         );
 
         if occupied_positions

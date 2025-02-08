@@ -45,7 +45,7 @@ impl Plugin for Match3Plugin {
         let mut gems = HashMap::default();
         (0..board_dimensions.x).for_each(|x| {
             (0..board_dimensions.y).for_each(|y| {
-                gems.insert([x, y].into(), rand::thread_rng().gen_range(0..gem_types));
+                gems.insert([x, y].into(), rand::rng().random_range(0..gem_types));
             });
         });
 

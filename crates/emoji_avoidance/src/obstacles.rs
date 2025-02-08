@@ -128,14 +128,14 @@ fn spawn_obstacles(
     spawn_timer.0.tick(time.delta());
 
     if spawn_timer.0.just_finished() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut attempts = 0;
         const MAX_ATTEMPTS: i32 = 10;
 
         while attempts < MAX_ATTEMPTS {
-            let size = rng.gen_range(OBSTACLE_MIN_SIZE..OBSTACLE_MAX_SIZE);
+            let size = rng.random_range(OBSTACLE_MIN_SIZE..OBSTACLE_MAX_SIZE);
             let x =
-                rng.gen_range(-WINDOW_WIDTH / 2.0 + size / 2.0..WINDOW_WIDTH / 2.0 - size / 2.0);
+                rng.random_range(-WINDOW_WIDTH / 2.0 + size / 2.0..WINDOW_WIDTH / 2.0 - size / 2.0);
             let start_pos = Vec2::new(x, WINDOW_HEIGHT / 2.0 + size / 2.0);
 
             if !would_block_all_paths(start_pos, size, &obstacle_query, WINDOW_WIDTH) {
@@ -143,8 +143,8 @@ fn spawn_obstacles(
                 if let Some(&emoji_index) = available_emojis.first() {
                     let speed = calculate_speed(game_timer.0);
 
-                    let rotation_speed = if rng.gen_bool(0.75) {
-                        rng.gen_range(MIN_ROTATION_SPEED..MAX_ROTATION_SPEED)
+                    let rotation_speed = if rng.random_bool(0.75) {
+                        rng.random_range(MIN_ROTATION_SPEED..MAX_ROTATION_SPEED)
                     } else {
                         0.0
                     };

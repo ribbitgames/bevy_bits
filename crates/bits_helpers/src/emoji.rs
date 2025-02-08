@@ -249,7 +249,7 @@ pub fn get_random_emojis(
         return Vec::new();
     }
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     atlas
         .valid_indices
         .as_slice()

@@ -153,18 +153,18 @@ fn mouse_events(
 }
 
 fn get_random_transform(grid_position: Vec2) -> Transform {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let position_noize: f32 = 0.125;
     let rotation_noize: f32 = 0.25;
     Transform::from_translation(Vec3::new(
-        rng.gen_range(-position_noize..position_noize)
+        rng.random_range(-position_noize..position_noize)
             .mul_add(SPRITE_SIZE_X, grid_position.x),
-        rng.gen_range(-position_noize..position_noize)
+        rng.random_range(-position_noize..position_noize)
             .mul_add(SPRITE_SIZE_Y, grid_position.y),
-        rng.gen_range(0. ..1.),
+        rng.random_range(0. ..1.),
     ))
     .with_rotation(Quat::from_rotation_z(
-        rng.gen_range(-rotation_noize..rotation_noize),
+        rng.random_range(-rotation_noize..rotation_noize),
     ))
 }
 
@@ -174,7 +174,7 @@ fn create_puzzle(
     atlas: Res<EmojiAtlas>,
     validation: Res<AtlasValidation>,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Trying to use similar emojis instead of complelte random ones
     let selected_index = *emoji::get_random_emojis(&atlas, &validation, 1)

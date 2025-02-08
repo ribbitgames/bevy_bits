@@ -269,11 +269,11 @@ fn spawn_obstacles(
     spawn_timer.0.tick(time.delta());
 
     if spawn_timer.0.just_finished() {
-        let mut rng = rand::thread_rng();
-        let size = rng.gen_range(OBSTACLE_MIN_SIZE..OBSTACLE_MAX_SIZE);
-        let x = rng.gen_range(-WINDOW_WIDTH / 2.0 + size / 2.0..WINDOW_WIDTH / 2.0 - size / 2.0);
-        let shape_type = rng.gen_range(0..3);
-        let color = Color::srgb(rng.gen(), rng.gen(), rng.gen());
+        let mut rng = rand::rng();
+        let size = rng.random_range(OBSTACLE_MIN_SIZE..OBSTACLE_MAX_SIZE);
+        let x = rng.random_range(-WINDOW_WIDTH / 2.0 + size / 2.0..WINDOW_WIDTH / 2.0 - size / 2.0);
+        let shape_type = rng.random_range(0..3);
+        let color = Color::srgb(rng.random(), rng.random(), rng.random());
 
         let (mesh, radius) = match shape_type {
             0 => (Mesh2d(meshes.add(Rectangle::new(size, size))), size / 2.0),

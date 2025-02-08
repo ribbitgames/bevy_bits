@@ -6,7 +6,7 @@ use bits_helpers::floating_score::{animate_floating_scores, spawn_floating_score
 use bits_helpers::input::just_pressed_screen_position;
 use bits_helpers::welcome_screen::{despawn_welcome_screen, spawn_welcome_screen_shape};
 use bits_helpers::FONT;
-use rand::seq::SliceRandom;
+use rand::prelude::IndexedRandom;
 use rand::Rng;
 use ribbit::ShapeMemorizer;
 
@@ -111,7 +111,7 @@ fn spawn_welcome_screen(
     materials: ResMut<Assets<ColorMaterial>>,
     mut game_data: ResMut<GameData>,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     game_data.target_shape = *SHAPES
         .choose(&mut rng)
@@ -159,7 +159,7 @@ fn setup_game(
     game_data.correct_guesses = 0;
     game_data.start_time = 0.0;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let mut grid = vec![];
     let mut target_positions = vec![];
@@ -192,8 +192,8 @@ fn setup_game(
 
     // Ensure we have exactly 3 target shapes
     while target_positions.len() < 3 {
-        let row = rng.gen_range(0..GRID_ROWS);
-        let col = rng.gen_range(0..GRID_COLS);
+        let row = rng.random_range(0..GRID_ROWS);
+        let col = rng.random_range(0..GRID_COLS);
         if target_positions.contains(&(row, col)) {
             continue;
         }

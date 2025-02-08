@@ -187,11 +187,11 @@ fn spawn_stars(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..100 {
-        let x = rng.gen_range(-WINDOW_WIDTH / 2.0..WINDOW_WIDTH / 2.0);
-        let y = rng.gen_range(-WINDOW_HEIGHT / 2.0..WINDOW_HEIGHT / 2.0);
-        let size = rng.gen_range(1.0..3.0);
+        let x = rng.random_range(-WINDOW_WIDTH / 2.0..WINDOW_WIDTH / 2.0);
+        let y = rng.random_range(-WINDOW_HEIGHT / 2.0..WINDOW_HEIGHT / 2.0);
+        let size = rng.random_range(1.0..3.0);
 
         commands.spawn((
             Mesh2d::from(meshes.add(Mesh::from(primitives::Circle::new(size / 2.0)))),
@@ -304,12 +304,12 @@ fn spawn_enemies(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let mut rng = rand::thread_rng();
-    if rng.gen_bool(0.02) {
-        let size = rng.gen_range(ENEMY_MIN_SIZE..ENEMY_MAX_SIZE);
-        let x = rng.gen_range(-WINDOW_WIDTH / 2.0 + size / 2.0..WINDOW_WIDTH / 2.0 - size / 2.0);
-        let shape_type = rng.gen_range(0..3);
-        let color = Color::srgb(rng.gen(), rng.gen(), rng.gen());
+    let mut rng = rand::rng();
+    if rng.random_bool(0.02) {
+        let size = rng.random_range(ENEMY_MIN_SIZE..ENEMY_MAX_SIZE);
+        let x = rng.random_range(-WINDOW_WIDTH / 2.0 + size / 2.0..WINDOW_WIDTH / 2.0 - size / 2.0);
+        let shape_type = rng.random_range(0..3);
+        let color = Color::srgb(rng.random(), rng.random(), rng.random());
 
         let (mesh, enemy_size) = match shape_type {
             0 => (

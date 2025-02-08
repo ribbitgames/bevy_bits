@@ -63,8 +63,8 @@ impl Default for LevelConfig {
         let min_spacing = emoji_rendered_size + minimum_padding;
 
         // Calculate available space
-        let available_width = window_width - (ui_margin * 2.0);
-        let available_height = window_height - (ui_margin * 2.0);
+        let available_width = ui_margin.mul_add(-2.0, window_width);
+        let available_height = ui_margin.mul_add(-2.0, window_height);
 
         // Calculate spacing that will fit within screen bounds
         let spacing_by_width = available_width / (cols as f32);

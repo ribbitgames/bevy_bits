@@ -3,7 +3,7 @@ use core::fmt;
 use bevy::prelude::*;
 use queues::{IsQueue, Queue};
 use rand::prelude::SliceRandom;
-use rand::thread_rng;
+use rand::rng;
 
 use crate::{Board, Matches};
 
@@ -68,7 +68,7 @@ pub fn read_commands(
                     let mut values = gems.iter().collect::<Vec<_>>();
                     let mut moves =
                         Vec::with_capacity((board.dimensions.x * board.dimensions.y) as usize);
-                    values.shuffle(&mut thread_rng());
+                    values.shuffle(&mut rng());
                     for ((old_key, value), new_key) in values.iter().copied().zip(gems.keys()) {
                         board.insert(*new_key, *value);
                         moves.push((*old_key, *new_key));

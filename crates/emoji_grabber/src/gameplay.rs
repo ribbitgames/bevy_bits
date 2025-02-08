@@ -33,7 +33,7 @@ pub fn spawn_emojis(
         return;
     }
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut emojis = Vec::new();
 
     // Add correct emojis
@@ -52,10 +52,12 @@ pub fn spawn_emojis(
 
     // Spawn all emojis with random positions and velocities
     for &index in &emojis {
-        let size = rng.gen_range(40.0..80.0);
-        let x = rng.gen_range(-WINDOW_WIDTH / 2.0 + size..WINDOW_WIDTH / 2.0 - size);
-        let y = rng.gen_range(-WINDOW_HEIGHT / 2.0 + size..WINDOW_HEIGHT / 2.0 - UI_MARGIN - size);
-        let velocity = Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0)).normalize()
+        let size = rng.random_range(40.0..80.0);
+        let x = rng.random_range(-WINDOW_WIDTH / 2.0 + size..WINDOW_WIDTH / 2.0 - size);
+        let y =
+            rng.random_range(-WINDOW_HEIGHT / 2.0 + size..WINDOW_HEIGHT / 2.0 - UI_MARGIN - size);
+        let velocity = Vec2::new(rng.random_range(-1.0..1.0), rng.random_range(-1.0..1.0))
+            .normalize()
             * stage_config.stage.emoji_speed;
 
         if let Some(entity) = emoji::spawn_emoji(
