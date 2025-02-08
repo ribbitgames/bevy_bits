@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
-use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
+use bits_helpers::WINDOW_WIDTH;
 use rand::prelude::*;
 
 use crate::game::{
@@ -12,7 +12,6 @@ pub const DEFAULT_COLOR: Color = Color::WHITE;
 pub const WRONG_COLOR: Color = Color::srgb(1.0, 0.0, 0.0);
 pub const CORRECT_COLOR: Color = Color::srgb(0.0, 1.0, 0.0);
 const SEQUENCE_CARD_Y: f32 = -200.0; // Position for bottom sequence cards
-const SEQUENCE_CARD_SPACING: f32 = 100.0; // Horizontal spacing between sequence cards
 pub const CARD_SIZE: f32 = 70.0; // Assuming all cards are square
 
 #[derive(Component, Debug)]
@@ -314,7 +313,7 @@ fn handle_grid_spawn(
             difficulty.total_emojis - difficulty.sequence_length as usize,
         );
         grid_indices.extend(extra_emojis);
-        grid_indices.shuffle(&mut rand::thread_rng());
+        grid_indices.shuffle(&mut rand::rng());
 
         // Calculate grid layout.
         let grid_width = difficulty.grid_cols as f32 * difficulty.grid_spacing;
