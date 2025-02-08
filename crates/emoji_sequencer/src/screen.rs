@@ -77,10 +77,7 @@ fn try_spawn_welcome_screen(
 
     commands.spawn((
         WelcomeScreen,
-        Text2d::new(
-            "Emoji Sequencer\n\nMemorize the sequence of emojis\nand recreate it in order!\n\nClick to Start"
-                .to_string(),
-        ),
+        Text2d::new("Emoji Sequencer\nPress to Start".to_string()),
         TextFont {
             font: asset_server.load(FONT),
             font_size: 32.0,
