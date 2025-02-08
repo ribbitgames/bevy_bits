@@ -87,10 +87,11 @@ fn handle_card_clicks(
                 game_progress.attempt_timer = Timer::from_seconds(0.0, TimerMode::Once);
             }
 
-            // Update sequence card visibility
+            // Reveal and lock the corresponding sequence card
             for (_, _, _, mut seq_card) in cards.iter_mut() {
                 if seq_card.sequence_position == Some(next_index) {
                     seq_card.face_up = true;
+                    seq_card.locked = true; // Mark the sequence card as locked to keep it revealed
                 }
             }
 
@@ -124,12 +125,12 @@ fn handle_card_clicks(
                     sprite.color = MISMATCH_COLOR;
                 }
 
-                // Clear partial sequence
+                // Clear partial sequence but keep correctly matched cards visible
                 sequence_state.player_sequence.clear();
 
-                // Hide all sequence cards
+                // Hide only unrevealed sequence cards
                 for (_, _, _, mut card) in cards.iter_mut() {
-                    if card.sequence_position.is_some() {
+                    if card.sequence_position.is_some() && !card.locked {
                         card.face_up = false;
                     }
                 }
