@@ -10,7 +10,7 @@ pub const INITIAL_WAIT_TIME: f32 = 1.0;
 /// Time to show each emoji in sequence (seconds)
 pub const REVEAL_TIME_PER_EMOJI: f32 = 1.0;
 /// Time to show completed sequence before hiding (seconds)
-pub const SEQUENCE_COMPLETE_DELAY: f32 = 2.0;
+pub const SEQUENCE_COMPLETE_DELAY: f32 = 1.0;
 /// Maximum mistakes allowed before game over
 pub const MAX_MISTAKES: u32 = 3;
 /// Base score for completing a stage

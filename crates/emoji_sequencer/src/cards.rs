@@ -172,7 +172,7 @@ fn handle_sequence_spawn(
 /// Handles revealing sequence cards one by one
 fn handle_sequence_reveal(
     time: Res<Time>,
-    difficulty: Res<GameDifficulty>, // Add difficulty resource
+    difficulty: Res<GameDifficulty>,
     mut game_progress: ResMut<GameProgress>,
     mut cards: Query<&mut Card>,
 ) {
@@ -182,30 +182,21 @@ fn handle_sequence_reveal(
 
     if let Some(timer) = &mut game_progress.step_timer {
         if timer.tick(time.delta()).just_finished() {
-            // Hide previous card if not first card
-            if game_progress.current_reveal_index > 0 {
-                for mut card in &mut cards {
-                    if card.sequence_position == Some(game_progress.current_reveal_index - 1) {
-                        card.face_up = false;
-                    }
-                }
-            }
-
-            // Show next card if available
+            // Show the next card in the sequence
             if game_progress.current_reveal_index < difficulty.sequence_length as usize {
-                // Use difficulty.sequence_length
                 for mut card in &mut cards {
                     if card.sequence_position == Some(game_progress.current_reveal_index) {
                         card.face_up = true;
                     }
                 }
+
                 game_progress.current_reveal_index += 1;
                 game_progress.step_timer = Some(Timer::from_seconds(
                     crate::game::REVEAL_TIME_PER_EMOJI,
                     TimerMode::Once,
                 ));
             } else {
-                // All cards revealed, transition to hiding phase
+                // All cards have been revealed, wait before hiding them
                 game_progress.sequence_step = SequenceStep::HidingSequence;
                 game_progress.step_timer = Some(Timer::from_seconds(
                     crate::game::SEQUENCE_COMPLETE_DELAY,
@@ -234,6 +225,8 @@ fn handle_sequence_hide(
                     card.face_up = false;
                 }
             }
+
+            // Move to grid spawning phase
             game_progress.sequence_step = SequenceStep::SpawningGrid;
             game_progress.step_timer = None;
         }
