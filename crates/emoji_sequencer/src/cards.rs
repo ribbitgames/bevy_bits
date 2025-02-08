@@ -2,9 +2,7 @@ use bevy::prelude::*;
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
 use rand::prelude::*;
 
-use crate::game::{
-    GameDifficulty, GameProgress, GameState, SequenceState, SequenceStep, StageState,
-};
+use crate::game::{GameDifficulty, GameProgress, GameState, SequenceState, SequenceStep};
 
 pub const CARD_BACK: &str = "card_back.png";
 pub const DEFAULT_COLOR: Color = Color::WHITE;
@@ -174,6 +172,7 @@ fn handle_sequence_spawn(
 /// Handles revealing sequence cards one by one
 fn handle_sequence_reveal(
     time: Res<Time>,
+    difficulty: Res<GameDifficulty>, // Add difficulty resource
     mut game_progress: ResMut<GameProgress>,
     mut cards: Query<&mut Card>,
 ) {
@@ -193,7 +192,8 @@ fn handle_sequence_reveal(
             }
 
             // Show next card if available
-            if game_progress.current_reveal_index < 3 {
+            if game_progress.current_reveal_index < difficulty.sequence_length as usize {
+                // Use difficulty.sequence_length
                 for mut card in &mut cards {
                     if card.sequence_position == Some(game_progress.current_reveal_index) {
                         card.face_up = true;

@@ -1,8 +1,11 @@
 use bevy::prelude::*;
 use bits_helpers::input::just_pressed_world_position;
 
-use crate::cards::*;
-use crate::game::*;
+use crate::cards::{Card, CORRECT_COLOR};
+use crate::game::{
+    FeedbackState, GameDifficulty, GameProgress, GameState, ScoreState, SequenceState, StageState,
+    MAX_SPEED_BONUS, MISMATCH_COLOR, MISMATCH_DELAY, SPEED_BONUS_THRESHOLD, STAGE_COMPLETION_SCORE,
+};
 
 #[derive(Resource, Default)]
 pub struct InputState {
