@@ -31,20 +31,20 @@ impl Plugin for EmojiPlugin {
     }
 }
 
-const ATLAS_SIZE: UVec2 = UVec2::new(8192, 8192);
-const EMOJI_SIZE: UVec2 = UVec2::new(128, 128);
+const ATLAS_SIZE: UVec2 = UVec2::new(4096, 4096);
+const EMOJI_SIZE: UVec2 = UVec2::new(64, 64);
 
 #[cfg(not(target_arch = "wasm32"))]
 pub const ATLAS_PATH: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "../../bits_helpers/assets/emojis/EmojiAtlas.png"
+    "../../bits_helpers/assets/emojis/EmojiAtlas.ktx2"
 );
 
 #[cfg(target_arch = "wasm32")]
 pub const ATLAS_PATH: &str = concat!(
     "../../bits_helpers-",
     env!("CARGO_PKG_VERSION"),
-    "/assets/emojis/EmojiAtlas.png"
+    "/assets/emojis/EmojiAtlas.ktx2"
 );
 
 #[derive(Error, Debug)]
