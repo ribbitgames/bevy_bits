@@ -37,7 +37,7 @@ extern "C" {
     fn get_bit_name() -> String;
 }
 
-pub(crate) fn main_wasm() -> Result<(), JsValue> {
+pub fn main_wasm() -> Result<(), JsValue> {
     let bit_name = get_bit_name();
     let Ok(bit_runner) = BitRunner::from_str(&bit_name) else {
         return Err(JsValue::from_str(&format!("Invalid BitName: {bit_name}")));

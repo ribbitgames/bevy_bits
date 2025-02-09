@@ -17,6 +17,7 @@ math_quiz = { path = "../math_quiz" }
 maze = { path = "../maze" }
 memoji = { path = "../memoji" }
 puzzle15 = { path = "../puzzle15" }
+emoji_avoidance = { path = "../emoji_avoidance" }
 emoji_grabber = { path = "../emoji_grabber" }
 shape_grabber = { path = "../shape_grabber" }
 shape_masher = { path = "../shape_masher" }
