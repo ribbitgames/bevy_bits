@@ -9,12 +9,14 @@ mod game;
 mod input;
 mod ribbit;
 mod screen;
+mod variables;
 
 use cards::CardPlugin;
 use effects::EffectsPlugin;
 use game::GamePlugin;
 use input::InputPlugin;
 use screen::ScreenPlugin;
+use variables::GameVariablesPlugin;
 
 pub fn run() {
     bits_helpers::get_default_app::<ribbit::EmojiSequencer>(
@@ -22,6 +24,7 @@ pub fn run() {
         env!("CARGO_PKG_VERSION"),
     )
     .add_plugins(EmojiPlugin)
+    .add_plugins(GameVariablesPlugin)
     .add_plugins(CardPlugin)
     .add_plugins(InputPlugin)
     .add_plugins(GamePlugin)

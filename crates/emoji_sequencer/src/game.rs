@@ -2,23 +2,9 @@ use bevy::prelude::*;
 
 use crate::cards::Card;
 use crate::effects::CelebrationState;
+use crate::variables::GameVariables;
 
 pub struct GamePlugin;
-
-/// Time to show each emoji in sequence (seconds)
-pub const REVEAL_TIME_PER_EMOJI: f32 = 1.0;
-/// Time to show completed sequence before hiding (seconds)
-pub const SEQUENCE_COMPLETE_DELAY: f32 = 1.0;
-/// Maximum mistakes allowed before game over
-pub const MAX_MISTAKES: u32 = 3;
-/// Base score for completing a stage
-pub const STAGE_COMPLETION_SCORE: u32 = 100;
-/// Maximum speed bonus score
-pub const MAX_SPEED_BONUS: u32 = 50;
-/// Time threshold for maximum speed bonus (seconds)
-pub const SPEED_BONUS_THRESHOLD: f32 = 5.0;
-/// Delay before resetting mismatch color (seconds)
-pub const MISMATCH_DELAY: f32 = 0.5;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
@@ -94,12 +80,13 @@ pub struct GameProgress {
 
 impl Default for GameProgress {
     fn default() -> Self {
+        let vars = GameVariables::default();
         Self {
             sequence_step: SequenceStep::SpawningSequence,
             step_timer: None,
             current_reveal_index: 0,
             mistakes: 0,
-            max_mistakes: MAX_MISTAKES,
+            max_mistakes: vars.max_mistakes,
             game_over: false,
             game_over_reveal_timer: None,
             attempt_timer: Timer::from_seconds(0.0, TimerMode::Once),
@@ -109,11 +96,14 @@ impl Default for GameProgress {
 
 impl GameProgress {
     /// Records a mistake and returns whether game is over
-    pub fn record_mistake(&mut self) -> bool {
+    pub fn record_mistake(&mut self, vars: &GameVariables) -> bool {
         self.mistakes += 1;
         if self.mistakes >= self.max_mistakes {
             self.game_over = true;
-            self.game_over_reveal_timer = Some(Timer::from_seconds(3.0, TimerMode::Once));
+            self.game_over_reveal_timer = Some(Timer::from_seconds(
+                vars.game_over_reveal_duration,
+                TimerMode::Once,
+            ));
         }
         self.game_over
     }
@@ -142,13 +132,14 @@ pub struct GameDifficulty {
 
 impl Default for GameDifficulty {
     fn default() -> Self {
+        let vars = GameVariables::default();
         Self {
             stage: 1,
-            sequence_length: 3,
-            grid_cols: 3,
-            grid_rows: 2,
-            grid_spacing: 80.0,
-            total_emojis: 6,
+            sequence_length: vars.initial_sequence_length,
+            grid_cols: vars.initial_grid_cols,
+            grid_rows: vars.initial_grid_rows,
+            grid_spacing: vars.initial_grid_spacing,
+            total_emojis: vars.initial_total_emojis,
         }
     }
 }
@@ -268,6 +259,7 @@ fn handle_game_over_sequence(
 
 fn handle_feedback_reset(
     time: Res<Time>,
+    vars: Res<GameVariables>,
     mut feedback_state: ResMut<FeedbackState>,
     mut sprite_query: Query<&mut Sprite>,
 ) {
@@ -276,7 +268,7 @@ fn handle_feedback_reset(
             // Reset color of mismatched card
             if let Some(entity) = feedback_state.mismatch_entity {
                 if let Ok(mut sprite) = sprite_query.get_mut(entity) {
-                    sprite.color = Color::WHITE;
+                    sprite.color = vars.default_color;
                 }
             }
             feedback_state.unmatch_timer = None;

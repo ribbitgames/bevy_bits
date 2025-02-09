@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 
-use crate::game::{GameDifficulty, GameProgress, GameState, ScoreState, REVEAL_TIME_PER_EMOJI};
+use crate::game::{GameDifficulty, GameProgress, GameState, ScoreState};
+use crate::variables::GameVariables;
 
 #[derive(Component)]
 pub struct WelcomeScreen;
@@ -69,6 +70,7 @@ fn despawn_screen<T: Component>(mut commands: Commands, query: Query<Entity, Wit
 fn try_spawn_welcome_screen(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    vars: Res<GameVariables>,
     query: Query<&WelcomeScreen>,
 ) {
     if !query.is_empty() {
@@ -80,7 +82,7 @@ fn try_spawn_welcome_screen(
         Text2d::new("Emoji Sequencer\nPress to Start".to_string()),
         TextFont {
             font: asset_server.load(FONT),
-            font_size: 32.0,
+            font_size: vars.welcome_font_size,
             ..default()
         },
         TextLayout::new_with_justify(JustifyText::Center),
@@ -101,6 +103,7 @@ fn handle_welcome_input(
 fn try_spawn_game_over(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    vars: Res<GameVariables>,
     difficulty: Res<GameDifficulty>,
     game_progress: Res<GameProgress>,
     score_state: Res<ScoreState>,
@@ -121,7 +124,7 @@ fn try_spawn_game_over(
         )),
         TextFont {
             font: asset_server.load(FONT),
-            font_size: 32.0,
+            font_size: vars.game_over_font_size,
             ..default()
         },
         TextLayout::new_with_justify(JustifyText::Center),
@@ -146,6 +149,7 @@ fn handle_game_over_input(
 fn try_spawn_stage_transition(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    vars: Res<GameVariables>,
     difficulty: Res<GameDifficulty>,
     game_progress: Res<GameProgress>,
     score_state: Res<ScoreState>,
@@ -165,11 +169,11 @@ fn try_spawn_stage_transition(
             game_progress.mistakes,
             game_progress.max_mistakes,
             difficulty.sequence_length,
-            difficulty.sequence_length as f32 * REVEAL_TIME_PER_EMOJI
+            difficulty.sequence_length as f32 * vars.reveal_time_per_emoji
         )),
         TextFont {
             font: asset_server.load(FONT),
-            font_size: 32.0,
+            font_size: vars.stage_transition_font_size,
             ..default()
         },
         TextLayout::new_with_justify(JustifyText::Center),
@@ -190,6 +194,7 @@ fn handle_stage_transition_input(
 fn spawn_score_display(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    vars: Res<GameVariables>,
     query: Query<&ScoreDisplay>,
 ) {
     if !query.is_empty() {
@@ -201,7 +206,7 @@ fn spawn_score_display(
         Text2d::new(String::new()),
         TextFont {
             font: asset_server.load(FONT),
-            font_size: 24.0,
+            font_size: vars.score_font_size,
             ..default()
         },
         TextLayout::new_with_justify(JustifyText::Left),

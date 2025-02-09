@@ -3,16 +3,8 @@ use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
 use bits_helpers::WINDOW_WIDTH;
 use rand::prelude::*;
 
-use crate::game::{
-    GameDifficulty, GameProgress, GameState, SequenceState, SequenceStep, REVEAL_TIME_PER_EMOJI,
-};
-
-pub const CARD_BACK: &str = "card_back.png";
-pub const DEFAULT_COLOR: Color = Color::WHITE;
-pub const WRONG_COLOR: Color = Color::srgb(1.0, 0.0, 0.0);
-pub const CORRECT_COLOR: Color = Color::srgb(0.0, 1.0, 0.0);
-const SEQUENCE_CARD_Y: f32 = -200.0; // Position for bottom sequence cards
-pub const CARD_SIZE: f32 = 70.0; // Assuming all cards are square
+use crate::game::{GameDifficulty, GameProgress, GameState, SequenceState, SequenceStep};
+use crate::variables::GameVariables;
 
 #[derive(Component, Debug)]
 pub struct Card {
@@ -86,8 +78,8 @@ fn cleanup_stage(mut commands: Commands, cards: Query<Entity, With<Card>>) {
 }
 
 /// Loads the card back texture and inserts it as a resource.
-fn setup_cards(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let card_back = asset_server.load(CARD_BACK);
+fn setup_cards(mut commands: Commands, asset_server: Res<AssetServer>, vars: Res<GameVariables>) {
+    let card_back = asset_server.load(vars.card_back_path);
     commands.insert_resource(CardBackTexture(card_back));
 }
 
@@ -102,6 +94,7 @@ fn handle_sequence_spawn(
     mut sequence_state: ResMut<SequenceState>,
     mut game_progress: ResMut<GameProgress>,
     difficulty: Res<GameDifficulty>,
+    vars: Res<GameVariables>,
     query: Query<(Entity, &Card)>,
 ) {
     // Ensure we are in the correct sequence step.
@@ -115,68 +108,50 @@ fn handle_sequence_spawn(
         .any(|(_, card)| card.sequence_position.is_some())
     {
         let sequence_length = difficulty.sequence_length as usize;
-        // Retrieve a set of random emoji indices based on the given sequence length.
-        // Instead of cloning later, we assign this vector directly to a local variable.
         let target_sequence = emoji::get_random_emojis(&atlas, &validation, sequence_length);
 
-        // Card dimensions.
-        let card_width = CARD_SIZE;
-        let card_height = CARD_SIZE;
-        // Use a fixed horizontal spacing that is just enough to keep cards separated.
+        // Card dimensions and spacing
+        let card_width = vars.card_size;
+        let card_height = vars.card_size;
         let sequence_spacing = 10.0;
         let vertical_spacing = 10.0;
 
         // Compute the maximum number of columns that can fit without overflowing the window.
         let max_columns = (WINDOW_WIDTH / (card_width + sequence_spacing)).floor() as usize;
-        // Use as many columns as possible up to the total number of sequence cards.
-        let row_limit = if sequence_length < max_columns {
-            sequence_length
-        } else {
-            max_columns
-        };
-        // Compute the number of rows required.
+        let row_limit = sequence_length.min(max_columns);
         let num_rows = sequence_length.div_ceil(row_limit);
 
-        // Use the local target_sequence for iteration.
         let mut current_index = 0;
         for row in 0..num_rows {
-            // Determine how many cards are in the current row.
             let cards_in_row = if row == num_rows - 1 && sequence_length % row_limit != 0 {
                 sequence_length % row_limit
             } else {
                 row_limit
             };
 
-            // Use the fixed spacing between cards.
             let row_spacing = if cards_in_row > 1 {
                 sequence_spacing
             } else {
-                0.0 // No spacing needed for a single card.
+                0.0
             };
 
-            // Compute the total width of this row and then the starting x so the row is centered.
             let row_width = (cards_in_row as f32)
                 .mul_add(card_width, ((cards_in_row as f32) - 1.0) * row_spacing);
             let start_x = -row_width / 2.0 + card_width / 2.0;
-            // Compute the y position for this row.
-            let y = (row as f32).mul_add(-(card_height + vertical_spacing), SEQUENCE_CARD_Y);
+            let y = (row as f32).mul_add(-(card_height + vertical_spacing), vars.sequence_card_y);
 
             for col in 0..cards_in_row {
                 let x = (col as f32).mul_add(card_width + row_spacing, start_x);
-                // Safely retrieve the emoji index from the target_sequence vector.
-                // Tooltip: `.get()` returns an Option, and `.expect()` ensures we have a valid index.
                 let emoji_index = *target_sequence
                     .get(current_index)
                     .expect("Index out-of-bound: target_sequence has fewer elements than expected");
                 current_index += 1;
 
-                // Spawn the parent card entity.
                 let card_entity = commands
                     .spawn((
                         Card {
                             emoji_index,
                             face_up: false,
-                            // We use a sequential number as the sequence position.
                             sequence_position: Some(row * row_limit + col),
                             locked: false,
                         },
@@ -185,14 +160,13 @@ fn handle_sequence_spawn(
                     ))
                     .id();
 
-                // Spawn the emoji sprite as a child.
                 if let Some(emoji_entity) = emoji::spawn_emoji(
                     &mut commands,
                     &atlas,
                     &validation,
                     emoji_index,
                     Vec2::ZERO,
-                    0.5, // Tooltip: Scale factor for the emoji sprite.
+                    0.5,
                 ) {
                     commands
                         .entity(emoji_entity)
@@ -202,7 +176,6 @@ fn handle_sequence_spawn(
                     commands.entity(card_entity).add_child(emoji_entity);
                 }
 
-                // Spawn the card back as a child of the card.
                 let card_back_entity = commands
                     .spawn(CardBackBundle {
                         sprite: Sprite {
@@ -222,20 +195,19 @@ fn handle_sequence_spawn(
             }
         }
 
-        // Now move the target_sequence into sequence_state without cloning.
         sequence_state.target_sequence = target_sequence;
-
-        // Update game progress to move to the next sequence step.
         game_progress.sequence_step = SequenceStep::RevealingSequence;
-        game_progress.step_timer =
-            Some(Timer::from_seconds(REVEAL_TIME_PER_EMOJI, TimerMode::Once));
+        game_progress.step_timer = Some(Timer::from_seconds(
+            vars.reveal_time_per_emoji,
+            TimerMode::Once,
+        ));
     }
 }
 
 /// Handles revealing sequence cards one by one.
-/// Each card is flipped face up with a timer until all are revealed.
 fn handle_sequence_reveal(
     time: Res<Time>,
+    vars: Res<GameVariables>,
     difficulty: Res<GameDifficulty>,
     mut game_progress: ResMut<GameProgress>,
     mut cards: Query<&mut Card>,
@@ -246,7 +218,6 @@ fn handle_sequence_reveal(
 
     if let Some(timer) = &mut game_progress.step_timer {
         if timer.tick(time.delta()).just_finished() {
-            // Reveal the next card in the sequence.
             if game_progress.current_reveal_index < difficulty.sequence_length as usize {
                 for mut card in &mut cards {
                     if card.sequence_position == Some(game_progress.current_reveal_index) {
@@ -255,13 +226,14 @@ fn handle_sequence_reveal(
                 }
 
                 game_progress.current_reveal_index += 1;
-                game_progress.step_timer =
-                    Some(Timer::from_seconds(REVEAL_TIME_PER_EMOJI, TimerMode::Once));
+                game_progress.step_timer = Some(Timer::from_seconds(
+                    vars.reveal_time_per_emoji,
+                    TimerMode::Once,
+                ));
             } else {
-                // All cards have been revealed; wait before hiding them.
                 game_progress.sequence_step = SequenceStep::HidingSequence;
                 game_progress.step_timer = Some(Timer::from_seconds(
-                    crate::game::SEQUENCE_COMPLETE_DELAY,
+                    vars.sequence_complete_delay,
                     TimerMode::Once,
                 ));
             }
@@ -270,7 +242,6 @@ fn handle_sequence_reveal(
 }
 
 /// Handles hiding all sequence cards after reveal.
-/// Once the timer finishes, all sequence cards are flipped face down.
 fn handle_sequence_hide(
     time: Res<Time>,
     mut game_progress: ResMut<GameProgress>,
@@ -282,14 +253,12 @@ fn handle_sequence_hide(
 
     if let Some(timer) = &mut game_progress.step_timer {
         if timer.tick(time.delta()).just_finished() {
-            // Hide all sequence cards.
             for mut card in &mut cards {
                 if card.sequence_position.is_some() {
                     card.face_up = false;
                 }
             }
 
-            // Move to grid spawning phase.
             game_progress.sequence_step = SequenceStep::SpawningGrid;
             game_progress.step_timer = None;
         }
@@ -297,13 +266,13 @@ fn handle_sequence_hide(
 }
 
 /// Spawns the grid of face-up cards in the center of the screen.
-/// The grid includes both sequence emojis and additional random ones.
 fn handle_grid_spawn(
     mut commands: Commands,
     atlas: Res<EmojiAtlas>,
     validation: Res<AtlasValidation>,
     difficulty: Res<GameDifficulty>,
     sequence_state: Res<SequenceState>,
+    vars: Res<GameVariables>,
     mut game_progress: ResMut<GameProgress>,
     query: Query<(Entity, &Card)>,
 ) {
@@ -311,12 +280,10 @@ fn handle_grid_spawn(
         return;
     }
 
-    // Only spawn grid cards when no grid cards exist.
     if !query
         .iter()
         .any(|(_, card)| card.sequence_position.is_none())
     {
-        // Get emoji indices for grid (including sequence emojis plus additional random ones).
         let mut grid_indices = sequence_state.target_sequence.clone();
         let extra_emojis = emoji::get_random_emojis(
             &atlas,
@@ -326,23 +293,20 @@ fn handle_grid_spawn(
         grid_indices.extend(extra_emojis);
         grid_indices.shuffle(&mut rand::rng());
 
-        // Calculate grid layout.
         let grid_width = difficulty.grid_cols as f32 * difficulty.grid_spacing;
         let grid_height = difficulty.grid_rows as f32 * difficulty.grid_spacing;
         let start_x = -grid_width / 2.0;
         let start_y = grid_height / 2.0;
 
-        // Spawn grid cards.
         for row in 0..difficulty.grid_rows {
             for col in 0..difficulty.grid_cols {
                 let index = (row * difficulty.grid_cols + col) as usize;
                 if let Some(&emoji_index) = grid_indices.get(index) {
-                    let x =
-                        (col as f32).mul_add(difficulty.grid_spacing, start_x) + CARD_SIZE / 2.0;
-                    let y =
-                        (-(row as f32)).mul_add(difficulty.grid_spacing, start_y) - CARD_SIZE / 2.0;
+                    let x = (col as f32).mul_add(difficulty.grid_spacing, start_x)
+                        + vars.card_size / 2.0;
+                    let y = (-(row as f32)).mul_add(difficulty.grid_spacing, start_y)
+                        - vars.card_size / 2.0;
 
-                    // Spawn card with face up.
                     let card_entity = commands
                         .spawn((
                             Card {
@@ -358,7 +322,6 @@ fn handle_grid_spawn(
                         ))
                         .id();
 
-                    // Spawn emoji sprite as a child.
                     if let Some(emoji_entity) = emoji::spawn_emoji(
                         &mut commands,
                         &atlas,
@@ -390,7 +353,6 @@ fn update_card_visibility(
 ) {
     for (card, children) in &cards {
         for &child in children {
-            // Update face sprite visibility.
             if let Ok(mut visibility) = face_sprites.get_mut(child) {
                 *visibility = if card.face_up {
                     Visibility::Visible
@@ -398,7 +360,6 @@ fn update_card_visibility(
                     Visibility::Hidden
                 };
             }
-            // Update back sprite visibility (only for sequence cards).
             if let Ok(mut visibility) = back_sprites.get_mut(child) {
                 *visibility = if card.face_up {
                     Visibility::Hidden

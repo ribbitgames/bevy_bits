@@ -3,6 +3,7 @@ use rand::prelude::*;
 use rand::rng;
 
 use crate::game::{GameDifficulty, GameState, SequenceState, StageState};
+use crate::variables::GameVariables;
 
 /// Particle effect for successful sequence completion
 #[derive(Component)]
@@ -63,28 +64,28 @@ impl Plugin for EffectsPlugin {
                 )
                     .run_if(in_state(GameState::Playing)),
             )
-            // When leaving the Playing state, clean up all lingering effects.
             .add_systems(OnExit(GameState::Playing), cleanup_effects);
     }
 }
 
 /// Spawns celebration particles when a stage is successfully completed.
-/// Reduced the spawn count from 100 to 30 to tone down the effect.
 fn spawn_celebration_particles(
     mut commands: Commands,
     mut celebration_state: ResMut<CelebrationState>,
     stage_state: Res<StageState>,
     time: Res<Time>,
+    vars: Res<GameVariables>,
 ) {
-    // Start celebration when stage is complete
     if stage_state.stage_complete && !celebration_state.is_celebrating {
         celebration_state.is_celebrating = true;
-        celebration_state.transition_timer = Some(Timer::from_seconds(2.0, TimerMode::Once));
+        celebration_state.transition_timer = Some(Timer::from_seconds(
+            vars.stage_transition_duration,
+            TimerMode::Once,
+        ));
 
         let mut rng = rng();
 
-        // Spawn a reduced burst of celebratory particles (30 instead of 100)
-        for _ in 0..30 {
+        for _ in 0..vars.celebration_particle_count {
             let angle = rng.random_range(0.0..std::f32::consts::TAU);
             let speed = rng.random_range(100.0..300.0);
             let velocity = Vec2::new(angle.cos(), angle.sin()) * speed;
@@ -95,13 +96,13 @@ fn spawn_celebration_particles(
 
             commands.spawn((
                 CelebrationParticle {
-                    lifetime: Timer::from_seconds(1.5, TimerMode::Once),
+                    lifetime: Timer::from_seconds(vars.celebration_duration, TimerMode::Once),
                     velocity,
                     initial_scale: rng.random_range(0.5..2.0),
                 },
                 Sprite {
                     color: Color::hsla(rng.random_range(0.0..360.0), 0.8, 0.8, 1.0),
-                    custom_size: Some(Vec2::splat(10.0)),
+                    custom_size: Some(Vec2::splat(vars.celebration_particle_size)),
                     ..default()
                 },
                 Transform::from_xyz(offset.x, offset.y, 10.0),
@@ -112,7 +113,6 @@ fn spawn_celebration_particles(
         }
     }
 
-    // Handle transition timer
     if let Some(timer) = &mut celebration_state.transition_timer {
         if timer.tick(time.delta()).just_finished() {
             celebration_state.is_celebrating = false;
@@ -126,24 +126,21 @@ fn spawn_sequence_feedback(
     mut commands: Commands,
     sequence_state: Res<SequenceState>,
     cards: Query<(&Transform, &Children)>,
+    vars: Res<GameVariables>,
 ) {
-    // Only spawn feedback when the player's sequence is complete
     if sequence_state.player_sequence.len() != sequence_state.target_sequence.len() {
         return;
     }
 
     let mut rng = rng();
 
-    // Spawn feedback particles for each card in the sequence
     for (i, &player_idx) in sequence_state.player_sequence.iter().enumerate() {
         let is_correct = sequence_state.target_sequence.get(i) == Some(&player_idx);
 
-        // Find card position for this emoji
         for (transform, _) in &cards {
             let pos = transform.translation.truncate();
 
-            // Spawn particles around the card
-            for _ in 0..10 {
+            for _ in 0..vars.feedback_particle_count {
                 let angle = rng.random_range(0.0..std::f32::consts::TAU);
                 let speed = rng.random_range(50.0..150.0);
                 let velocity = Vec2::new(angle.cos(), angle.sin()) * speed;
@@ -152,16 +149,19 @@ fn spawn_sequence_feedback(
 
                 commands.spawn((
                     FeedbackParticle {
-                        lifetime: Timer::from_seconds(0.75, TimerMode::Once),
+                        lifetime: Timer::from_seconds(
+                            vars.feedback_particle_duration,
+                            TimerMode::Once,
+                        ),
                         velocity,
                     },
                     Sprite {
                         color: if is_correct {
-                            Color::srgb(0.0, 0.8, 0.0)
+                            vars.correct_color
                         } else {
-                            Color::srgb(0.8, 0.0, 0.0)
+                            vars.wrong_color
                         },
-                        custom_size: Some(Vec2::splat(5.0)),
+                        custom_size: Some(Vec2::splat(vars.feedback_particle_size)),
                         ..default()
                     },
                     Transform::from_xyz(pos.x + offset.x, pos.y + offset.y, 5.0),
@@ -223,41 +223,32 @@ fn update_feedback_particles(
 }
 
 /// Spawns an encircling ring effect behind the grid when the stage is complete.
-/// The ring expands, rotates, and fades out over its duration.
 fn spawn_encircling_ring_effect(
     mut commands: Commands,
     stage_state: Res<StageState>,
     difficulty: Res<GameDifficulty>,
     ring_query: Query<&EncirclingRingEffect>,
+    vars: Res<GameVariables>,
 ) {
-    // Only spawn if the stage is complete and no ring effect exists
     if stage_state.stage_complete && ring_query.is_empty() {
-        // Compute grid bounds based on difficulty parameters
         let grid_width = difficulty.grid_cols as f32 * difficulty.grid_spacing;
         let grid_height = difficulty.grid_rows as f32 * difficulty.grid_spacing;
-        // The grid is centered at (0,0)
         let center = Vec2::ZERO;
-        // Compute a radius based on half the diagonal plus a margin (e.g., 30.0)
-        let radius = (grid_width.hypot(grid_height) / 2.0) + 30.0;
+        let radius = (grid_width.hypot(grid_height) / 2.0) + vars.ring_effect_margin;
 
-        // Spawn the ring effect entity
         commands.spawn((
             EncirclingRingEffect {
-                timer: Timer::from_seconds(2.0, TimerMode::Once),
-                // Assuming the base sprite size is 50.0; adjust scales accordingly.
+                timer: Timer::from_seconds(vars.ring_effect_duration, TimerMode::Once),
                 initial_scale: radius / 50.0,
                 target_scale: (radius * 1.5) / 50.0,
-                rotation_speed: 1.0, // radians per second
+                rotation_speed: vars.ring_effect_rotation_speed,
             },
             Sprite {
-                // If you have a ring texture, you can use it here.
-                // For now, we use a simple white color with some transparency.
                 color: Color::srgba(1.0, 1.0, 1.0, 0.8),
                 custom_size: Some(Vec2::splat(50.0)),
                 ..default()
             },
             Transform {
-                // Position the ring at the grid center; use a z value behind the cards.
                 translation: Vec3::new(center.x, center.y, -1.0),
                 scale: Vec3::splat(1.0),
                 ..default()
@@ -284,25 +275,23 @@ fn update_encircling_ring_effect(
     for (entity, mut ring, mut transform, mut sprite) in &mut query {
         ring.timer.tick(time.delta());
         let progress = ring.timer.elapsed_secs() / ring.timer.duration().as_secs_f32();
-        // Lerp the scale between initial and target values.
+
         let scale_factor =
             (ring.target_scale - ring.initial_scale).mul_add(progress, ring.initial_scale);
         transform.scale = Vec3::splat(scale_factor);
-        // Apply continuous rotation.
+
         transform.rotation *= Quat::from_rotation_z(ring.rotation_speed * time.delta_secs());
-        // Fade out the ring (reduce alpha) over time.
+
         let alpha = 1.0 - progress;
         sprite.color = sprite.color.with_alpha(alpha);
 
-        // Despawn the ring effect when its timer finishes.
         if ring.timer.finished() {
             commands.entity(entity).despawn();
         }
     }
 }
 
-/// Cleanup system that removes all lingering effects (celebration, feedback, and ring)
-/// when transitioning out of the Playing state.
+/// Cleanup system that removes all lingering effects when transitioning out of the Playing state.
 fn cleanup_effects(
     mut commands: Commands,
     effects: Query<
