@@ -510,6 +510,7 @@ dependencies = [
  "bevy",
  "emoji_avoidance",
  "emoji_grabber",
+ "emoji_sequencer",
  "flappy_gun",
  "getrandom 0.3.1",
  "heck",
@@ -2030,6 +2031,17 @@ dependencies = [
 
 [[package]]
 name = "emoji_grabber"
+version = "0.0.1"
+dependencies = [
+ "bevy",
+ "bits_helpers",
+ "rand 0.9.0",
+ "ribbit_bits",
+ "strum",
+]
+
+[[package]]
+name = "emoji_sequencer"
 version = "0.0.1"
 dependencies = [
  "bevy",

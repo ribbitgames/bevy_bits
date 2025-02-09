@@ -19,6 +19,7 @@ memoji = { path = "../memoji" }
 puzzle15 = { path = "../puzzle15" }
 emoji_avoidance = { path = "../emoji_avoidance" }
 emoji_grabber = { path = "../emoji_grabber" }
+emoji_sequencer = { path = "../emoji_sequencer" }
 shape_grabber = { path = "../shape_grabber" }
 shape_masher = { path = "../shape_masher" }
 shape_memorizer = { path = "../shape_memorizer" }
