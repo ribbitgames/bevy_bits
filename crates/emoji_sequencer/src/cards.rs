@@ -92,8 +92,8 @@ fn setup_cards(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 /// Handles initial spawning of sequence cards.
+///
 /// Cards are arranged in rows at the bottom, with each row centered horizontally.
-/// In this version, we use a fixed minimal spacing between cards.
 fn handle_sequence_spawn(
     mut commands: Commands,
     atlas: Res<EmojiAtlas>,
@@ -116,8 +116,8 @@ fn handle_sequence_spawn(
     {
         let sequence_length = difficulty.sequence_length as usize;
         // Retrieve a set of random emoji indices based on the given sequence length.
-        let available_indices = emoji::get_random_emojis(&atlas, &validation, sequence_length);
-        sequence_state.target_sequence = available_indices.clone();
+        // Instead of cloning later, we assign this vector directly to a local variable.
+        let target_sequence = emoji::get_random_emojis(&atlas, &validation, sequence_length);
 
         // Card dimensions.
         let card_width = CARD_SIZE;
@@ -137,6 +137,7 @@ fn handle_sequence_spawn(
         // Compute the number of rows required.
         let num_rows = sequence_length.div_ceil(row_limit);
 
+        // Use the local target_sequence for iteration.
         let mut current_index = 0;
         for row in 0..num_rows {
             // Determine how many cards are in the current row.
@@ -162,11 +163,11 @@ fn handle_sequence_spawn(
 
             for col in 0..cards_in_row {
                 let x = (col as f32).mul_add(card_width + row_spacing, start_x);
-                // Safely retrieve the emoji index from the available_indices vector.
+                // Safely retrieve the emoji index from the target_sequence vector.
                 // Tooltip: `.get()` returns an Option, and `.expect()` ensures we have a valid index.
-                let emoji_index = *available_indices.get(current_index).expect(
-                    "Index out-of-bound: available_indices has fewer elements than expected",
-                );
+                let emoji_index = *target_sequence
+                    .get(current_index)
+                    .expect("Index out-of-bound: target_sequence has fewer elements than expected");
                 current_index += 1;
 
                 // Spawn the parent card entity.
@@ -220,6 +221,9 @@ fn handle_sequence_spawn(
                 commands.entity(card_entity).add_child(card_back_entity);
             }
         }
+
+        // Now move the target_sequence into sequence_state without cloning.
+        sequence_state.target_sequence = target_sequence;
 
         // Update game progress to move to the next sequence step.
         game_progress.sequence_step = SequenceStep::RevealingSequence;
