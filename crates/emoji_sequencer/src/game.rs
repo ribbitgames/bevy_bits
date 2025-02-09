@@ -5,8 +5,6 @@ use crate::effects::CelebrationState;
 
 pub struct GamePlugin;
 
-/// Fixed delay before starting sequence reveal (seconds)
-pub const INITIAL_WAIT_TIME: f32 = 1.0;
 /// Time to show each emoji in sequence (seconds)
 pub const REVEAL_TIME_PER_EMOJI: f32 = 1.0;
 /// Time to show completed sequence before hiding (seconds)
@@ -19,8 +17,6 @@ pub const STAGE_COMPLETION_SCORE: u32 = 100;
 pub const MAX_SPEED_BONUS: u32 = 50;
 /// Time threshold for maximum speed bonus (seconds)
 pub const SPEED_BONUS_THRESHOLD: f32 = 5.0;
-/// Color for incorrect selection feedback
-pub const MISMATCH_COLOR: Color = Color::rgb(1.0, 0.0, 0.0);
 /// Delay before resetting mismatch color (seconds)
 pub const MISMATCH_DELAY: f32 = 0.5;
 
@@ -178,7 +174,7 @@ impl GameDifficulty {
 
         // Adjust grid dimensions based on total emojis
         self.grid_cols = (self.total_emojis as f32).sqrt().ceil() as u32;
-        self.grid_rows = ((self.total_emojis as u32).div_ceil(self.grid_cols)) as u32;
+        self.grid_rows = (self.total_emojis as u32).div_ceil(self.grid_cols);
     }
 }
 

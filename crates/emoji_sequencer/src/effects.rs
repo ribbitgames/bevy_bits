@@ -22,8 +22,6 @@ pub struct FeedbackParticle {
     lifetime: Timer,
     /// Velocity vector for particle movement
     velocity: Vec2,
-    /// Whether this particle is for correct (true) or incorrect (false) feedback
-    is_correct: bool,
 }
 
 /// New component for an encircling ring effect that highlights the grid
@@ -156,7 +154,6 @@ fn spawn_sequence_feedback(
                     FeedbackParticle {
                         lifetime: Timer::from_seconds(0.75, TimerMode::Once),
                         velocity,
-                        is_correct,
                     },
                     Sprite {
                         color: if is_correct {
@@ -241,7 +238,7 @@ fn spawn_encircling_ring_effect(
         // The grid is centered at (0,0)
         let center = Vec2::ZERO;
         // Compute a radius based on half the diagonal plus a margin (e.g., 30.0)
-        let radius = ((grid_width.powi(2) + grid_height.powi(2)).sqrt() / 2.0) + 30.0;
+        let radius = (grid_width.hypot(grid_height) / 2.0) + 30.0;
 
         // Spawn the ring effect entity
         commands.spawn((
@@ -288,7 +285,8 @@ fn update_encircling_ring_effect(
         ring.timer.tick(time.delta());
         let progress = ring.timer.elapsed_secs() / ring.timer.duration().as_secs_f32();
         // Lerp the scale between initial and target values.
-        let scale_factor = ring.initial_scale + (ring.target_scale - ring.initial_scale) * progress;
+        let scale_factor =
+            (ring.target_scale - ring.initial_scale).mul_add(progress, ring.initial_scale);
         transform.scale = Vec3::splat(scale_factor);
         // Apply continuous rotation.
         transform.rotation *= Quat::from_rotation_z(ring.rotation_speed * time.delta_secs());

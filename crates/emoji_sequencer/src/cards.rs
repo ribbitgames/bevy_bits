@@ -104,6 +104,7 @@ fn handle_sequence_spawn(
     difficulty: Res<GameDifficulty>,
     query: Query<(Entity, &Card)>,
 ) {
+    // Ensure we are in the correct sequence step.
     if game_progress.sequence_step != SequenceStep::SpawningSequence {
         return;
     }
@@ -114,6 +115,7 @@ fn handle_sequence_spawn(
         .any(|(_, card)| card.sequence_position.is_some())
     {
         let sequence_length = difficulty.sequence_length as usize;
+        // Retrieve a set of random emoji indices based on the given sequence length.
         let available_indices = emoji::get_random_emojis(&atlas, &validation, sequence_length);
         sequence_state.target_sequence = available_indices.clone();
 
@@ -133,7 +135,7 @@ fn handle_sequence_spawn(
             max_columns
         };
         // Compute the number of rows required.
-        let num_rows = (sequence_length + row_limit - 1) / row_limit;
+        let num_rows = sequence_length.div_ceil(row_limit);
 
         let mut current_index = 0;
         for row in 0..num_rows {
@@ -152,15 +154,19 @@ fn handle_sequence_spawn(
             };
 
             // Compute the total width of this row and then the starting x so the row is centered.
-            let row_width =
-                (cards_in_row as f32) * card_width + ((cards_in_row as f32) - 1.0) * row_spacing;
+            let row_width = (cards_in_row as f32)
+                .mul_add(card_width, ((cards_in_row as f32) - 1.0) * row_spacing);
             let start_x = -row_width / 2.0 + card_width / 2.0;
             // Compute the y position for this row.
-            let y = SEQUENCE_CARD_Y - row as f32 * (card_height + vertical_spacing);
+            let y = (row as f32).mul_add(-(card_height + vertical_spacing), SEQUENCE_CARD_Y);
 
             for col in 0..cards_in_row {
-                let x = start_x + col as f32 * (card_width + row_spacing);
-                let emoji_index = available_indices[current_index];
+                let x = (col as f32).mul_add(card_width + row_spacing, start_x);
+                // Safely retrieve the emoji index from the available_indices vector.
+                // Tooltip: `.get()` returns an Option, and `.expect()` ensures we have a valid index.
+                let emoji_index = *available_indices.get(current_index).expect(
+                    "Index out-of-bound: available_indices has fewer elements than expected",
+                );
                 current_index += 1;
 
                 // Spawn the parent card entity.
@@ -185,7 +191,7 @@ fn handle_sequence_spawn(
                     &validation,
                     emoji_index,
                     Vec2::ZERO,
-                    0.5,
+                    0.5, // Tooltip: Scale factor for the emoji sprite.
                 ) {
                     commands
                         .entity(emoji_entity)
@@ -215,6 +221,7 @@ fn handle_sequence_spawn(
             }
         }
 
+        // Update game progress to move to the next sequence step.
         game_progress.sequence_step = SequenceStep::RevealingSequence;
         game_progress.step_timer =
             Some(Timer::from_seconds(REVEAL_TIME_PER_EMOJI, TimerMode::Once));
