@@ -3,6 +3,7 @@ use bits_helpers::emoji::EmojiPlugin;
 
 use crate::game::GameState;
 
+mod animations;
 mod cards;
 mod effects;
 mod game;
@@ -11,6 +12,7 @@ mod ribbit;
 mod screen;
 mod variables;
 
+use animations::AnimationPlugin;
 use cards::CardPlugin;
 use effects::EffectsPlugin;
 use game::GamePlugin;
@@ -29,6 +31,7 @@ pub fn run() {
     .add_plugins(InputPlugin)
     .add_plugins(GamePlugin)
     .add_plugins(EffectsPlugin)
+    .add_plugins(AnimationPlugin)
     .init_state::<GameState>()
     .add_plugins(ScreenPlugin)
     .add_systems(Startup, setup)
