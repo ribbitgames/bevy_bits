@@ -31,8 +31,8 @@ impl Plugin for EmojiPlugin {
     }
 }
 
-const ATLAS_SIZE: UVec2 = UVec2::new(4096, 4096);
-const EMOJI_SIZE: UVec2 = UVec2::new(64, 64);
+pub const ATLAS_SIZE: UVec2 = UVec2::new(4096, 4096);
+pub const EMOJI_SIZE: UVec2 = UVec2::new(64, 64);
 
 #[cfg(not(target_arch = "wasm32"))]
 pub const ATLAS_PATH: &str = concat!(
@@ -207,14 +207,23 @@ fn validate_emoji_atlas(
     );
 }
 
-/// Creates a new emoji sprite entity at the specified position
+/// Creates a new emoji sprite entity with the specified transform
+///
+/// # Parameters
+/// * `commands` - Mutable commands resource for entity spawning
+/// * `atlas` - Reference to the emoji atlas resource
+/// * `validation` - Reference to the atlas validation state
+/// * `index` - The index of the emoji in the atlas
+/// * `transform` - The transform defining the emoji's position, rotation, and scale
+///
+/// # Returns
+/// * `Option<Entity>` - The spawned entity ID if successful, None if the emoji index is invalid
 pub fn spawn_emoji(
     commands: &mut Commands,
     atlas: &Res<EmojiAtlas>,
     validation: &Res<AtlasValidation>,
     index: usize,
-    position: Vec2,
-    scale: f32,
+    transform: Transform,
 ) -> Option<Entity> {
     if !validation.is_loaded || !atlas.valid_indices.contains(&index) {
         return None;
@@ -231,7 +240,7 @@ pub fn spawn_emoji(
                     }),
                     ..default()
                 },
-                Transform::from_xyz(position.x, position.y, 0.0).with_scale(Vec3::splat(scale)),
+                transform,
                 Visibility::Visible,
                 EmojiSprite,
             ))

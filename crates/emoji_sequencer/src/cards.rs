@@ -97,12 +97,10 @@ fn handle_sequence_spawn(
     vars: Res<GameVariables>,
     query: Query<(Entity, &Card)>,
 ) {
-    // Ensure we are in the correct sequence step.
     if game_progress.sequence_step != SequenceStep::SpawningSequence {
         return;
     }
 
-    // Only spawn sequence cards if none currently exist.
     if !query
         .iter()
         .any(|(_, card)| card.sequence_position.is_some())
@@ -110,13 +108,11 @@ fn handle_sequence_spawn(
         let sequence_length = difficulty.sequence_length as usize;
         let target_sequence = emoji::get_random_emojis(&atlas, &validation, sequence_length);
 
-        // Card dimensions and spacing
         let card_width = vars.card_size;
         let card_height = vars.card_size;
         let sequence_spacing = 10.0;
         let vertical_spacing = 10.0;
 
-        // Compute the maximum number of columns that can fit without overflowing the window.
         let max_columns = (WINDOW_WIDTH / (card_width + sequence_spacing)).floor() as usize;
         let row_limit = sequence_length.min(max_columns);
         let num_rows = sequence_length.div_ceil(row_limit);
@@ -160,19 +156,21 @@ fn handle_sequence_spawn(
                     ))
                     .id();
 
+                // Create emoji transform relative to card
+                let emoji_transform =
+                    Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(2.0));
+
                 if let Some(emoji_entity) = emoji::spawn_emoji(
                     &mut commands,
                     &atlas,
                     &validation,
                     emoji_index,
-                    Vec2::ZERO,
-                    0.5,
+                    emoji_transform,
                 ) {
                     commands
                         .entity(emoji_entity)
                         .insert(CardFace)
-                        .insert(Visibility::Hidden)
-                        .insert(Transform::from_translation(Vec3::ZERO));
+                        .insert(Visibility::Hidden);
                     commands.entity(card_entity).add_child(emoji_entity);
                 }
 
@@ -315,26 +313,28 @@ fn handle_grid_spawn(
                                 sequence_position: None,
                                 locked: false,
                             },
-                            Transform::from_xyz(x, y, 0.0).with_scale(Vec3::splat(0.5)),
+                            Transform::from_xyz(x, y, 0.0).with_scale(Vec3::splat(2.0)),
                             Visibility::Inherited,
                             InheritedVisibility::default(),
                             ViewVisibility::default(),
                         ))
                         .id();
 
+                    // Create transform for emoji relative to card
+                    let emoji_transform =
+                        Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(2.0));
+
                     if let Some(emoji_entity) = emoji::spawn_emoji(
                         &mut commands,
                         &atlas,
                         &validation,
                         emoji_index,
-                        Vec2::ZERO,
-                        0.5,
+                        emoji_transform,
                     ) {
                         commands
                             .entity(emoji_entity)
                             .insert(CardFace)
-                            .insert(Visibility::Visible)
-                            .insert(Transform::from_translation(Vec3::ZERO));
+                            .insert(Visibility::Visible);
                         commands.entity(card_entity).add_child(emoji_entity);
                     }
                 }

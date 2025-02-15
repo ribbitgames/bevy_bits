@@ -9,6 +9,7 @@ const MISMATCH_COLOR: Color = Color::srgb(1.0, 0.0, 0.0);
 const DEFAULT_COLOR: Color = Color::WHITE;
 /// Time to show a mismatch (seconds)
 pub const MISMATCH_DELAY: f32 = 1.5;
+pub const CARD_SIZE: f32 = 2.0;
 
 #[derive(Component, Debug, Default)]
 pub struct Card {
@@ -100,7 +101,6 @@ fn spawn_emoji_grid(
                     + difficulty.grid_spacing / 2.0;
                 let y = (-(row as f32)).mul_add(difficulty.grid_spacing, start_y)
                     - difficulty.grid_spacing / 2.0;
-                let _position = Vec2::new(x + 0.5, y + 0.5);
 
                 // Spawn card parent entity
                 let card_entity = commands
@@ -122,14 +122,12 @@ fn spawn_emoji_grid(
                     &atlas,
                     &validation,
                     sprite_index,
-                    Vec2::ZERO, // Relative to parent
-                    0.5,
+                    Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(CARD_SIZE)),
                 ) {
                     commands
                         .entity(emoji_entity)
                         .insert(CardFace)
-                        .insert(Visibility::Hidden)
-                        .insert(Transform::from_translation(Vec3::ZERO));
+                        .insert(Visibility::Hidden);
                     commands.entity(card_entity).add_child(emoji_entity);
                 }
 
@@ -138,7 +136,7 @@ fn spawn_emoji_grid(
                     .spawn(CardBackBundle {
                         sprite: Sprite {
                             image: card_back.0.clone(),
-                            custom_size: Some(Vec2::splat(difficulty.grid_spacing * 1.5)), // card_back size doesn't match the atlas emojis unfortunately
+                            custom_size: Some(Vec2::splat(difficulty.grid_spacing * 1.5)),
                             ..default()
                         },
                         transform: Transform::from_translation(Vec3::ZERO),

@@ -62,14 +62,11 @@ pub fn try_spawn_welcome_screen(
         .set_parent(welcome_screen_entity);
 
     // Spawn target emoji preview
-    if let Some(emoji_entity) = emoji::spawn_emoji(
-        &mut commands,
-        &atlas,
-        &validation,
-        index,
-        Vec2::new(0.0, 0.0),
-        1.0,
-    ) {
+    let emoji_transform = Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(1.0));
+
+    if let Some(emoji_entity) =
+        emoji::spawn_emoji(&mut commands, &atlas, &validation, index, emoji_transform)
+    {
         commands
             .entity(emoji_entity)
             .set_parent(welcome_screen_entity);

@@ -1,14 +1,15 @@
 use bevy::prelude::*;
-use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
+use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas, EMOJI_SIZE};
 use rand::prelude::*;
 
 use crate::game::{GameState, GameTimer, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::player::PLAYER_WIDTH;
 
-/// Minimum obstacle size (in pixels)
-const OBSTACLE_MIN_SIZE: f32 = 40.0;
-/// Maximum obstacle size (in pixels)
-const OBSTACLE_MAX_SIZE: f32 = 80.0;
+/// Minimum and maximum scale factors for emoji obstacles
+const BASE_EMOJI_SIZE: f32 = EMOJI_SIZE.x as f32;
+const OBSTACLE_MIN_SCALE: f32 = 0.8;
+const OBSTACLE_MAX_SCALE: f32 = 2.0;
+
 /// Initial time interval (in seconds) between obstacle spawns
 const INITIAL_OBSTACLE_SPAWN_RATE: f32 = 0.7;
 /// Base obstacle speed (in pixels per second)
@@ -133,7 +134,9 @@ fn spawn_obstacles(
         const MAX_ATTEMPTS: i32 = 10;
 
         while attempts < MAX_ATTEMPTS {
-            let size = rng.random_range(OBSTACLE_MIN_SIZE..OBSTACLE_MAX_SIZE);
+            let scale = rng.random_range(OBSTACLE_MIN_SCALE..OBSTACLE_MAX_SCALE);
+            let size = BASE_EMOJI_SIZE * scale;
+
             let x =
                 rng.random_range(-WINDOW_WIDTH / 2.0 + size / 2.0..WINDOW_WIDTH / 2.0 - size / 2.0);
             let start_pos = Vec2::new(x, WINDOW_HEIGHT / 2.0 + size / 2.0);
@@ -149,13 +152,16 @@ fn spawn_obstacles(
                         0.0
                     };
 
+                    // Create transform for obstacle
+                    let obstacle_transform = Transform::from_xyz(start_pos.x, start_pos.y, 0.0)
+                        .with_scale(Vec3::splat(scale));
+
                     if let Some(obstacle_entity) = emoji::spawn_emoji(
                         &mut commands,
                         &atlas,
                         &validation,
                         emoji_index,
-                        start_pos,
-                        size / OBSTACLE_MAX_SIZE,
+                        obstacle_transform,
                     ) {
                         commands.entity(obstacle_entity).insert(Obstacle {
                             speed,

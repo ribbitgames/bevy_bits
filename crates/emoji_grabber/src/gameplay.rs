@@ -53,6 +53,7 @@ pub fn spawn_emojis(
     // Spawn all emojis with random positions and velocities
     for &index in &emojis {
         let size = rng.random_range(40.0..80.0);
+        let scale = size / 64.0;
         let x = rng.random_range(-WINDOW_WIDTH / 2.0 + size..WINDOW_WIDTH / 2.0 - size);
         let y =
             rng.random_range(-WINDOW_HEIGHT / 2.0 + size..WINDOW_HEIGHT / 2.0 - UI_MARGIN - size);
@@ -65,8 +66,7 @@ pub fn spawn_emojis(
             &atlas,
             &validation,
             index,
-            Vec2::new(x, y),
-            size / 128.0,
+            Transform::from_xyz(x, y, 0.0).with_scale(Vec3::splat(scale)),
         ) {
             commands
                 .entity(entity)

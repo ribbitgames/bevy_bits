@@ -43,14 +43,18 @@ fn spawn_player(
 ) {
     let player_radius = PLAYER_WIDTH.min(PLAYER_HEIGHT) / 2.0;
 
+    // Create transform for player emoji
+    let player_transform =
+        Transform::from_xyz(0.0, -WINDOW_HEIGHT / 2.0 + PLAYER_HEIGHT + 10.0, 0.0)
+            .with_scale(Vec3::splat(1.0));
+
     // Spawn player emoji (using a specific emoji index for the player)
     if let Some(player_entity) = emoji::spawn_emoji(
         &mut commands,
         &atlas,
         &validation,
         0, // Using first emoji for player - you might want to choose a specific one
-        Vec2::new(0.0, -WINDOW_HEIGHT / 2.0 + PLAYER_HEIGHT + 10.0),
-        0.5,
+        player_transform,
     ) {
         commands.entity(player_entity).insert(Player {
             radius: player_radius,

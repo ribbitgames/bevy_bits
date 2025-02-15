@@ -275,10 +275,10 @@ fn create_puzzle(
 ) {
     let mut rng = rand::rng();
 
-    // Trying to use similar emojis instead of complelte random ones
+    // Trying to use similar emojis instead of complete random ones
     let selected_index = *emoji::get_random_emojis(atlas, validation, 1)
         .first()
-        .expect("");
+        .expect("Failed to get random emoji index");
     let mut selected_indices: Vec<usize> = (0..100).map(|x| selected_index + x - 50).collect();
     selected_indices.shuffle(&mut rng);
     selected_indices.retain(|index| emoji::is_valid_emoji_index(atlas, *index));
@@ -286,13 +286,19 @@ fn create_puzzle(
 
     grid.grid.shuffle(&mut rng);
 
+    // Spawn game characters
     for (count, pos) in grid.grid.clone().into_iter().enumerate() {
         if count >= (NUMBER_OF_CANDIDATES as usize) {
             break;
         }
-        //println!("pos[{count}] = {pos}");
 
-        let t = get_random_transform(pos);
+        let transform = get_random_transform(pos);
+        let emoji_transform = Transform {
+            translation: transform.translation,
+            rotation: transform.rotation,
+            scale: Vec3::splat(SPRITE_SCALE),
+        };
+
         if let Some(entity) = emoji::spawn_emoji(
             commands,
             atlas,
@@ -300,21 +306,22 @@ fn create_puzzle(
             *selected_indices
                 .get(count)
                 .expect("The index is out of the range!"),
-            Vec2::new(t.translation.x, t.translation.y),
-            SPRITE_SCALE,
+            emoji_transform,
         ) {
-            commands.entity(entity).insert(Character).insert(Transform {
-                translation: t.translation,
-                rotation: t.rotation,
-                scale: Vec3::new(SPRITE_SCALE, SPRITE_SCALE, 1.),
-            });
+            commands.entity(entity).insert(Character);
             if count == 0 {
                 commands.entity(entity).insert(Waldo);
             }
         }
     }
 
-    // The one to look for (for UI)
+    // Spawn UI reference character
+    let ui_transform = Transform {
+        translation: Vec3::new(40., UI_Y, 0.0),
+        rotation: Quat::IDENTITY,
+        scale: Vec3::splat(0.2),
+    };
+
     if let Some(entity) = emoji::spawn_emoji(
         commands,
         atlas,
@@ -322,9 +329,7 @@ fn create_puzzle(
         *selected_indices
             .first()
             .expect("The index is out of the range!"),
-        Vec2::new(40., UI_Y),
-        //SPRITE_SCALE,
-        0.2,
+        ui_transform,
     ) {
         commands.entity(entity).insert(Character).insert(Waldo);
     }
