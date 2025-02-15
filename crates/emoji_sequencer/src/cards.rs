@@ -313,7 +313,7 @@ fn handle_grid_spawn(
                                 sequence_position: None,
                                 locked: false,
                             },
-                            Transform::from_xyz(x, y, 0.0).with_scale(Vec3::splat(2.0)),
+                            Transform::from_xyz(x, y, 0.0).with_scale(Vec3::splat(1.0)),
                             Visibility::Inherited,
                             InheritedVisibility::default(),
                             ViewVisibility::default(),
@@ -322,7 +322,7 @@ fn handle_grid_spawn(
 
                     // Create transform for emoji relative to card
                     let emoji_transform =
-                        Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(2.0));
+                        Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(1.0));
 
                     if let Some(emoji_entity) = emoji::spawn_emoji(
                         &mut commands,
