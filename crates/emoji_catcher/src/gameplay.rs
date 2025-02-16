@@ -4,7 +4,10 @@ use bits_helpers::input::pressed_world_position;
 use bits_helpers::{emoji, WINDOW_HEIGHT, WINDOW_WIDTH};
 use rand::Rng;
 
-use crate::core::config::*;
+use crate::core::config::{
+    BAD_EMOJI_PROBABILITY, CATCHER_SIZE, MAX_EMOJI_SIZE, MAX_FALL_SPEED, MIN_EMOJI_SIZE,
+    MIN_SPAWN_INTERVAL, SPAWN_RATE_DECREASE, SPEED_INCREASE_RATE,
+};
 use crate::core::{Catcher, FallingEmoji, GameState, Score, SpawnTimer};
 
 /// Component to wrap Timer for game over delay
@@ -79,7 +82,7 @@ pub fn move_emojis(
     time: Res<Time>,
     mut score: ResMut<Score>,
     mut emoji_query: Query<(Entity, &mut Transform, &FallingEmoji)>,
-    catcher_query: Query<(&Transform, &Catcher), Without<FallingEmoji>>, // Added Without to make queries disjoint
+    catcher_query: Query<(&Transform, &Catcher), Without<FallingEmoji>>,
     asset_server: Res<AssetServer>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
@@ -90,7 +93,7 @@ pub fn move_emojis(
     let catcher_pos = catcher_transform.translation.truncate();
     let catcher_y = catcher_pos.y;
 
-    for (entity, mut transform, emoji) in emoji_query.iter_mut() {
+    for (entity, mut transform, emoji) in &mut emoji_query {
         // Move emoji down
         transform.translation.y -= emoji.speed * time.delta_secs();
 
@@ -101,7 +104,29 @@ pub fn move_emojis(
             commands.entity(entity).despawn();
 
             if emoji.is_bad {
-                // Hit bad emoji - show effect and game over
+                // Hit bad emoji - decrement score
+                score.0 -= 10;
+                spawn_floating_score(
+                    &mut commands,
+                    Vec2::new(transform.translation.x, transform.translation.y),
+                    "-10",
+                    bevy::color::palettes::css::RED,
+                    &asset_server,
+                );
+            } else {
+                // Caught good emoji
+                score.0 += 10;
+                spawn_floating_score(
+                    &mut commands,
+                    Vec2::new(transform.translation.x, transform.translation.y),
+                    "+10",
+                    bevy::color::palettes::css::GREEN,
+                    &asset_server,
+                );
+            }
+
+            // Check for game over if score went negative
+            if score.0 < 0 {
                 spawn_floating_score(
                     &mut commands,
                     Vec2::new(transform.translation.x, transform.translation.y),
@@ -109,21 +134,10 @@ pub fn move_emojis(
                     bevy::color::palettes::css::RED,
                     &asset_server,
                 );
-                // Add small delay before game over
                 commands.spawn((GameOverDelay(Timer::from_seconds(0.5, TimerMode::Once)),));
                 next_state.set(GameState::GameOver);
                 return;
             }
-
-            // Caught good emoji
-            score.0 += 10;
-            spawn_floating_score(
-                &mut commands,
-                Vec2::new(transform.translation.x, transform.translation.y),
-                "+10",
-                bevy::color::palettes::css::GREEN,
-                &asset_server,
-            );
         }
 
         // Remove if passed bottom of screen
@@ -140,6 +154,20 @@ pub fn move_emojis(
                     bevy::color::palettes::css::RED,
                     &asset_server,
                 );
+
+                // Check for game over if score went negative
+                if score.0 < 0 {
+                    spawn_floating_score(
+                        &mut commands,
+                        Vec2::new(transform.translation.x, -WINDOW_HEIGHT / 2.0),
+                        "GAME OVER!",
+                        bevy::color::palettes::css::RED,
+                        &asset_server,
+                    );
+                    commands.spawn((GameOverDelay(Timer::from_seconds(0.5, TimerMode::Once)),));
+                    next_state.set(GameState::GameOver);
+                    return;
+                }
             }
         }
     }
@@ -159,10 +187,12 @@ pub fn update_game(
     spawn_timer.timer.tick(time.delta());
 
     // Increase difficulty
-    spawn_timer.current_speed =
-        (spawn_timer.current_speed + SPEED_INCREASE_RATE * time.delta_secs()).min(MAX_FALL_SPEED);
-    spawn_timer.spawn_rate =
-        (spawn_timer.spawn_rate - SPAWN_RATE_DECREASE * time.delta_secs()).max(MIN_SPAWN_INTERVAL);
+    spawn_timer.current_speed = SPEED_INCREASE_RATE
+        .mul_add(time.delta_secs(), spawn_timer.current_speed)
+        .min(MAX_FALL_SPEED);
+    spawn_timer.spawn_rate = SPAWN_RATE_DECREASE
+        .mul_add(-time.delta_secs(), spawn_timer.spawn_rate)
+        .max(MIN_SPAWN_INTERVAL);
 
     // Update score display
     if let Some(mut score_text) = score_query.iter_mut().next() {
@@ -174,7 +204,11 @@ pub fn update_game(
         let mut rng = rand::rng();
 
         // Determine if this should be a bad emoji
-        let is_bad = rng.gen_bool(BAD_EMOJI_PROBABILITY.into());
+        let is_bad = {
+            let this = &mut rng;
+            let p = BAD_EMOJI_PROBABILITY.into();
+            this.random_bool(p)
+        };
 
         // Get random emoji index
         let indices = emoji::get_random_emojis(&atlas, &validation, 1);
@@ -183,8 +217,16 @@ pub fn update_game(
         };
 
         // Random size and position
-        let size = rng.gen_range(MIN_EMOJI_SIZE..MAX_EMOJI_SIZE);
-        let x = rng.gen_range(-WINDOW_WIDTH / 2.0 + size..WINDOW_WIDTH / 2.0 - size);
+        let size = {
+            let this = &mut rng;
+            let range = MIN_EMOJI_SIZE..MAX_EMOJI_SIZE;
+            this.random_range(range)
+        };
+        let x = {
+            let this = &mut rng;
+            let range = -WINDOW_WIDTH / 2.0 + size..WINDOW_WIDTH / 2.0 - size;
+            this.random_range(range)
+        };
 
         // Create transform for emoji
         let emoji_transform = Transform::from_xyz(x, WINDOW_HEIGHT / 2.0 + size, 0.0)
