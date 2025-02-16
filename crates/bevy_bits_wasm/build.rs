@@ -2,11 +2,10 @@ use core::fmt::Write;
 use std::path::Path;
 use std::{env, fs};
 
+use cargo_metadata::MetadataCommand;
 use proc_macro2::{Spacing, TokenStream, TokenTree};
 use quote::{format_ident, quote};
 use syn::parse_file;
-
-const BIT_NAME_PATH: &str = "../../../ribbit_bits/src/bit_name.rs";
 
 fn main() {
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
@@ -16,8 +15,27 @@ fn main() {
         return;
     }
 
+    // Get cargo metadata
+    let metadata = MetadataCommand::new()
+        .exec()
+        .expect("Failed to get cargo metadata");
+
+    // Find the serde package
+    let ribbit_bits_package = metadata
+        .packages
+        .iter()
+        .find(|p| p.name == "ribbit_bits")
+        .expect("Failed to find serde package");
+
+    // The manifest_path will give you the path to the Cargo.toml of the dependency
+    // The parent of this path is the actual source directory
+    let bit_name_path = ribbit_bits_package
+        .manifest_path
+        .parent()
+        .expect("Failed to get parent directory")
+        .join("src/bit_name.rs");
+
     // Read the contents of the bit_name.rs file
-    let bit_name_path = Path::new(BIT_NAME_PATH);
     let bit_name_content = fs::read_to_string(bit_name_path).expect("Failed to read bit_name.rs");
 
     // Parse the file content
@@ -78,7 +96,7 @@ fn main() {
         .output()
         .expect("failed to execute rustfmt");
 
-    println!("cargo:rerun-if-changed={BIT_NAME_PATH}");
+    println!("cargo:rerun-if-changed=../../Cargo.lock");
 }
 
 fn token_stream_to_string(ts: &TokenStream) -> String {

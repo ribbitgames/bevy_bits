@@ -17,11 +17,12 @@ ribbit_bits = { git = "https://github.com/ribbitgames/ribbit_bits.git" }
 # External dependencies
 anyhow = { version = "1.0.95" }
 avian3d = { version = "0.2.1", features = ["debug-plugin"] }
-bevy = { version = "0.15.2", features = ["jpeg", "webgpu", "ktx2"] }
+bevy = { version = "0.15.2", features = ["webgpu", "ktx2"] }
 bevy_asset_loader = { version = "0.22.0" }
 bevy_kira_audio = { version = "0.22.0", features = ["ogg"] }
 bevy_turborand = { version = "0.10.0", features = ["wyrand"] }
 bevy_framepace = { version = "0.18.1" }
+cargo_metadata = "0.19.1"
 heck = { version = "0.5.0" }
 getrandom = { version = "0.3.1", features = ["wasm_js"] }
 leafwing-input-manager = "0.16.0"
