@@ -21,10 +21,7 @@ const BACKGROUND_COLOR: Color = Color::Srgba(Srgba {
 const SPRITE_SIZE_X: f32 = 32.;
 const SPRITE_SIZE_Y: f32 = 32.;
 
-// This should get from emoji::EMOJI_SIZE,
-//or we should be able to actual sprite size
-//for emoji plugin instead of specifying the scale
-const SPRITE_SCALE: f32 = SPRITE_SIZE_X / 128.0;
+const SPRITE_SCALE: f32 = SPRITE_SIZE_X / (emoji::EMOJI_SIZE.x as f32);
 
 const UI_Y: f32 = -BACKGROUND_SIZE_Y * 0.5 - 32.;
 const UI_RESULT_Y: f32 = UI_Y - 32.;
@@ -319,7 +316,7 @@ fn create_puzzle(
     let ui_transform = Transform {
         translation: Vec3::new(40., UI_Y, 0.0),
         rotation: Quat::IDENTITY,
-        scale: Vec3::splat(0.2),
+        scale: Vec3::splat(0.4),
     };
 
     if let Some(entity) = emoji::spawn_emoji(
