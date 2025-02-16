@@ -2030,6 +2030,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "emoji_catcher"
+version = "0.0.1"
+dependencies = [
+ "bevy",
+ "bits_helpers",
+ "rand 0.9.0",
+ "ribbit_bits",
+ "strum",
+]
+
+[[package]]
 name = "emoji_grabber"
 version = "0.0.1"
 dependencies = [
