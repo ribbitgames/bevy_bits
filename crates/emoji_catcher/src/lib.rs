@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas, EmojiPlugin};
+use bits_helpers::emoji::{self, AtlasValidation, EmojiPlugin};
 use bits_helpers::floating_score::animate_floating_scores;
 use ribbit::EmojiCatcher;
 
@@ -11,7 +11,7 @@ mod welcome;
 
 use core::{GameState, GameTimer, Score};
 
-use game_over::*;
+use game_over::{cleanup_game_over, handle_game_over_input, spawn_game_over_screen};
 use gameplay::{cleanup_game, handle_input, move_emojis, spawn_game_elements, update_game};
 use welcome::{despawn_welcome_screen, handle_welcome_input, spawn_welcome_screen};
 
