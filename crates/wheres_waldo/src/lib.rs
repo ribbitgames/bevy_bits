@@ -3,8 +3,6 @@ use bevy::utils::Duration;
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas, EmojiPlugin};
 use bits_helpers::input::just_pressed_world_position;
 use bits_helpers::{WINDOW_HEIGHT, WINDOW_WIDTH};
-use rand::prelude::SliceRandom;
-use rand::Rng;
 use ribbit::WheresWaldo;
 
 mod ribbit;
@@ -248,19 +246,15 @@ fn mouse_events(
 }
 
 fn get_random_transform(grid_position: Vec2) -> Transform {
-    let mut rng = rand::rng();
+    let mut rng = fastrand::Rng::new();
     let position_noize: f32 = 0.125;
     let rotation_noize: f32 = 0.25;
     Transform::from_translation(Vec3::new(
-        rng.random_range(-position_noize..position_noize)
-            .mul_add(SPRITE_SIZE_X, grid_position.x),
-        rng.random_range(-position_noize..position_noize)
-            .mul_add(SPRITE_SIZE_Y, grid_position.y),
-        rng.random_range(0. ..1.),
+        (rng.f32() * position_noize).mul_add(SPRITE_SIZE_X, grid_position.x),
+        (rng.f32() * position_noize).mul_add(SPRITE_SIZE_Y, grid_position.y),
+        rng.f32(),
     ))
-    .with_rotation(Quat::from_rotation_z(
-        rng.random_range(-rotation_noize..rotation_noize),
-    ))
+    .with_rotation(Quat::from_rotation_z(rng.f32() * rotation_noize))
 }
 
 fn create_puzzle(
@@ -270,65 +264,78 @@ fn create_puzzle(
     atlas: &Res<EmojiAtlas>,
     validation: &Res<AtlasValidation>,
 ) {
-    let mut rng = rand::rng();
+    // Get random emojis for the puzzle
+    let selected_indices =
+        emoji::get_random_emojis(atlas, validation, NUMBER_OF_CANDIDATES as usize);
+    if selected_indices.is_empty() {
+        return;
+    }
 
-    // Trying to use similar emojis instead of complete random ones
-    let selected_index = *emoji::get_random_emojis(atlas, validation, 1)
-        .first()
-        .expect("Failed to get random emoji index");
-    let mut selected_indices: Vec<usize> = (0..100).map(|x| selected_index + x - 50).collect();
-    selected_indices.shuffle(&mut rng);
-    selected_indices.retain(|index| emoji::is_valid_emoji_index(atlas, *index));
-    selected_indices.truncate(NUMBER_OF_CANDIDATES as usize);
-
-    grid.grid.shuffle(&mut rng);
-
-    // Spawn game characters
-    for (count, pos) in grid.grid.clone().into_iter().enumerate() {
-        if count >= (NUMBER_OF_CANDIDATES as usize) {
-            break;
+    let mut grid_positions = Vec::new();
+    for x in 0..8 {
+        for y in 0..8 {
+            grid_positions.push(Vec2::new(
+                SPRITE_SIZE_X * (x as f32 - 3.5),
+                SPRITE_SIZE_Y * (y as f32 - 3.5),
+            ));
         }
+    }
+    fastrand::shuffle(&mut grid_positions);
+    grid.grid.clone_from(&grid_positions);
 
-        let transform = get_random_transform(pos);
-        let emoji_transform = Transform {
-            translation: transform.translation,
-            rotation: transform.rotation,
+    let waldo_index = *selected_indices
+        .first()
+        .expect("selected_indices has been checked earlier in the function");
+
+    let waldo_position = grid_positions
+        .pop()
+        .expect("grid_positions should not be empty");
+    if let Some(waldo_entity) = emoji::spawn_emoji(
+        commands,
+        atlas,
+        validation,
+        waldo_index,
+        Transform {
+            translation: get_random_transform(waldo_position).translation,
             scale: Vec3::splat(SPRITE_SCALE),
-        };
+            ..default()
+        },
+    ) {
+        commands.entity(waldo_entity).insert((Character, Waldo));
+    }
 
+    if let Some(waldo_entity) = emoji::spawn_emoji(
+        commands,
+        atlas,
+        validation,
+        waldo_index,
+        Transform {
+            translation: Vec3::new(50., UI_Y + 5.0, 0.),
+            scale: Vec3::splat(SPRITE_SCALE),
+            ..default()
+        },
+    ) {
+        commands.entity(waldo_entity).insert(Character);
+    }
+
+    for (position, &index) in grid_positions
+        .iter()
+        .zip(selected_indices.iter().skip(1))
+        .take(NUMBER_OF_CANDIDATES as usize - 1)
+    {
         if let Some(entity) = emoji::spawn_emoji(
             commands,
             atlas,
             validation,
-            *selected_indices
-                .get(count)
-                .expect("The index is out of the range!"),
-            emoji_transform,
+            index,
+            Transform {
+                translation: get_random_transform(*position).translation,
+                scale: Vec3::splat(SPRITE_SCALE),
+                ..default()
+            },
         ) {
             commands.entity(entity).insert(Character);
-            if count == 0 {
-                commands.entity(entity).insert(Waldo);
-            }
         }
-    }
-
-    // Spawn UI reference character
-    let ui_transform = Transform {
-        translation: Vec3::new(40., UI_Y, 0.0),
-        rotation: Quat::IDENTITY,
-        scale: Vec3::splat(0.4),
-    };
-
-    if let Some(entity) = emoji::spawn_emoji(
-        commands,
-        atlas,
-        validation,
-        *selected_indices
-            .first()
-            .expect("The index is out of the range!"),
-        ui_transform,
-    ) {
-        commands.entity(entity).insert(Character).insert(Waldo);
     }
 
     spawn_gametimer_ui(commands, MAX_DURATION);

@@ -6,8 +6,6 @@ use bits_helpers::floating_score::{animate_floating_scores, spawn_floating_score
 use bits_helpers::input::just_pressed_screen_position;
 use bits_helpers::welcome_screen::{despawn_welcome_screen, spawn_welcome_screen_shape};
 use bits_helpers::FONT;
-use rand::prelude::IndexedRandom;
-use rand::Rng;
 use ribbit::ShapeMemorizer;
 
 mod ribbit;
@@ -111,14 +109,12 @@ fn spawn_welcome_screen(
     materials: ResMut<Assets<ColorMaterial>>,
     mut game_data: ResMut<GameData>,
 ) {
-    let mut rng = rand::rng();
-
     game_data.target_shape = *SHAPES
-        .choose(&mut rng)
-        .expect("There's no shape to choose from");
+        .get(fastrand::usize(..SHAPES.len()))
+        .expect("There is at least 1 shape");
     game_data.target_color = *COLORS
-        .choose(&mut rng)
-        .expect("There's no color to choose from");
+        .get(fastrand::usize(..COLORS.len()))
+        .expect("There is at least 1 color");
 
     let mesh = match game_data.target_shape {
         Shape::Circle => Mesh::from(bevy::math::primitives::Circle::new(30.0)),
@@ -159,8 +155,6 @@ fn setup_game(
     game_data.correct_guesses = 0;
     game_data.start_time = 0.0;
 
-    let mut rng = rand::rng();
-
     let mut grid = vec![];
     let mut target_positions = vec![];
 
@@ -168,11 +162,11 @@ fn setup_game(
     for row in 0..GRID_ROWS {
         for col in 0..GRID_COLS {
             let shape = *SHAPES
-                .choose(&mut rng)
-                .expect("There's no shape to choose from");
+                .get(fastrand::usize(..SHAPES.len()))
+                .expect("There is at least 1 shape");
             let color = *COLORS
-                .choose(&mut rng)
-                .expect("There's no color to choose from");
+                .get(fastrand::usize(..COLORS.len()))
+                .expect("There is at least 1 color");
             let is_target = shape == game_data.target_shape && color == game_data.target_color;
 
             if is_target {
@@ -192,8 +186,8 @@ fn setup_game(
 
     // Ensure we have exactly 3 target shapes
     while target_positions.len() < 3 {
-        let row = rng.random_range(0..GRID_ROWS);
-        let col = rng.random_range(0..GRID_COLS);
+        let row = fastrand::usize(..GRID_ROWS);
+        let col = fastrand::usize(..GRID_COLS);
         if target_positions.contains(&(row, col)) {
             continue;
         }

@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 use bevy::utils::hashbrown::hash_map;
 use bevy::utils::{HashMap, HashSet};
-use rand::prelude::IteratorRandom;
 
 use super::mat::{Match, MatchDirection, Matches};
 
@@ -105,7 +104,12 @@ impl Board {
             for y in 0..self.dimensions.y {
                 let pos = [x, y];
                 if self.get(pos.into()).is_none() {
-                    let Some(new_type) = self.types.iter().choose(&mut rand::rng()).copied() else {
+                    let Some(new_type) = self
+                        .types
+                        .iter()
+                        .nth(fastrand::usize(..self.types.len()))
+                        .copied()
+                    else {
                         error!("Rand iterator empty");
                         continue;
                     };

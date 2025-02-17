@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use bevy::text::{TextColor, TextFont};
 use bevy::utils::default;
 use maze::MazeGenerator;
-use rand::seq::SliceRandom;
 use ribbit::Maze;
 
 mod maze;
@@ -146,11 +145,16 @@ fn reset_maze(mut commands: Commands, mut maze_query: Query<&mut MazeGenerator>)
     maze.generate();
     println!("{}", *maze);
     spawn_maze(&mut commands, &maze);
-    // Get all the deadends of the maze, and shuffle them
+
+    // Get all the deadends of the maze and shuffle them using fastrand
     let mut deadends = maze.get_deadends();
-    let mut rng = rand::rng();
-    deadends.shuffle(&mut rng);
-    // Spawn the player at the 1st deadend, and spawn NUM_ITEMS items at the following deadends
+    // Replace rand::rng() with fastrand shuffle
+    for i in (1..deadends.len()).rev() {
+        let j = fastrand::usize(..=i);
+        deadends.swap(i, j);
+    }
+
+    // Rest of the function remains the same
     let loop_num = (NUM_ITEMS + 1).min(deadends.len());
     for (i, deadend) in deadends.iter().enumerate() {
         if i >= loop_num {

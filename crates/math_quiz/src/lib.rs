@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use bevy::time::Timer;
 use bits_helpers::welcome_screen::{despawn_welcome_screen, WelcomeScreenElement};
 use bits_helpers::FONT;
-use rand::prelude::*;
 use ribbit::MathQuiz;
 
 mod ribbit;
@@ -215,33 +214,31 @@ fn generate_question(
         commands.entity(entity).despawn_recursive();
     }
 
-    let mut rng = rand::rng();
-
     match game_data.current_stage {
         1 => {
-            let a = rng.random_range(2..10);
-            let b = rng.random_range(2..10);
+            let a = fastrand::i32(2..10);
+            let b = fastrand::i32(2..10);
             game_data.current_question = format!("{a} x {b}");
             game_data.correct_answer = a * b;
         }
         2 => {
-            let a = rng.random_range(10..100);
-            let b = rng.random_range(10..100);
+            let a = fastrand::i32(10..100);
+            let b = fastrand::i32(10..100);
             game_data.current_question = format!("{a} + {b}");
             game_data.correct_answer = a + b;
         }
         3 => {
-            let a = rng.random_range(10..100);
-            let b = rng.random_range(2..10);
+            let a = fastrand::i32(10..100);
+            let b = fastrand::i32(2..10);
             game_data.current_question = format!("{a} x {b}");
             game_data.correct_answer = a * b;
         }
         4 => {
-            let a = rng.random_range(10..100);
-            let b = rng.random_range(1..10);
-            let c = rng.random_range(1..10);
-            let op1 = if rng.random_bool(0.5) { "+" } else { "-" };
-            let op2 = if rng.random_bool(0.5) { "+" } else { "-" };
+            let a = fastrand::i32(10..100);
+            let b = fastrand::i32(1..10);
+            let c = fastrand::i32(1..10);
+            let op1 = if fastrand::bool() { "+" } else { "-" };
+            let op2 = if fastrand::bool() { "+" } else { "-" };
             game_data.current_question = format!("{a} {op1} {b}({b} {op2} {c})");
             game_data.correct_answer = if op1 == "+" {
                 a + b * (if op2 == "+" { b + c } else { b - c })
@@ -258,7 +255,7 @@ fn generate_question(
     // Ensure at least one other answer has the same final digit
     let mut attempts = 0;
     while answers.len() < 2 && attempts < 100 {
-        let wrong_answer = game_data.correct_answer + rng.random_range(-10..10);
+        let wrong_answer = game_data.correct_answer + fastrand::i32(-10..10);
         if wrong_answer != game_data.correct_answer
             && !answers.contains(&wrong_answer)
             && wrong_answer % 10 == correct_final_digit
@@ -270,13 +267,17 @@ fn generate_question(
 
     // Generate remaining wrong answers
     while answers.len() < 4 {
-        let wrong_answer = game_data.correct_answer + rng.random_range(-10..10);
+        let wrong_answer = game_data.correct_answer + fastrand::i32(-10..10);
         if wrong_answer != game_data.correct_answer && !answers.contains(&wrong_answer) {
             answers.push(wrong_answer);
         }
     }
 
-    answers.shuffle(&mut rng);
+    // Manual Fisher-Yates shuffle implementation
+    for i in (1..answers.len()).rev() {
+        let j = fastrand::usize(..=i);
+        answers.swap(i, j);
+    }
 
     let stage_entity = commands
         .spawn((

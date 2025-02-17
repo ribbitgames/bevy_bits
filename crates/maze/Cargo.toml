@@ -10,7 +10,7 @@ bits_helpers.workspace = true
 ribbit_bits.workspace = true
 
 bevy.workspace = true
-rand.workspace = true
+fastrand.workspace = true
 lazy_static = "1.5.0"
 
 [dependencies.bitflags]

@@ -4,8 +4,6 @@ use bevy::prelude::*;
 use bits_helpers::input::{just_pressed_world_position, pressed_world_position};
 use bits_helpers::welcome_screen::{despawn_welcome_screen, spawn_welcome_screen_shape};
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use rand::prelude::{IndexedRandom, *};
-use rand::Rng;
 use ribbit::ShapeGrabber;
 
 const PADDLE_SIZE: Vec2 = Vec2::new(80.0, 20.0);
@@ -142,15 +140,12 @@ fn spawn_welcome_screen(
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let mut rng = rand::rng();
-
     target_shape.shape_type = *SHAPES
-        .choose(&mut rng)
-        .expect("shapes array should not be empty");
-
+        .get(fastrand::usize(..SHAPES.len()))
+        .expect("SHAPES should not be empty");
     target_shape.color = *COLORS
-        .choose(&mut rng)
-        .expect("colors array should not be empty");
+        .get(fastrand::usize(..COLORS.len()))
+        .expect("COLORS should not be empty");
 
     let target_mesh = match target_shape.shape_type {
         ShapeType::Circle => Mesh::from(primitives::Circle::new(SHAPE_SIZE / 2.0)),
@@ -296,31 +291,32 @@ fn spawn_shapes(
     spawn_timer.0.tick(time.delta());
 
     if spawn_timer.0.just_finished() {
-        let mut rng = rand::rng();
-        let x = rng.random_range(
-            -WINDOW_WIDTH / 2.0 + SHAPE_SIZE / 2.0..WINDOW_WIDTH / 2.0 - SHAPE_SIZE / 2.0,
+        let x = fastrand::f32().mul_add(
+            WINDOW_WIDTH - SHAPE_SIZE,
+            -((WINDOW_WIDTH - SHAPE_SIZE) / 2.0),
         );
-        let is_correct_shape = rng.random_bool(0.25); // 25% chance of spawning the correct shape
+        let is_correct_shape = fastrand::f32() < 0.25; // 25% chance of spawning the correct shape
 
         let (shape_type, color, is_correct) = if is_correct_shape {
             (target_shape.shape_type, target_shape.color, true)
         } else {
             let random_shape = *SHAPES
-                .choose(&mut rng)
-                .expect("shape array should not be empty");
-
+                .get(fastrand::usize(..SHAPES.len()))
+                .expect("SHAPES should not be empty");
             let random_color = *COLORS
-                .choose(&mut rng)
-                .expect("color array should not be empty");
+                .get(fastrand::usize(..COLORS.len()))
+                .expect("COLORS should not be empty");
 
             if random_shape == target_shape.shape_type && random_color == target_shape.color {
                 // If we accidentally generated the correct shape, change the color
-                let different_color = COLORS
+                let different_colors: Vec<Color> = COLORS
                     .iter()
                     .filter(|&c| *c != target_shape.color)
-                    .choose(&mut rng)
                     .copied()
-                    .expect("there should be at least one different color");
+                    .collect();
+                let different_color = *different_colors
+                    .get(fastrand::usize(..different_colors.len()))
+                    .expect("different_colors should not be empty");
                 (random_shape, different_color, false)
             } else {
                 (random_shape, random_color, false)

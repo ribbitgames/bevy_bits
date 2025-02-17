@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas, EMOJI_SIZE};
-use rand::prelude::*;
 
 use crate::game::{GameState, GameTimer, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::player::PLAYER_WIDTH;
@@ -129,16 +128,16 @@ fn spawn_obstacles(
     spawn_timer.0.tick(time.delta());
 
     if spawn_timer.0.just_finished() {
-        let mut rng = rand::rng();
         let mut attempts = 0;
         const MAX_ATTEMPTS: i32 = 10;
 
         while attempts < MAX_ATTEMPTS {
-            let scale = rng.random_range(OBSTACLE_MIN_SCALE..OBSTACLE_MAX_SCALE);
+            let scale = fastrand::f32()
+                .mul_add(OBSTACLE_MAX_SCALE - OBSTACLE_MIN_SCALE, OBSTACLE_MIN_SCALE);
             let size = BASE_EMOJI_SIZE * scale;
 
-            let x =
-                rng.random_range(-WINDOW_WIDTH / 2.0 + size / 2.0..WINDOW_WIDTH / 2.0 - size / 2.0);
+            let x_range = WINDOW_WIDTH - size;
+            let x = fastrand::f32().mul_add(x_range, -(x_range / 2.0));
             let start_pos = Vec2::new(x, WINDOW_HEIGHT / 2.0 + size / 2.0);
 
             if !would_block_all_paths(start_pos, size, &obstacle_query, WINDOW_WIDTH) {
@@ -146,8 +145,9 @@ fn spawn_obstacles(
                 if let Some(&emoji_index) = available_emojis.first() {
                     let speed = calculate_speed(game_timer.0);
 
-                    let rotation_speed = if rng.random_bool(0.75) {
-                        rng.random_range(MIN_ROTATION_SPEED..MAX_ROTATION_SPEED)
+                    let rotation_speed = if fastrand::f32() < 0.75 {
+                        fastrand::f32()
+                            .mul_add(MAX_ROTATION_SPEED - MIN_ROTATION_SPEED, MIN_ROTATION_SPEED)
                     } else {
                         0.0
                     };

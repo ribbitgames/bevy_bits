@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
 use bits_helpers::WINDOW_WIDTH;
-use rand::prelude::*;
 
 use crate::game::{GameDifficulty, GameProgress, GameState, SequenceState, SequenceStep};
 use crate::variables::GameVariables;
@@ -289,7 +288,7 @@ fn handle_grid_spawn(
             difficulty.total_emojis - difficulty.sequence_length as usize,
         );
         grid_indices.extend(extra_emojis);
-        grid_indices.shuffle(&mut rand::rng());
+        fastrand::shuffle(&mut grid_indices);
 
         let grid_width = difficulty.grid_cols as f32 * difficulty.grid_spacing;
         let grid_height = difficulty.grid_rows as f32 * difficulty.grid_spacing;

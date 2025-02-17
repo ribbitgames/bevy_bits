@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use bits_helpers::floating_score::{spawn_floating_score, FloatingScore};
 use bits_helpers::input::pressed_world_position;
 use bits_helpers::{emoji, WINDOW_HEIGHT, WINDOW_WIDTH};
-use rand::Rng;
 
 use crate::core::config::{
     BAD_EMOJI_PROBABILITY, CATCHER_SIZE, MAX_EMOJI_SIZE, MAX_FALL_SPEED, MIN_EMOJI_SIZE,
@@ -201,14 +200,8 @@ pub fn update_game(
 
     // Spawn new emoji if timer finished
     if spawn_timer.timer.just_finished() {
-        let mut rng = rand::rng();
-
         // Determine if this should be a bad emoji
-        let is_bad = {
-            let this = &mut rng;
-            let p = BAD_EMOJI_PROBABILITY.into();
-            this.random_bool(p)
-        };
+        let is_bad = fastrand::f32() < BAD_EMOJI_PROBABILITY;
 
         // Get random emoji index
         let indices = emoji::get_random_emojis(&atlas, &validation, 1);
@@ -217,16 +210,8 @@ pub fn update_game(
         };
 
         // Random size and position
-        let size = {
-            let this = &mut rng;
-            let range = MIN_EMOJI_SIZE..MAX_EMOJI_SIZE;
-            this.random_range(range)
-        };
-        let x = {
-            let this = &mut rng;
-            let range = -WINDOW_WIDTH / 2.0 + size..WINDOW_WIDTH / 2.0 - size;
-            this.random_range(range)
-        };
+        let size = fastrand::f32().mul_add(MAX_EMOJI_SIZE - MIN_EMOJI_SIZE, MIN_EMOJI_SIZE);
+        let x = fastrand::f32().mul_add(WINDOW_WIDTH - size, -(WINDOW_WIDTH / 2.0));
 
         // Create transform for emoji
         let emoji_transform = Transform::from_xyz(x, WINDOW_HEIGHT / 2.0 + size, 0.0)

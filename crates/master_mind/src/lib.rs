@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use decoding_board::{AddCharacterAt, RemoveCharacterAt, ResetBoard, SetColorsAt};
-use rand::Rng;
 use ribbit::MasterMind;
 use ui::{EndMessageEvent, ShowMessageEvent};
 
@@ -81,9 +80,8 @@ fn reset_game(
 }
 
 fn encode_characters(game_progress: &mut ResMut<GameProgress>) {
-    let mut rng = rand::rng();
     let code: Vec<char> = (0..CODE_LENGTH)
-        .map(|_x| char::from_digit(rng.random_range(0..10), 10).expect(""))
+        .map(|_x| char::from_digit(fastrand::u32(0..10), 10).expect(""))
         .collect();
     game_progress.encoded = code;
     print!("Encoded Code = ");

@@ -103,7 +103,7 @@ impl Default for GameVariables {
     fn default() -> Self {
         Self {
             // Card constants
-            card_size: 70.0,
+            card_size: 140.0,
             sequence_card_y: -200.0,
             default_color: Color::WHITE,
             wrong_color: Color::srgb(1.0, 0.0, 0.0),

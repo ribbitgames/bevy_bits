@@ -5,7 +5,6 @@ use bevy::prelude::*;
 use bits_helpers::input::{just_pressed_world_position, pressed_world_position};
 use bits_helpers::welcome_screen::{despawn_welcome_screen, WelcomeScreenElement};
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use rand::prelude::*;
 use ribbit::ShapeRacer;
 
 mod ribbit;
@@ -269,11 +268,11 @@ fn spawn_obstacles(
     spawn_timer.0.tick(time.delta());
 
     if spawn_timer.0.just_finished() {
-        let mut rng = rand::rng();
-        let size = rng.random_range(OBSTACLE_MIN_SIZE..OBSTACLE_MAX_SIZE);
-        let x = rng.random_range(-WINDOW_WIDTH / 2.0 + size / 2.0..WINDOW_WIDTH / 2.0 - size / 2.0);
-        let shape_type = rng.random_range(0..3);
-        let color = Color::srgb(rng.random(), rng.random(), rng.random());
+        let size =
+            fastrand::f32().mul_add(OBSTACLE_MAX_SIZE - OBSTACLE_MIN_SIZE, OBSTACLE_MIN_SIZE);
+        let x = fastrand::f32().mul_add(WINDOW_WIDTH - size, -((WINDOW_WIDTH - size) / 2.0));
+        let shape_type = fastrand::u8(0..3);
+        let color = Color::srgb(fastrand::f32(), fastrand::f32(), fastrand::f32());
 
         let (mesh, radius) = match shape_type {
             0 => (Mesh2d(meshes.add(Rectangle::new(size, size))), size / 2.0),

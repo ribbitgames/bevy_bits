@@ -3,8 +3,6 @@ use bevy::prelude::*;
 use bits_helpers::floating_score::{spawn_floating_score, FloatingScore};
 use bits_helpers::input::{just_pressed_screen_position, just_pressed_world_position};
 use bits_helpers::{emoji, FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use rand::seq::SliceRandom;
-use rand::Rng;
 
 use crate::core::{
     CorrectEmojisFound, EmojiClickedEvent, GameState, GameTimer, MovingEmoji, Score, StageConfig,
@@ -33,7 +31,6 @@ pub fn spawn_emojis(
         return;
     }
 
-    let mut rng = rand::rng();
     let mut emojis = Vec::new();
 
     // Add correct emojis
@@ -48,18 +45,23 @@ pub fn spawn_emojis(
         stage_config.stage.total_emojis - stage_config.stage.correct_emojis,
     );
     emojis.extend(other_indices);
-    emojis.shuffle(&mut rng);
+    fastrand::shuffle(&mut emojis);
 
     // Spawn all emojis with random positions and velocities
     for &index in &emojis {
-        let size = rng.random_range(40.0..80.0);
+        let size = fastrand::f32().mul_add(80.0 - 40.0, 40.0);
         let scale = size / 64.0;
-        let x = rng.random_range(-WINDOW_WIDTH / 2.0 + size..WINDOW_WIDTH / 2.0 - size);
-        let y =
-            rng.random_range(-WINDOW_HEIGHT / 2.0 + size..WINDOW_HEIGHT / 2.0 - UI_MARGIN - size);
-        let velocity = Vec2::new(rng.random_range(-1.0..1.0), rng.random_range(-1.0..1.0))
-            .normalize()
-            * stage_config.stage.emoji_speed;
+        let x = fastrand::f32().mul_add(
+            2.0f32.mul_add(-size, WINDOW_WIDTH),
+            -(WINDOW_WIDTH / 2.0 - size),
+        );
+        let y = fastrand::f32().mul_add(
+            2.0f32.mul_add(-size, WINDOW_HEIGHT) - UI_MARGIN,
+            -(WINDOW_HEIGHT / 2.0 - size),
+        );
+
+        let angle = fastrand::f32() * std::f32::consts::TAU;
+        let velocity = Vec2::new(angle.cos(), angle.sin()) * stage_config.stage.emoji_speed;
 
         if let Some(entity) = emoji::spawn_emoji(
             &mut commands,

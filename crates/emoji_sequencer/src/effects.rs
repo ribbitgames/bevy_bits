@@ -1,6 +1,4 @@
 use bevy::prelude::*;
-use rand::prelude::*;
-use rand::rng;
 
 use crate::game::{GameDifficulty, GameState, SequenceState, StageState};
 use crate::variables::GameVariables;
@@ -83,25 +81,23 @@ fn spawn_celebration_particles(
             TimerMode::Once,
         ));
 
-        let mut rng = rng();
-
         for _ in 0..vars.celebration_particle_count {
-            let angle = rng.random_range(0.0..std::f32::consts::TAU);
-            let speed = rng.random_range(100.0..300.0);
+            let angle = fastrand::f32() * std::f32::consts::TAU;
+            let speed = fastrand::f32().mul_add(300.0 - 100.0, 100.0);
             let velocity = Vec2::new(angle.cos(), angle.sin()) * speed;
             let offset = Vec2::new(
-                rng.random_range(-150.0..150.0),
-                rng.random_range(-150.0..150.0),
+                fastrand::f32().mul_add(300.0, -150.0),
+                fastrand::f32().mul_add(300.0, -150.0),
             );
 
             commands.spawn((
                 CelebrationParticle {
                     lifetime: Timer::from_seconds(vars.celebration_duration, TimerMode::Once),
                     velocity,
-                    initial_scale: rng.random_range(0.5..2.0),
+                    initial_scale: fastrand::f32().mul_add(2.0 - 0.5, 0.5),
                 },
                 Sprite {
-                    color: Color::hsla(rng.random_range(0.0..360.0), 0.8, 0.8, 1.0),
+                    color: Color::hsla(fastrand::f32() * 360.0, 0.8, 0.8, 1.0),
                     custom_size: Some(Vec2::splat(vars.celebration_particle_size)),
                     ..default()
                 },
@@ -132,8 +128,6 @@ fn spawn_sequence_feedback(
         return;
     }
 
-    let mut rng = rng();
-
     for (i, &player_idx) in sequence_state.player_sequence.iter().enumerate() {
         let is_correct = sequence_state.target_sequence.get(i) == Some(&player_idx);
 
@@ -141,11 +135,13 @@ fn spawn_sequence_feedback(
             let pos = transform.translation.truncate();
 
             for _ in 0..vars.feedback_particle_count {
-                let angle = rng.random_range(0.0..std::f32::consts::TAU);
-                let speed = rng.random_range(50.0..150.0);
+                let angle = fastrand::f32() * std::f32::consts::TAU;
+                let speed = fastrand::f32().mul_add(100.0, 50.0);
                 let velocity = Vec2::new(angle.cos(), angle.sin()) * speed;
-                let offset =
-                    Vec2::new(rng.random_range(-20.0..20.0), rng.random_range(-20.0..20.0));
+                let offset = Vec2::new(
+                    fastrand::f32().mul_add(40.0, -20.0),
+                    fastrand::f32().mul_add(40.0, -20.0),
+                );
 
                 commands.spawn((
                     FeedbackParticle {

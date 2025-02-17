@@ -3,7 +3,6 @@ use bevy::prelude::*;
 use bits_helpers::input::{just_pressed_world_position, pressed_world_position};
 use bits_helpers::welcome_screen::{despawn_welcome_screen, WelcomeScreenElement};
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use rand::prelude::*;
 use ribbit::ShapeShooter;
 
 mod ribbit;
@@ -187,11 +186,10 @@ fn spawn_stars(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let mut rng = rand::rng();
     for _ in 0..100 {
-        let x = rng.random_range(-WINDOW_WIDTH / 2.0..WINDOW_WIDTH / 2.0);
-        let y = rng.random_range(-WINDOW_HEIGHT / 2.0..WINDOW_HEIGHT / 2.0);
-        let size = rng.random_range(1.0..3.0);
+        let x = fastrand::f32().mul_add(WINDOW_WIDTH, -(WINDOW_WIDTH / 2.0));
+        let y = fastrand::f32().mul_add(WINDOW_HEIGHT, -(WINDOW_HEIGHT / 2.0));
+        let size = fastrand::f32().mul_add(2.0, 1.0); // Range 1.0..3.0
 
         commands.spawn((
             Mesh2d::from(meshes.add(Mesh::from(primitives::Circle::new(size / 2.0)))),
@@ -304,12 +302,11 @@ fn spawn_enemies(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let mut rng = rand::rng();
-    if rng.random_bool(0.02) {
-        let size = rng.random_range(ENEMY_MIN_SIZE..ENEMY_MAX_SIZE);
-        let x = rng.random_range(-WINDOW_WIDTH / 2.0 + size / 2.0..WINDOW_WIDTH / 2.0 - size / 2.0);
-        let shape_type = rng.random_range(0..3);
-        let color = Color::srgb(rng.random(), rng.random(), rng.random());
+    if fastrand::f32() < 0.02 {
+        let size = fastrand::f32().mul_add(ENEMY_MAX_SIZE - ENEMY_MIN_SIZE, ENEMY_MIN_SIZE);
+        let x = fastrand::f32().mul_add(WINDOW_WIDTH - size, -((WINDOW_WIDTH - size) / 2.0));
+        let shape_type = fastrand::u8(0..3);
+        let color = Color::srgb(fastrand::f32(), fastrand::f32(), fastrand::f32());
 
         let (mesh, enemy_size) = match shape_type {
             0 => (

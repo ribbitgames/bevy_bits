@@ -11,8 +11,6 @@ use bits_helpers::restart::{
 };
 use bits_helpers::welcome_screen::{despawn_welcome_screen, WelcomeScreenElement};
 use bits_helpers::FONT;
-use rand::seq::SliceRandom;
-use rand::Rng;
 use ribbit::ShapeMatcher;
 
 mod ribbit;
@@ -307,7 +305,6 @@ fn setup_stage(
     game_data.first_revealed = None;
     game_data.input_cooldown = Timer::from_seconds(0.0, TimerMode::Once);
 
-    let mut rng = rand::rng();
     let mut available_colors = COLORS.to_vec();
     let mut available_shapes = SHAPES.to_vec();
 
@@ -328,10 +325,10 @@ fn setup_stage(
             // Ensure each shape is used at least once
             available_shapes.remove(0)
         } else {
-            available_shapes.remove(rng.random_range(0..available_shapes.len()))
+            available_shapes.remove(fastrand::usize(..available_shapes.len()))
         };
 
-        let color = available_colors.remove(rng.random_range(0..available_colors.len()));
+        let color = available_colors.remove(fastrand::usize(..available_colors.len()));
         combinations.push((shape, color));
     }
 
@@ -339,7 +336,7 @@ fn setup_stage(
     combinations.extend(combinations.clone());
 
     // Shuffle the combinations
-    combinations.shuffle(&mut rng);
+    fastrand::shuffle(&mut combinations);
 
     // Use all combinations to fill the grid
     let shapes = combinations;

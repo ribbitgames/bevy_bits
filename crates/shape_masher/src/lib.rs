@@ -8,8 +8,6 @@ use bits_helpers::floating_score::{animate_floating_scores, spawn_floating_score
 use bits_helpers::input::{just_pressed_screen_position, just_pressed_world_position};
 use bits_helpers::welcome_screen::{despawn_welcome_screen, spawn_welcome_screen_shape};
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use rand::prelude::IndexedRandom;
-use rand::Rng;
 use ribbit::ShapeMasher;
 
 mod ribbit;
@@ -137,15 +135,14 @@ pub fn run() {
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
 
-    let mut rng = rand::rng();
     let shapes: Vec<(Shape, Color)> = (0..NUM_BAD_SHAPES)
         .map(|_| {
             let shape = *SHAPES
-                .choose(&mut rng)
-                .expect("SHAPES array should not be empty");
+                .get(fastrand::usize(..SHAPES.len()))
+                .expect("SHAPES should not be empty");
             let color = *COLORS
-                .choose(&mut rng)
-                .expect("COLORS array should not be empty");
+                .get(fastrand::usize(..COLORS.len()))
+                .expect("COLORS should not be empty");
             (shape, color)
         })
         .collect();
@@ -159,13 +156,12 @@ fn spawn_welcome_screen(
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let mut rng = rand::rng();
     let target_shape = *SHAPES
-        .choose(&mut rng)
-        .expect("SHAPES array should not be empty");
+        .get(fastrand::usize(..SHAPES.len()))
+        .expect("SHAPES should not be empty");
     let target_color = *COLORS
-        .choose(&mut rng)
-        .expect("COLORS array should not be empty");
+        .get(fastrand::usize(..COLORS.len()))
+        .expect("COLORS should not be empty");
 
     // Store the target shape and color as a resource
     commands.insert_resource(TargetShape {
@@ -284,14 +280,19 @@ fn spawn_shape_at_random_position(
     color: Color,
     occupied_positions: &[Vec2],
 ) -> Vec2 {
-    let mut rng = rand::rng();
     let mut position;
     let mut attempts = 0;
 
     loop {
         position = Vec2::new(
-            rng.random_range(-WINDOW_WIDTH / 2.0 + SHAPE_SIZE..WINDOW_WIDTH / 2.0 - SHAPE_SIZE),
-            rng.random_range(-WINDOW_HEIGHT / 2.0 + SHAPE_SIZE..WINDOW_HEIGHT / 2.0 - SHAPE_SIZE),
+            fastrand::f32().mul_add(
+                2.0f32.mul_add(-SHAPE_SIZE, WINDOW_WIDTH),
+                -(WINDOW_WIDTH / 2.0 - SHAPE_SIZE),
+            ),
+            fastrand::f32().mul_add(
+                2.0f32.mul_add(-SHAPE_SIZE, WINDOW_HEIGHT),
+                -(WINDOW_HEIGHT / 2.0 - SHAPE_SIZE),
+            ),
         );
 
         if occupied_positions

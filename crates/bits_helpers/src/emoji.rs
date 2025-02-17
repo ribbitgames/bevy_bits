@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 use bevy::render::render_resource::TextureFormat;
 use bevy::utils::default;
-use rand::prelude::*;
 use thiserror::Error;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
@@ -258,13 +257,17 @@ pub fn get_random_emojis(
         return Vec::new();
     }
 
-    let mut rng = rand::rng();
-    atlas
-        .valid_indices
-        .as_slice()
-        .choose_multiple(&mut rng, count)
-        .copied()
-        .collect()
+    let valid_indices = &atlas.valid_indices;
+    let mut indices: Vec<usize> = valid_indices.clone();
+    let mut result = Vec::with_capacity(count);
+
+    // Take random indices until we have enough or run out
+    while result.len() < count && !indices.is_empty() {
+        let idx = fastrand::usize(..indices.len());
+        result.push(indices.swap_remove(idx));
+    }
+
+    result
 }
 
 /// Returns whether the emoji system is ready for use

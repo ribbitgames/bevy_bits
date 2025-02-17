@@ -4,7 +4,6 @@ use std::fmt::{self, Display, Formatter};
 use bevy::prelude::*;
 use bitflags::bitflags;
 use lazy_static::lazy_static;
-use rand::Rng;
 
 bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -154,13 +153,12 @@ impl MazeGenerator {
                     }
                 }
                 if !unmade_cells.is_empty() {
-                    let mut rng = rand::rng();
-                    let dir = if unmade_cells.contains(&last_dir) && rng.random_range(0. ..1.) > 0.5 {
+                    let dir = if unmade_cells.contains(&last_dir) && fastrand::f32() > 0.5 {
                         last_dir
                     } else {
-                        *(unmade_cells
-                            .get(rng.random_range(0..unmade_cells.len()))
-                            .expect("The index is out of the range, something wrong"))
+                        *unmade_cells
+                            .get(fastrand::usize(..unmade_cells.len()))
+                            .expect("The index is out of the range, something wrong")
                     };
                     let dst = *cell + dir;
                     let dst2 = *cell + dir * 2;

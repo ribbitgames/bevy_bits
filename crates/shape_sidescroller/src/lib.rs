@@ -3,7 +3,6 @@ use bevy::prelude::*;
 use bits_helpers::floating_score::{animate_floating_scores, spawn_floating_score};
 use bits_helpers::welcome_screen::{despawn_welcome_screen, spawn_welcome_screen_shape};
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use rand::Rng;
 use ribbit::ShapeSideScroller;
 
 mod ribbit;
@@ -268,10 +267,9 @@ fn spawn_obstacles(
     obstacle_query: Query<&Transform, Or<(With<Obstacle>, With<Hole>)>>,
     ground_query: Query<&Transform, With<Ground>>,
 ) {
-    let mut rng = rand::rng();
     let ground_y = ground_query.single().translation.y + GROUND_HEIGHT / 2.0;
 
-    if rng.random_bool((0.01 + game_data.distance / 20000.0).min(0.05) as f64) {
+    if fastrand::f32() < (0.01 + game_data.distance / 20000.0).min(0.05) {
         let spawn_position = WINDOW_WIDTH / 2.0;
 
         let is_clear = obstacle_query.iter().all(|transform| {
@@ -279,7 +277,7 @@ fn spawn_obstacles(
         });
 
         if is_clear {
-            if rng.random_bool(0.7) {
+            if fastrand::f64() < 0.7 {
                 let size = Vec2::new(30.0, 40.0);
                 commands.spawn((
                     Mesh2d(
@@ -294,7 +292,7 @@ fn spawn_obstacles(
                     CollisionBox { size },
                 ));
             } else {
-                let width = rng.random_range(50.0..100.0);
+                let width = fastrand::f32().mul_add(50.0, 50.0);
                 commands.spawn((
                     Sprite::from_color(
                         Color::Srgba(Srgba::new(0.1, 0.1, 0.1, 1.0)),
@@ -417,15 +415,16 @@ fn spawn_and_move_clouds(
     mut cloud_query: Query<(Entity, &mut Transform), With<Cloud>>,
     time: Res<Time>,
 ) {
-    let mut rng = rand::rng();
-
-    if rng.random_bool(0.02) {
-        let cloud_size = Vec2::new(rng.random_range(50.0..100.0), rng.random_range(20.0..40.0));
+    if fastrand::f64() < 0.02 {
+        let cloud_size = Vec2::new(
+            fastrand::f32().mul_add(100.0 - 50.0, 50.0),
+            fastrand::f32().mul_add(40.0 - 20.0, 20.0),
+        );
         commands.spawn((
             Sprite::from_color(Color::Srgba(Srgba::new(0.5, 0.5, 1.0, 0.7)), cloud_size),
             Transform::from_xyz(
                 WINDOW_WIDTH / 2.0 + 50.0,
-                rng.random_range(0.0..WINDOW_HEIGHT / 2.0),
+                fastrand::f32() * (WINDOW_HEIGHT / 2.0),
                 -1.0,
             ),
             Cloud,

@@ -8,7 +8,6 @@
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use board::Board;
-use rand::Rng;
 use systems::{read_commands, BoardCommands, BoardEvents};
 
 mod board;
@@ -45,7 +44,7 @@ impl Plugin for Match3Plugin {
         let mut gems = HashMap::default();
         (0..board_dimensions.x).for_each(|x| {
             (0..board_dimensions.y).for_each(|y| {
-                gems.insert([x, y].into(), rand::rng().random_range(0..gem_types));
+                gems.insert([x, y].into(), fastrand::u32(0..gem_types));
             });
         });
 
