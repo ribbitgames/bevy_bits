@@ -10,7 +10,7 @@ bits_helpers.workspace = true
 ribbit_bits.workspace = true
 
 bevy.workspace = true
-fastrand = "2.0"
+fastrand.workspace = true
 strum.workspace = true
 
 [lints]
