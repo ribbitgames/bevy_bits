@@ -1,9 +1,7 @@
-use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 
 use bevy::prelude::*;
 use bitflags::bitflags;
-use lazy_static::lazy_static;
 
 bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -29,17 +27,6 @@ const DIRECTIONS: [IVec2; 4] = [
     IVec2::new(-1, 0),
     IVec2::new(0, -1),
 ];
-
-lazy_static! {
-    static ref DIRS: HashMap<CollisionFlags, IVec2> = {
-        let mut m = HashMap::new();
-        m.insert(CollisionFlags::COL_U, IVec2::new(0, -1));
-        m.insert(CollisionFlags::COL_D, IVec2::new(0, 1));
-        m.insert(CollisionFlags::COL_L, IVec2::new(-1, 0));
-        m.insert(CollisionFlags::COL_R, IVec2::new(1, 0));
-        m
-    };
-}
 
 #[derive(Component)]
 pub struct MazeGenerator {

@@ -11,7 +11,6 @@ ribbit_bits.workspace = true
 
 bevy.workspace = true
 fastrand.workspace = true
-lazy_static = "1.5.0"
 
 [dependencies.bitflags]
 version = "2.6.0"

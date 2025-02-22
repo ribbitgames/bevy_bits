@@ -3026,7 +3026,6 @@ dependencies = [
  "bitflags 2.8.0",
  "bits_helpers",
  "fastrand",
- "lazy_static",
  "ribbit_bits",
 ]
 
