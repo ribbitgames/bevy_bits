@@ -1,4 +1,3 @@
-#[cfg(target_arch = "wasm32")]
 pub fn handle_browser_resize(
     mut primary_query: bevy::ecs::system::Query<
         &mut bevy::window::Window,

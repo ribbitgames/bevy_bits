@@ -10,4 +10,5 @@ pub mod welcome_screen;
 mod ribbit_communication;
 pub use ribbit_communication::*;
 
+#[cfg(target_arch = "wasm32")]
 mod window_resizing;

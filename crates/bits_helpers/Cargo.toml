@@ -14,6 +14,8 @@ fastrand.workspace = true
 serde-wasm-bindgen.workspace = true
 strum.workspace = true
 thiserror.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen.workspace = true
 web-sys.workspace = true
 

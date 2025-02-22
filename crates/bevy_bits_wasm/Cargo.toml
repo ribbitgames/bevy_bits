@@ -30,7 +30,6 @@ wheres_waldo = { path = "../wheres_waldo" }
 
 bevy.workspace = true
 fastrand.workspace = true
-
 strum.workspace = true
 wasm-bindgen.workspace = true
 web-sys.workspace = true

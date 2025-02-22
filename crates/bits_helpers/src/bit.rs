@@ -5,15 +5,15 @@
 
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
-use bevy::render::settings::{WgpuSettings, WgpuSettingsPriority};
 use bevy::render::RenderPlugin;
+use bevy::render::settings::{WgpuSettings, WgpuSettingsPriority};
 use bevy::window::{WindowMode, WindowResolution};
 
 #[cfg(target_arch = "wasm32")]
-use crate::window_resizing::handle_browser_resize;
-#[cfg(target_arch = "wasm32")]
 use crate::RibbitCommunicationPlugin;
 use crate::RibbitMessageHandler;
+#[cfg(target_arch = "wasm32")]
+use crate::window_resizing::handle_browser_resize;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub const FONT: &str = concat!(

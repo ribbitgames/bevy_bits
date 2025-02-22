@@ -3,12 +3,15 @@ use std::sync::{Arc, LazyLock};
 use bevy::prelude::*;
 use parking_lot::Mutex;
 use ribbit_bits::{BitDuration, BitMessage, BitParameters, BitResult, RibbitMessage};
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
 use web_sys::MessageEvent;
 
 static RIBBIT_MESSAGE_QUEUE: LazyLock<Arc<Mutex<Vec<RibbitMessage>>>> =
     LazyLock::new(|| Arc::new(Mutex::new(Vec::new())));
 
+#[cfg(target_arch = "wasm32")]
 pub fn listen_ribbit_messages() {
     let window = web_sys::window().expect("no global `window` exists");
     let closure = Closure::wrap(Box::new(move |event: MessageEvent| {
@@ -30,6 +33,12 @@ pub fn listen_ribbit_messages() {
     closure.forget(); // Leaks memory, but ensures the closure lives for the lifetime of the program
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub fn send_bit_message(message: BitMessage) {
+    info!("Sending bit message {message:?}");
+}
+
+#[cfg(target_arch = "wasm32")]
 pub fn send_bit_message(message: BitMessage) {
     let window = web_sys::window().expect("no global `window` exists");
     let Ok(message_str) = serde_wasm_bindgen::to_value(&message) else {
@@ -89,7 +98,10 @@ pub struct RibbitCommunicationPlugin<T: RibbitMessageHandler>(core::marker::Phan
 impl<T: RibbitMessageHandler> Plugin for RibbitCommunicationPlugin<T> {
     fn build(&self, app: &mut App) {
         app.add_systems(PostUpdate, proccess_ribbit_messages::<T>);
-        app.add_systems(Startup, listen_ribbit_messages);
+        #[cfg(target_arch = "wasm32")]
+        {
+            app.add_systems(Startup, listen_ribbit_messages);
+        }
         app.add_systems(PostStartup, ready);
     }
 }
