@@ -2,7 +2,7 @@
 name = "match3"
 authors = ["Troels \"Sheepyhead\" Jessen <trojes@tuta.io>"]
 version = "0.4.0"
-edition = "2021"
+edition.workspace = true
 description = "A logic library for quickly adding a match-3 system to any bevy project"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/Sheepyhead/bevy_match3"

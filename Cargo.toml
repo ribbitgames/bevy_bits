@@ -1,11 +1,11 @@
 [workspace]
 members = ["crates/*"]
 exclude = ["crates/emoji_cascade"]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
 # Default license and edition
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 version = "0.1.0"
 
@@ -47,8 +47,11 @@ web-sys = { version = "=0.3.77", features = [
 future_incompatible = { level = "warn", priority = -1 }
 nonstandard_style = { level = "warn", priority = -1 }
 rust_2018_idioms = { level = "warn", priority = -1 }
+rust_2021_compatibility = { level = "warn", priority = -1 }
+rust_2024_compatibility = { level = "warn", priority = -1 }
 
 elided-lifetimes-in-paths = "allow" # Adds lots of noise in Bevy code for no benefit
+tail_expr_drop_order = { level = "allow" } # Warns on all significant drop
 unsafe_code = "deny"
 
 [workspace.lints.clippy]
