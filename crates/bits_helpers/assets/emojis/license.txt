@@ -1,0 +1,6 @@
+The atlas is made up from emojies found in the following repository:
+https://github.com/twitter/twemoji
+
+The license for the emojis is the same as the license for the repository which is MIT.
+
+https://github.com/twitter/twemoji/blob/master/LICENSE

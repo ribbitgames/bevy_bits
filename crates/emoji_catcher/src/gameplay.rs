@@ -1,7 +1,7 @@
 use bevy::prelude::*;
-use bits_helpers::floating_score::{spawn_floating_score, FloatingScore};
+use bits_helpers::floating_score::{FloatingScore, spawn_floating_score};
 use bits_helpers::input::pressed_world_position;
-use bits_helpers::{emoji, WINDOW_HEIGHT, WINDOW_WIDTH};
+use bits_helpers::{WINDOW_HEIGHT, WINDOW_WIDTH, emoji};
 
 use crate::core::config::{
     BAD_EMOJI_PROBABILITY, CATCHER_SIZE, MAX_EMOJI_SIZE, MAX_FALL_SPEED, MIN_EMOJI_SIZE,
@@ -10,6 +10,7 @@ use crate::core::config::{
 use crate::core::{Catcher, FallingEmoji, GameState, Score, SpawnTimer};
 
 /// Component to wrap Timer for game over delay
+#[expect(dead_code)]
 #[derive(Component)]
 pub struct GameOverDelay(Timer);
 

@@ -49,6 +49,7 @@ impl Default for SpawnTimer {
 }
 
 /// Global game timer
+#[expect(dead_code)]
 #[derive(Resource, Default)]
 pub struct GameTimer(pub Timer);
 
@@ -59,20 +60,18 @@ pub struct Score(pub i32);
 /// Game configuration constants
 pub mod config {
     use bevy::prelude::Vec2;
-    
+
     // Catcher configuration
     pub const CATCHER_SIZE: Vec2 = Vec2::new(80.0, 40.0);
-    pub const CATCHER_SPEED: f32 = 400.0;
-    
+
     // Emoji configuration
     pub const MIN_EMOJI_SIZE: f32 = 30.0;
     pub const MAX_EMOJI_SIZE: f32 = 60.0;
-    pub const INITIAL_FALL_SPEED: f32 = 100.0;
     pub const MAX_FALL_SPEED: f32 = 400.0;
     pub const BAD_EMOJI_PROBABILITY: f32 = 0.2;
-    
+
     // Difficulty scaling
     pub const SPEED_INCREASE_RATE: f32 = 10.0; // Speed increase per second
-    pub const MIN_SPAWN_INTERVAL: f32 = 0.5;    // Minimum time between spawns
-    pub const SPAWN_RATE_DECREASE: f32 = 0.05;  // How much spawn interval decreases per second
+    pub const MIN_SPAWN_INTERVAL: f32 = 0.5; // Minimum time between spawns
+    pub const SPAWN_RATE_DECREASE: f32 = 0.05; // How much spawn interval decreases per second
 }
