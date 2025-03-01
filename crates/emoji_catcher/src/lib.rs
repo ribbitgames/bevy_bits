@@ -13,12 +13,9 @@ use core::{GameState, GameTimer, Score};
 
 use game_over::{cleanup_game_over, handle_game_over_input, spawn_game_over_screen};
 use gameplay::{cleanup_game, handle_input, move_emojis, spawn_game_elements, update_game};
-use welcome::{despawn_welcome_screen, handle_welcome_input, spawn_welcome_screen};
-
-/// Condition system that checks if emoji system is ready
-fn emoji_system_ready(validation: Res<AtlasValidation>) -> bool {
-    emoji::is_emoji_system_ready(&validation)
-}
+use welcome::{
+    add_emoji_to_welcome_screen, despawn_welcome_screen, handle_welcome_input, spawn_welcome_screen,
+};
 
 /// Entry point for the game
 pub fn run() {
@@ -35,15 +32,14 @@ pub fn run() {
         // Add startup systems
         .add_systems(Startup, setup_camera)
         // Welcome state
-        .add_systems(
-            OnEnter(GameState::Welcome),
-            spawn_welcome_screen.run_if(emoji_system_ready),
-        )
+        .add_systems(OnEnter(GameState::Welcome), spawn_welcome_screen)
         .add_systems(
             Update,
-            handle_welcome_input
-                .run_if(in_state(GameState::Welcome))
-                .run_if(emoji_system_ready),
+            (
+                add_emoji_to_welcome_screen.run_if(emoji_system_ready),
+                handle_welcome_input,
+            )
+                .run_if(in_state(GameState::Welcome)),
         )
         .add_systems(OnExit(GameState::Welcome), despawn_welcome_screen)
         // Playing state
@@ -72,6 +68,11 @@ pub fn run() {
         .add_systems(OnExit(GameState::GameOver), cleanup_game_over);
 
     app.run();
+}
+
+/// Condition system that checks if emoji system is ready
+fn emoji_system_ready(validation: Res<AtlasValidation>) -> bool {
+    emoji::is_emoji_system_ready(&validation)
 }
 
 /// Sets up the main 2D camera
