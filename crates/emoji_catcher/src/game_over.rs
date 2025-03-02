@@ -1,7 +1,7 @@
 use bevy::prelude::*;
-use bits_helpers::{FONT, WINDOW_HEIGHT};
+use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 
-use crate::core::{GameState, Score};
+use crate::core::{GameState, Score, TargetEmojiIndex};
 
 /// Component marker for game over screen entities
 #[derive(Component)]
@@ -13,59 +13,59 @@ pub fn spawn_game_over_screen(
     asset_server: Res<AssetServer>,
     score: Res<Score>,
 ) {
-    commands
-        .spawn((
-            GameOverScreen,
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                flex_direction: FlexDirection::Column,
-                ..default()
-            },
-            BackgroundColor(Color::BLACK),
-        ))
-        .with_children(|parent| {
-            // Game Over text
-            parent.spawn((
-                Text2d::new("Game Over!"),
-                TextFont {
-                    font: asset_server.load(FONT),
-                    font_size: 48.0,
-                    ..default()
-                },
-                TextLayout::new_with_justify(JustifyText::Center),
-                TextColor(Color::WHITE),
-                Transform::from_translation(Vec3::new(0.0, WINDOW_HEIGHT / 4.0, 0.0)),
-            ));
+    // Create a semi-transparent overlay
+    commands.spawn((
+        GameOverScreen,
+        Sprite {
+            color: Color::srgba(0.0, 0.0, 0.0, 0.8),
+            custom_size: Some(Vec2::new(WINDOW_WIDTH, WINDOW_HEIGHT)),
+            ..default()
+        },
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        Visibility::Visible,
+    ));
 
-            // Final score
-            parent.spawn((
-                Text2d::new(format!("Final Score: {}", score.0)),
-                TextFont {
-                    font: asset_server.load(FONT),
-                    font_size: 32.0,
-                    ..default()
-                },
-                TextLayout::new_with_justify(JustifyText::Center),
-                TextColor(Color::WHITE),
-                Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
-            ));
+    // Game Over text
+    commands.spawn((
+        GameOverScreen,
+        Text2d::new("Game Over!"),
+        TextFont {
+            font: asset_server.load(FONT),
+            font_size: 48.0,
+            ..default()
+        },
+        TextLayout::new_with_justify(JustifyText::Center),
+        TextColor(Color::WHITE),
+        Transform::from_xyz(0.0, WINDOW_HEIGHT / 4.0, 1.0),
+    ));
 
-            // Restart instruction
-            parent.spawn((
-                Text2d::new("Tap to Play Again"),
-                TextFont {
-                    font: asset_server.load(FONT),
-                    font_size: 24.0,
-                    ..default()
-                },
-                TextLayout::new_with_justify(JustifyText::Center),
-                TextColor(Color::WHITE),
-                Transform::from_translation(Vec3::new(0.0, -WINDOW_HEIGHT / 4.0, 0.0)),
-            ));
-        });
+    // Final score
+    commands.spawn((
+        GameOverScreen,
+        Text2d::new(format!("Final Score: {}", score.0)),
+        TextFont {
+            font: asset_server.load(FONT),
+            font_size: 32.0,
+            ..default()
+        },
+        TextLayout::new_with_justify(JustifyText::Center),
+        TextColor(Color::WHITE),
+        Transform::from_xyz(0.0, 0.0, 1.0),
+    ));
+
+    // Restart instruction
+    commands.spawn((
+        GameOverScreen,
+        Text2d::new("Tap to Play Again"),
+        TextFont {
+            font: asset_server.load(FONT),
+            font_size: 24.0,
+            ..default()
+        },
+        TextLayout::new_with_justify(JustifyText::Center),
+        TextColor(Color::WHITE),
+        Transform::from_xyz(0.0, -WINDOW_HEIGHT / 4.0, 1.0),
+    ));
 }
 
 /// Handles input on the game over screen
@@ -74,10 +74,12 @@ pub fn handle_game_over_input(
     touch_input: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
     mut score: ResMut<Score>,
+    mut target_emoji: ResMut<TargetEmojiIndex>,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
-        // Reset score and return to welcome screen
+        // Reset score and target emoji
         score.0 = 0;
+        target_emoji.0 = None; // Reset the target emoji so a new one will be selected
         next_state.set(GameState::Welcome);
     }
 }
