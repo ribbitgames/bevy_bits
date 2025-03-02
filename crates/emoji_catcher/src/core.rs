@@ -14,11 +14,15 @@ pub enum GameState {
 pub struct FallingEmoji {
     /// Speed of the falling emoji
     pub speed: f32,
-    /// Whether this is a "bad" emoji to avoid
-    pub is_bad: bool,
     /// Size of the emoji for collision detection
     pub size: f32,
+    /// Whether this is the target emoji to catch
+    pub is_target: bool,
 }
+
+/// Resource that stores the index of the target emoji to catch
+#[derive(Resource, Default)]
+pub struct TargetEmojiIndex(pub Option<usize>);
 
 /// Component for the player's catcher
 #[derive(Component)]
@@ -68,7 +72,6 @@ pub mod config {
     pub const MIN_EMOJI_SIZE: f32 = 30.0;
     pub const MAX_EMOJI_SIZE: f32 = 60.0;
     pub const MAX_FALL_SPEED: f32 = 400.0;
-    pub const BAD_EMOJI_PROBABILITY: f32 = 0.2;
 
     // Difficulty scaling
     pub const SPEED_INCREASE_RATE: f32 = 10.0; // Speed increase per second

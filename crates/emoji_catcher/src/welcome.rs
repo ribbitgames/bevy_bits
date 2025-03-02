@@ -1,10 +1,8 @@
-// In welcome.rs
-
 use bevy::color::palettes::css::GREEN;
 use bevy::prelude::*;
 use bits_helpers::{FONT, WINDOW_HEIGHT, emoji};
 
-use crate::core::GameState;
+use crate::core::{GameState, TargetEmojiIndex};
 
 /// Component marker for welcome screen entities.
 #[derive(Component)]
@@ -15,13 +13,6 @@ pub struct WelcomeScreen;
 pub struct WelcomeWaitingForEmoji;
 
 /// Spawns the welcome screen base structure without emojis.
-///
-/// # Parameters
-/// - `commands`: Bevy's command buffer for spawning entities.
-/// - `asset_server`: Asset server resource to load fonts.
-///
-/// # Tooltips
-/// - `asset_server`: Used for loading assets such as fonts.
 pub fn spawn_welcome_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Spawn the welcome screen parent entity.
     let welcome_entity = commands
@@ -77,25 +68,26 @@ pub fn spawn_welcome_screen(mut commands: Commands, asset_server: Res<AssetServe
 }
 
 /// Attempts to add the emoji to welcome screens that are waiting for it.
-///
-/// # Parameters
-/// - `commands`: Bevy's command buffer for entity operations.
-/// - `atlas`: The emoji atlas resource.
-/// - `validation`: The emoji atlas validation resource.
-/// - `query`: Query to find welcome screens waiting for emoji.
-///
-/// # Tooltips
-/// - `atlas`: Contains the available emojis.
-/// - `validation`: Ensures that the emoji atlas is correctly validated.
-/// - `query`: Finds welcome screens that need emojis added.
 pub fn add_emoji_to_welcome_screen(
     mut commands: Commands,
     atlas: Res<emoji::EmojiAtlas>,
     validation: Res<emoji::AtlasValidation>,
     query: Query<Entity, With<WelcomeWaitingForEmoji>>,
+    mut target_emoji: ResMut<TargetEmojiIndex>,
 ) {
     // Check if emoji system is ready
     if !emoji::is_emoji_system_ready(&validation) {
+        return;
+    }
+
+    // Don't proceed if we've already set a target emoji
+    if target_emoji.0.is_some() {
+        // Just remove the waiting component from any entities
+        for welcome_entity in &query {
+            commands
+                .entity(welcome_entity)
+                .remove::<WelcomeWaitingForEmoji>();
+        }
         return;
     }
 
@@ -103,6 +95,11 @@ pub fn add_emoji_to_welcome_screen(
     let emoji_indices = emoji::get_random_emojis(&atlas, &validation, 1);
     if emoji_indices.is_empty() {
         return;
+    }
+
+    // Store the target emoji index for gameplay
+    if let Some(&index) = emoji_indices.first() {
+        target_emoji.0 = Some(index);
     }
 
     // Process each waiting welcome screen
@@ -130,26 +127,20 @@ pub fn add_emoji_to_welcome_screen(
 }
 
 /// Handles input on the welcome screen.
-///
-/// # Parameters
-/// - `mouse_input`: Input resource for mouse events.
-/// - `touch_input`: Input resource for touch events.
-/// - `next_state`: Resource for setting the next game state.
-/// - `query`: Query to check if any welcome screens are still waiting for emoji.
-///
-/// # Tooltips
-/// - `mouse_input`: Detects mouse button presses.
-/// - `touch_input`: Detects screen touches.
-/// - `next_state`: Transitions the game to the playing state.
-/// - `query`: Prevents transitioning until welcome screen is fully ready.
 pub fn handle_welcome_input(
     mouse_input: Res<ButtonInput<MouseButton>>,
     touch_input: Res<Touches>,
     mut next_state: ResMut<NextState<GameState>>,
     waiting_query: Query<(), With<WelcomeWaitingForEmoji>>,
+    target_emoji: Res<TargetEmojiIndex>,
 ) {
     // Don't allow input if welcome screen is still waiting for emoji
     if !waiting_query.is_empty() {
+        return;
+    }
+
+    // Don't allow input if target emoji hasn't been set
+    if target_emoji.0.is_none() {
         return;
     }
 
@@ -159,14 +150,6 @@ pub fn handle_welcome_input(
 }
 
 /// Cleans up the welcome screen by despawning its entities.
-///
-/// # Parameters
-/// - `commands`: Bevy's command buffer for entity operations.
-/// - `query`: Query to retrieve all entities with the `WelcomeScreen` component.
-///
-/// # Tooltips
-/// - `commands`: Used to issue despawn commands.
-/// - `query`: Finds all entities tagged as part of the welcome screen.
 pub fn despawn_welcome_screen(mut commands: Commands, query: Query<Entity, With<WelcomeScreen>>) {
     for entity in &query {
         commands.entity(entity).despawn_recursive();

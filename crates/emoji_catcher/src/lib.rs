@@ -9,7 +9,7 @@ mod gameplay;
 mod ribbit;
 mod welcome;
 
-use core::{GameState, GameTimer, Score};
+use core::{GameState, GameTimer, Score, TargetEmojiIndex};
 
 use game_over::{cleanup_game_over, handle_game_over_input, spawn_game_over_screen};
 use gameplay::{cleanup_game, handle_input, move_emojis, spawn_game_elements, update_game};
@@ -29,6 +29,7 @@ pub fn run() {
         .init_state::<GameState>()
         .init_resource::<GameTimer>()
         .init_resource::<Score>()
+        .init_resource::<TargetEmojiIndex>()
         // Add startup systems
         .add_systems(Startup, setup_camera)
         // Welcome state
