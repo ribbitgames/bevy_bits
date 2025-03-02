@@ -83,6 +83,9 @@ pub mod config {
     // Catcher configuration
     pub const CATCHER_SIZE: Vec2 = Vec2::new(80.0, 40.0);
 
+    // Collision configuration
+    pub const COLLISION_CIRCLE_PERCENT: f32 = 0.5; // Percentage of sprite size used for collision
+
     // Emoji configuration
     pub const MIN_EMOJI_SIZE: f32 = 30.0;
     pub const MAX_EMOJI_SIZE: f32 = 60.0;

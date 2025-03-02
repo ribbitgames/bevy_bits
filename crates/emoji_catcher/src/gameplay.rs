@@ -2,14 +2,14 @@ use bevy::prelude::*;
 use bits_helpers::floating_score::{FloatingScore, spawn_floating_score};
 use bits_helpers::input::pressed_world_position;
 use bits_helpers::{WINDOW_HEIGHT, WINDOW_WIDTH, emoji};
-
-use crate::core::config::{
+use config::{
     CATCHER_SIZE, MAX_EMOJI_SIZE, MAX_FALL_SPEED, MAX_ROTATION_SPEED, MIN_EMOJI_SIZE,
     MIN_ROTATION_SPEED, MIN_SPAWN_INTERVAL, ROTATION_CHANCE, SPAWN_RATE_DECREASE,
     SPEED_INCREASE_RATE,
 };
+
 use crate::core::{
-    Catcher, FallingEmoji, GameState, GameTimer, Score, SpawnTimer, TargetEmojiIndex,
+    Catcher, FallingEmoji, GameState, GameTimer, Score, SpawnTimer, TargetEmojiIndex, config,
 };
 
 /// Component to wrap Timer for game over delay
@@ -89,23 +89,26 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
 
 /// Handles catcher movement based on input
 pub fn handle_input(
-    mut catcher_query: Query<&mut Transform, With<Catcher>>,
+    mut catcher_query: Query<(&mut Transform, &Catcher)>,
     windows: Query<&Window>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     touch_input: Res<Touches>,
     camera_query: Query<(&Camera, &GlobalTransform)>,
 ) {
-    let Ok(mut catcher_transform) = catcher_query.get_single_mut() else {
+    let Ok((mut catcher_transform, catcher)) = catcher_query.get_single_mut() else {
         return;
     };
+
+    // Calculate catcher's collision radius (using the shared constant from config)
+    let catcher_radius = (catcher.width * config::COLLISION_CIRCLE_PERCENT) / 2.0;
 
     if let Some(world_pos) =
         pressed_world_position(&mouse_input, &touch_input, &windows, &camera_query)
     {
-        // Clamp position to screen bounds
+        // Clamp position to screen bounds using the catcher's collision radius
         let new_x = world_pos.x.clamp(
-            -WINDOW_WIDTH / 2.0 + CATCHER_SIZE.x / 2.0,
-            WINDOW_WIDTH / 2.0 - CATCHER_SIZE.x / 2.0,
+            -WINDOW_WIDTH / 2.0 + catcher_radius,
+            WINDOW_WIDTH / 2.0 - catcher_radius,
         );
 
         catcher_transform.translation.x = new_x;
@@ -262,9 +265,6 @@ pub fn move_emojis(
     asset_server: Res<AssetServer>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    // Collision circle size (percentage of sprite size)
-    const COLLISION_CIRCLE_PERCENT: f32 = 0.5;
-
     // Debug visualization of collision circles
     const DEBUG_COLLISION: bool = false;
 
@@ -278,7 +278,7 @@ pub fn move_emojis(
 
     // Calculate catcher's properties
     let _catcher_scale = catcher.width / CATCHER_SPRITE_SIZE;
-    let catcher_radius = (catcher.width * COLLISION_CIRCLE_PERCENT) / 2.0;
+    let catcher_radius = (catcher.width * config::COLLISION_CIRCLE_PERCENT) / 2.0;
     let catcher_pos = catcher_transform.translation.truncate();
 
     // Debug visualization for catcher collision circle
@@ -312,7 +312,7 @@ pub fn move_emojis(
 
         // Calculate emoji's properties
         let _emoji_scale = emoji.size / EMOJI_SPRITE_SIZE;
-        let emoji_radius = (emoji.size * COLLISION_CIRCLE_PERCENT) / 2.0;
+        let emoji_radius = (emoji.size * config::COLLISION_CIRCLE_PERCENT) / 2.0;
         let emoji_pos = transform.translation.truncate();
 
         // Debug visualization for emoji collision circle
