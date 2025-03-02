@@ -16,26 +16,43 @@ use crate::core::{
 #[derive(Component)]
 pub struct GameOverDelay(Timer);
 
+/// Component to mark entities used for collision debug visualization
+#[derive(Component)]
+pub struct CollisionDebug;
+
+/// Component for rendering circles in 2D
+#[derive(Component, Default)]
+pub struct Circle {
+    /// Radius of the circle
+    pub radius: f32,
+    /// Color of the circle
+    pub color: Color,
+}
+
 /// Spawns initial game elements including the catcher and UI
-pub fn spawn_game_elements(
-    mut commands: Commands,
-    atlas: Res<emoji::EmojiAtlas>,
-    validation: Res<emoji::AtlasValidation>,
-    asset_server: Res<AssetServer>,
-) {
-    // Spawn catcher at bottom of screen
-    if let Some(catcher_entity) = emoji::spawn_emoji(
-        &mut commands,
-        &atlas,
-        &validation,
-        0, // Using first emoji for catcher
-        Transform::from_xyz(0.0, -WINDOW_HEIGHT / 2.0 + CATCHER_SIZE.y, 0.0)
-            .with_scale(Vec3::splat(CATCHER_SIZE.x / 64.0)),
-    ) {
-        commands.entity(catcher_entity).insert(Catcher {
-            width: CATCHER_SIZE.x,
-        });
-    }
+pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // Spawn catcher at bottom of screen using custom sprite
+    let catcher_texture = asset_server.load("catcher.png");
+
+    // Calculate scale factor based on desired size and sprite dimensions
+    const CATCHER_SPRITE_SIZE: f32 = 128.0;
+    let catcher_scale = CATCHER_SIZE.x / CATCHER_SPRITE_SIZE;
+
+    let _catcher_entity = commands
+        .spawn((
+            // In Bevy 0.15.0, we use Sprite component directly instead of SpriteBundle
+            Sprite {
+                image: catcher_texture,
+                ..default()
+            },
+            // Transform is automatically inserted when using Sprite
+            Transform::from_xyz(0.0, -WINDOW_HEIGHT / 2.0 + CATCHER_SIZE.y, 0.0)
+                .with_scale(Vec3::splat(catcher_scale)),
+            Catcher {
+                width: CATCHER_SIZE.x,
+            },
+        ))
+        .id();
 
     // Spawn score text
     commands.spawn((
@@ -234,25 +251,57 @@ pub fn update_game(
     }
 }
 
-/// Updates falling emoji positions and handles collisions
+/// Updates falling emoji positions and handles collisions using circular collision detection
 pub fn move_emojis(
     mut commands: Commands,
     time: Res<Time>,
     mut score: ResMut<Score>,
     mut emoji_query: Query<(Entity, &mut Transform, &FallingEmoji)>,
-    catcher_query: Query<(&Transform, &Catcher), Without<FallingEmoji>>,
+    catcher_query: Query<(Entity, &Transform, &Catcher), Without<FallingEmoji>>,
+    collision_debug_query: Query<Entity, With<CollisionDebug>>,
     asset_server: Res<AssetServer>,
     mut next_state: ResMut<NextState<GameState>>,
-    target_emoji: Res<TargetEmojiIndex>,
 ) {
-    let Ok((catcher_transform, catcher)) = catcher_query.get_single() else {
+    // Collision circle size (percentage of sprite size)
+    const COLLISION_CIRCLE_PERCENT: f32 = 0.5;
+
+    // Debug visualization of collision circles
+    const DEBUG_COLLISION: bool = false;
+
+    let Ok((_catcher_entity, catcher_transform, catcher)) = catcher_query.get_single() else {
         return;
     };
 
-    let catcher_pos = catcher_transform.translation.truncate();
-    let catcher_y = catcher_pos.y;
+    // Constants for sprite dimensions in pixels
+    const CATCHER_SPRITE_SIZE: f32 = 100.0;
+    const EMOJI_SPRITE_SIZE: f32 = 64.0;
 
-    for (entity, mut transform, emoji) in &mut emoji_query {
+    // Calculate catcher's properties
+    let _catcher_scale = catcher.width / CATCHER_SPRITE_SIZE;
+    let catcher_radius = (catcher.width * COLLISION_CIRCLE_PERCENT) / 2.0;
+    let catcher_pos = catcher_transform.translation.truncate();
+
+    // Debug visualization for catcher collision circle
+    if DEBUG_COLLISION {
+        // First, remove any existing debug circles
+        for debug_entity in collision_debug_query.iter() {
+            commands.entity(debug_entity).despawn();
+        }
+
+        // Create catcher collision circle visualization using a simple sprite circle
+        commands.spawn((
+            Circle {
+                radius: catcher_radius,
+                color: Color::srgba(1.0, 0.0, 0.0, 0.3),
+                ..default()
+            },
+            Transform::from_xyz(catcher_pos.x, catcher_pos.y, 1.0),
+            Visibility::Visible,
+            CollisionDebug,
+        ));
+    }
+
+    for (emoji_entity, mut transform, emoji) in &mut emoji_query {
         // Move emoji down
         transform.translation.y -= emoji.speed * time.delta_secs();
 
@@ -261,11 +310,33 @@ pub fn move_emojis(
             transform.rotation *= Quat::from_rotation_z(emoji.rotation_speed * time.delta_secs());
         }
 
-        // Check for collision with catcher
-        if (transform.translation.y - catcher_y).abs() < CATCHER_SIZE.y
-            && (transform.translation.x - catcher_pos.x).abs() < (catcher.width + emoji.size) / 2.0
-        {
-            commands.entity(entity).despawn();
+        // Calculate emoji's properties
+        let _emoji_scale = emoji.size / EMOJI_SPRITE_SIZE;
+        let emoji_radius = (emoji.size * COLLISION_CIRCLE_PERCENT) / 2.0;
+        let emoji_pos = transform.translation.truncate();
+
+        // Debug visualization for emoji collision circle
+        if DEBUG_COLLISION {
+            // Create emoji collision circle visualization using a simple sprite circle
+            commands.spawn((
+                Circle {
+                    radius: emoji_radius,
+                    color: Color::srgba(0.0, 1.0, 0.0, 0.3),
+                    ..default()
+                },
+                Transform::from_xyz(emoji_pos.x, emoji_pos.y, 1.0),
+                Visibility::Visible,
+                CollisionDebug,
+            ));
+        }
+
+        // Circle-Circle collision test
+        let distance_squared = (emoji_pos - catcher_pos).length_squared();
+        let combined_radius = catcher_radius + emoji_radius;
+        let collision = distance_squared <= combined_radius * combined_radius;
+
+        if collision {
+            commands.entity(emoji_entity).despawn();
 
             if emoji.is_target {
                 // Caught target emoji - award points
@@ -292,7 +363,7 @@ pub fn move_emojis(
         }
         // Remove if passed bottom of screen
         else if transform.translation.y < -WINDOW_HEIGHT / 2.0 - emoji.size {
-            commands.entity(entity).despawn();
+            commands.entity(emoji_entity).despawn();
 
             if emoji.is_target {
                 // Missed target emoji - game over!
@@ -324,10 +395,24 @@ pub fn cleanup_game(
             With<Text2d>,
             With<FloatingScore>,
             With<GameOverDelay>,
+            With<CollisionDebug>,
         )>,
     >,
 ) {
     for entity in &query {
         commands.entity(entity).despawn_recursive();
+    }
+}
+
+/// Renders debug circles
+pub fn render_circles(circles: Query<(&Circle, &Transform, &Visibility)>, mut gizmos: Gizmos) {
+    for (circle, transform, visibility) in &circles {
+        if *visibility == Visibility::Visible {
+            gizmos.circle_2d(
+                transform.translation.truncate(),
+                circle.radius,
+                circle.color,
+            );
+        }
     }
 }
