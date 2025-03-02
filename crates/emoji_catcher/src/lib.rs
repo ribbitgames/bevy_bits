@@ -12,7 +12,9 @@ mod welcome;
 use core::{GameState, GameTimer, Score, TargetEmojiIndex};
 
 use game_over::{cleanup_game_over, handle_game_over_input, spawn_game_over_screen};
-use gameplay::{cleanup_game, handle_input, move_emojis, spawn_game_elements, update_game};
+use gameplay::{
+    cleanup_game, handle_input, move_emojis, spawn_game_elements, update_game, update_game_timer,
+};
 use welcome::{
     add_emoji_to_welcome_screen, despawn_welcome_screen, handle_welcome_input, spawn_welcome_screen,
 };
@@ -54,6 +56,7 @@ pub fn run() {
                 handle_input,
                 move_emojis,
                 update_game,
+                update_game_timer, // Added game timer update system
                 animate_floating_scores,
             )
                 .run_if(in_state(GameState::Playing))

@@ -18,6 +18,8 @@ pub struct FallingEmoji {
     pub size: f32,
     /// Whether this is the target emoji to catch
     pub is_target: bool,
+    /// Rotation speed in radians/second (0 for no rotation)
+    pub rotation_speed: f32,
 }
 
 /// Resource that stores the index of the target emoji to catch
@@ -53,9 +55,22 @@ impl Default for SpawnTimer {
 }
 
 /// Global game timer
-#[expect(dead_code)]
-#[derive(Resource, Default)]
-pub struct GameTimer(pub Timer);
+#[derive(Resource)]
+pub struct GameTimer {
+    /// Game timer to track elapsed time
+    pub timer: Timer,
+    /// Whether rotation mode has been activated
+    pub rotation_activated: bool,
+}
+
+impl Default for GameTimer {
+    fn default() -> Self {
+        Self {
+            timer: Timer::from_seconds(15.0, TimerMode::Once),
+            rotation_activated: false,
+        }
+    }
+}
 
 /// Tracks player's score
 #[derive(Resource, Default)]
@@ -72,6 +87,11 @@ pub mod config {
     pub const MIN_EMOJI_SIZE: f32 = 30.0;
     pub const MAX_EMOJI_SIZE: f32 = 60.0;
     pub const MAX_FALL_SPEED: f32 = 400.0;
+
+    // Rotation configuration
+    pub const MIN_ROTATION_SPEED: f32 = 1.0; // Radians per second
+    pub const MAX_ROTATION_SPEED: f32 = 5.0; // Radians per second
+    pub const ROTATION_CHANCE: f32 = 0.6; // Chance for an emoji to rotate
 
     // Difficulty scaling
     pub const SPEED_INCREASE_RATE: f32 = 10.0; // Speed increase per second
