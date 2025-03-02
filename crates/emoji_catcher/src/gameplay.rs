@@ -14,7 +14,11 @@ use crate::core::{
 
 /// Component to wrap Timer for game over delay
 #[derive(Component)]
-pub struct GameOverDelay(Timer);
+pub struct GameOverDelay {
+    /// The timer that controls how long to delay before proceeding
+    #[expect(dead_code)]
+    pub timer: Timer,
+}
 
 /// Component to mark entities used for collision debug visualization
 #[derive(Component)]
@@ -38,21 +42,19 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
     const CATCHER_SPRITE_SIZE: f32 = 128.0;
     let catcher_scale = CATCHER_SIZE.x / CATCHER_SPRITE_SIZE;
 
-    let _catcher_entity = commands
-        .spawn((
-            // In Bevy 0.15.0, we use Sprite component directly instead of SpriteBundle
-            Sprite {
-                image: catcher_texture,
-                ..default()
-            },
-            // Transform is automatically inserted when using Sprite
-            Transform::from_xyz(0.0, -WINDOW_HEIGHT / 2.0 + CATCHER_SIZE.y, 0.0)
-                .with_scale(Vec3::splat(catcher_scale)),
-            Catcher {
-                width: CATCHER_SIZE.x,
-            },
-        ))
-        .id();
+    commands.spawn((
+        // In Bevy 0.15.0, we use Sprite component directly instead of SpriteBundle
+        Sprite {
+            image: catcher_texture,
+            ..default()
+        },
+        // Transform is automatically inserted when using Sprite
+        Transform::from_xyz(0.0, -WINDOW_HEIGHT / 2.0 + CATCHER_SIZE.y, 0.0)
+            .with_scale(Vec3::splat(catcher_scale)),
+        Catcher {
+            width: CATCHER_SIZE.x,
+        },
+    ));
 
     // Spawn score text
     commands.spawn((
@@ -210,7 +212,8 @@ pub fn update_game(
                     }
                 } else {
                     // Fallback if no other emoji is available
-                    index = if target_index > 0 { 0 } else { 1 };
+                    // Use index 0 unless the target is already 0, then use 1
+                    index = usize::from(target_index == 0);
                     break;
                 }
             }
@@ -260,7 +263,7 @@ pub fn move_emojis(
     time: Res<Time>,
     mut score: ResMut<Score>,
     mut emoji_query: Query<(Entity, &mut Transform, &FallingEmoji)>,
-    catcher_query: Query<(Entity, &Transform, &Catcher), Without<FallingEmoji>>,
+    catcher_query: Query<(&Transform, &Catcher), Without<FallingEmoji>>,
     collision_debug_query: Query<Entity, With<CollisionDebug>>,
     asset_server: Res<AssetServer>,
     mut next_state: ResMut<NextState<GameState>>,
@@ -268,16 +271,13 @@ pub fn move_emojis(
     // Debug visualization of collision circles
     const DEBUG_COLLISION: bool = false;
 
-    let Ok((_catcher_entity, catcher_transform, catcher)) = catcher_query.get_single() else {
+    let Ok((catcher_transform, catcher)) = catcher_query.get_single() else {
         return;
     };
 
-    // Constants for sprite dimensions in pixels
-    const CATCHER_SPRITE_SIZE: f32 = 100.0;
-    const EMOJI_SPRITE_SIZE: f32 = 64.0;
+    // No sprite constants needed as we calculate based on existing values
 
     // Calculate catcher's properties
-    let _catcher_scale = catcher.width / CATCHER_SPRITE_SIZE;
     let catcher_radius = (catcher.width * config::COLLISION_CIRCLE_PERCENT) / 2.0;
     let catcher_pos = catcher_transform.translation.truncate();
 
@@ -293,7 +293,6 @@ pub fn move_emojis(
             Circle {
                 radius: catcher_radius,
                 color: Color::srgba(1.0, 0.0, 0.0, 0.3),
-                ..default()
             },
             Transform::from_xyz(catcher_pos.x, catcher_pos.y, 1.0),
             Visibility::Visible,
@@ -311,7 +310,6 @@ pub fn move_emojis(
         }
 
         // Calculate emoji's properties
-        let _emoji_scale = emoji.size / EMOJI_SPRITE_SIZE;
         let emoji_radius = (emoji.size * config::COLLISION_CIRCLE_PERCENT) / 2.0;
         let emoji_pos = transform.translation.truncate();
 
@@ -322,7 +320,6 @@ pub fn move_emojis(
                 Circle {
                     radius: emoji_radius,
                     color: Color::srgba(0.0, 1.0, 0.0, 0.3),
-                    ..default()
                 },
                 Transform::from_xyz(emoji_pos.x, emoji_pos.y, 1.0),
                 Visibility::Visible,
@@ -376,7 +373,9 @@ pub fn move_emojis(
                     &asset_server,
                 );
 
-                commands.spawn((GameOverDelay(Timer::from_seconds(0.5, TimerMode::Once)),));
+                commands.spawn(GameOverDelay {
+                    timer: Timer::from_seconds(0.5, TimerMode::Once),
+                });
                 next_state.set(GameState::GameOver);
                 return;
             }
