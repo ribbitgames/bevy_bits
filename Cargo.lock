@@ -5220,6 +5220,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "whack_a_mole"
+version = "0.0.1"
+dependencies = [
+ "bevy",
+ "bits_helpers",
+ "fastrand",
+ "ribbit_bits",
+]
+
+[[package]]
 name = "wheres_waldo"
 version = "0.0.1"
 dependencies = [

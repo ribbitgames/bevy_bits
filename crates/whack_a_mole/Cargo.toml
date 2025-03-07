@@ -1,0 +1,16 @@
+[package]
+name = "whack_a_mole"
+version = "0.0.1"
+publish = false
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bits_helpers.workspace = true
+ribbit_bits.workspace = true
+
+bevy.workspace = true
+fastrand.workspace = true
+
+[lints]
+workspace = true
