@@ -56,7 +56,10 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
         },
     ));
 
-    // Spawn score text
+    // Define a safe margin from the edges of the window
+    const UI_MARGIN: f32 = 60.0;
+
+    // Spawn score text with proper margin
     commands.spawn((
         Text2d::new("Score: 0"),
         TextFont {
@@ -64,12 +67,18 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
             font_size: 24.0,
             ..default()
         },
-        TextLayout::new_with_justify(JustifyText::Left),
-        Transform::from_xyz(-WINDOW_WIDTH / 2.0 + 20.0, WINDOW_HEIGHT / 2.0 - 30.0, 0.0),
+        // Center alignment for better control
+        TextLayout::default(),
+        // Position from left edge with anchor point at left edge of text
+        Transform::from_xyz(
+            -WINDOW_WIDTH / 2.0 + UI_MARGIN,
+            WINDOW_HEIGHT / 2.0 - UI_MARGIN,
+            0.0,
+        ),
         ScoreDisplay,
     ));
 
-    // Spawn game timer text
+    // Spawn game timer text with proper margin
     commands.spawn((
         Text2d::new("Time: 0"),
         TextFont {
@@ -77,8 +86,14 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
             font_size: 24.0,
             ..default()
         },
+        // Right justified text
         TextLayout::new_with_justify(JustifyText::Right),
-        Transform::from_xyz(WINDOW_WIDTH / 2.0 - 20.0, WINDOW_HEIGHT / 2.0 - 30.0, 0.0),
+        // Position from right edge with larger margin to ensure it's fully visible
+        Transform::from_xyz(
+            WINDOW_WIDTH / 2.0 - UI_MARGIN,
+            WINDOW_HEIGHT / 2.0 - UI_MARGIN,
+            0.0,
+        ),
         TimerDisplay,
     ));
 
