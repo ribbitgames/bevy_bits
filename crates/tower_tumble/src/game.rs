@@ -3,7 +3,7 @@ use bevy::prelude::*;
 pub struct GamePlugin;
 
 /// Time to wait before allowing block interaction (seconds)
-const INITIAL_WAIT_TIME: f32 = 1.0;
+const INITIAL_WAIT_TIME: f32 = 4.0; // Increased to 4 seconds
 /// Maximum number of blocks that can be removed before tower collapse
 const MAX_BLOCKS_REMOVED: u32 = 15;
 /// Time limit for each level in seconds
@@ -124,11 +124,11 @@ impl Default for LevelSettings {
     fn default() -> Self {
         Self {
             level: 1,
-            num_blocks: 30,
-            tower_height: 10,
-            tower_width: 3,
+            num_blocks: 12,  // Reduced from 30
+            tower_height: 4, // Reduced from 10
+            tower_width: 3,  // Kept the same width
             block_size: 50.0,
-            gravity: 9.8,
+            gravity: 3.0, // Reduced from 5.0 for easier gameplay
         }
     }
 }
@@ -142,10 +142,10 @@ impl LevelSettings {
 
     /// Calculate level settings based on current level
     fn recalculate_settings(&mut self) {
-        // Increment tower height by 1 every 2 levels
-        self.tower_height = 10 + (self.level / 2);
+        // Start small and gradually increase height
+        self.tower_height = 4 + self.level;
 
-        // Gradually increase width for higher levels
+        // Keep width at 3 for early levels, then start increasing
         if self.level > 3 {
             self.tower_width = 3 + (self.level - 3) / 2;
         }
@@ -153,8 +153,8 @@ impl LevelSettings {
         // Adjust block count based on dimensions
         self.num_blocks = self.tower_height * self.tower_width;
 
-        // Adjust gravity for higher levels (increases difficulty)
-        self.gravity = 9.8 + (self.level as f32 * 0.5);
+        // Adjust gravity more gradually
+        self.gravity = 3.0 + (self.level as f32 * 0.3);
     }
 }
 
@@ -164,6 +164,7 @@ fn update_game_timer(time: Res<Time>, mut game_progress: ResMut<GameProgress>) {
     if let Some(timer) = &mut game_progress.initial_wait_timer {
         if timer.tick(time.delta()).just_finished() {
             game_progress.initial_wait_timer = None;
+            // Add a visual indicator here that the game is ready (could spawn a text entity)
         }
         return;
     }
