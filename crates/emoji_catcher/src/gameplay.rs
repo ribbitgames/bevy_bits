@@ -1,12 +1,13 @@
 use bevy::prelude::*;
 use bits_helpers::floating_score::{FloatingScore, spawn_floating_score};
 use bits_helpers::input::pressed_world_position;
-use bits_helpers::{WINDOW_HEIGHT, WINDOW_WIDTH, emoji};
+use bits_helpers::{WINDOW_HEIGHT, WINDOW_WIDTH, emoji, send_bit_message};
 use config::{
     CATCHER_SIZE, MAX_EMOJI_SIZE, MAX_FALL_SPEED, MAX_ROTATION_SPEED, MIN_EMOJI_SIZE,
     MIN_ROTATION_SPEED, MIN_SPAWN_INTERVAL, ROTATION_CHANCE, SPAWN_RATE_DECREASE,
     SPEED_INCREASE_RATE,
 };
+use ribbit_bits::BitMessage;
 
 use crate::core::{
     Catcher, FallingEmoji, GameState, GameTimer, Score, SpawnTimer, TargetEmojiIndex, config,
@@ -392,6 +393,9 @@ pub fn move_emojis(
                     timer: Timer::from_seconds(0.5, TimerMode::Once),
                 });
                 next_state.set(GameState::GameOver);
+                send_bit_message(BitMessage::End(ribbit_bits::BitResult::HighestScore(
+                    i64::from(score.0),
+                )));
                 return;
             }
         }

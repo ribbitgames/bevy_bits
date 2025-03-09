@@ -143,7 +143,7 @@ pub fn spawn_game_over_screen(
     // Game Over text
     commands.spawn((
         GameOverScreen,
-        Text2d::new("Game Over!"),
+        Text::new("Game Over!"),
         TextFont {
             font: asset_server.load(FONT),
             font_size: 48.0,
@@ -151,9 +151,15 @@ pub fn spawn_game_over_screen(
         },
         TextLayout::new_with_justify(JustifyText::Center),
         TextColor(Color::WHITE),
-        Transform::from_xyz(0.0, WINDOW_HEIGHT / 4.0, 1.0),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Percent(5.0),
+            width: Val::Percent(100.0),
+            ..default()
+        },
     ));
 
+    // Final score
     let text = match bit_result {
         BitResult::LowestScore(score) | BitResult::HighestScore(score) => {
             format!("Final score: {score}")
@@ -165,10 +171,9 @@ pub fn spawn_game_over_screen(
         BitResult::Failure => "You lost! Try again!".to_string(),
     };
 
-    // Final score
     commands.spawn((
         GameOverScreen,
-        Text2d::new(text),
+        Text::new(text),
         TextFont {
             font: asset_server.load(FONT),
             font_size: 32.0,
@@ -176,7 +181,30 @@ pub fn spawn_game_over_screen(
         },
         TextLayout::new_with_justify(JustifyText::Center),
         TextColor(Color::WHITE),
-        Transform::from_xyz(0.0, 0.0, 1.0),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Percent(45.0),
+            width: Val::Percent(100.0),
+            ..default()
+        },
+    ));
+
+    commands.spawn((
+        GameOverScreen,
+        Text::new("Press 'R' to restart"),
+        TextFont {
+            font: asset_server.load(FONT),
+            font_size: 32.0,
+            ..default()
+        },
+        TextLayout::new_with_justify(JustifyText::Center),
+        TextColor(Color::WHITE),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Percent(90.0),
+            width: Val::Percent(100.0),
+            ..default()
+        },
     ));
 }
 
