@@ -1,4 +1,6 @@
+use bevy::color::palettes::css;
 use bevy::prelude::*;
+use bits_helpers::FONT;
 
 pub struct GamePlugin;
 
@@ -166,7 +168,8 @@ fn update_game_timer(
     time: Res<Time>,
     mut game_progress: ResMut<GameProgress>,
     mut commands: Commands,
-    mut text_query: Query<&mut Text, With<InteractionStateText>>,
+    asset_server: Res<AssetServer>,
+    mut text_query: Query<(Entity, &mut Text), With<InteractionStateText>>,
 ) {
     // Update initial wait timer
     if let Some(timer) = &mut game_progress.initial_wait_timer {
@@ -175,13 +178,34 @@ fn update_game_timer(
 
             // Add visual indicator that interactions are now enabled
             if text_query.is_empty() {
-                commands.spawn((
-                    Text("INTERACTIONS ENABLED".to_string()),
-                    Transform::from_xyz(0.0, 200.0, 10.0),
-                    GlobalTransform::default(),
-                    InteractionStateText,
-                ));
-            } else if let Ok(mut text) = text_query.get_single_mut() {
+                // Create a new UI root for the interaction state text
+                let ui_root = commands
+                    .spawn(Node {
+                        position_type: PositionType::Absolute,
+                        width: Val::Percent(100.0),
+                        top: Val::Px(200.0),
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    })
+                    .id();
+
+                // Add the text as a child
+                let text_entity = commands
+                    .spawn((
+                        Text::new("INTERACTIONS ENABLED"),
+                        TextColor(css::GREEN.into()),
+                        TextFont {
+                            font: asset_server.load(FONT),
+                            font_size: 24.0,
+                            ..default()
+                        },
+                        TextLayout::new_with_justify(JustifyText::Center),
+                        InteractionStateText,
+                    ))
+                    .id();
+
+                commands.entity(ui_root).add_child(text_entity);
+            } else if let Ok((_, mut text)) = text_query.get_single_mut() {
                 text.0 = "INTERACTIONS ENABLED".to_string();
             }
         } else {
@@ -190,13 +214,34 @@ fn update_game_timer(
             let message = format!("WAITING: {:.0} seconds", remaining);
 
             if text_query.is_empty() {
-                commands.spawn((
-                    Text(message),
-                    Transform::from_xyz(0.0, 200.0, 10.0),
-                    GlobalTransform::default(),
-                    InteractionStateText,
-                ));
-            } else if let Ok(mut text) = text_query.get_single_mut() {
+                // Create a new UI root for the interaction state text
+                let ui_root = commands
+                    .spawn(Node {
+                        position_type: PositionType::Absolute,
+                        width: Val::Percent(100.0),
+                        top: Val::Px(200.0),
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    })
+                    .id();
+
+                // Add the text as a child
+                let text_entity = commands
+                    .spawn((
+                        Text::new(message),
+                        TextColor(css::YELLOW.into()),
+                        TextFont {
+                            font: asset_server.load(FONT),
+                            font_size: 24.0,
+                            ..default()
+                        },
+                        TextLayout::new_with_justify(JustifyText::Center),
+                        InteractionStateText,
+                    ))
+                    .id();
+
+                commands.entity(ui_root).add_child(text_entity);
+            } else if let Ok((_, mut text)) = text_query.get_single_mut() {
                 text.0 = message;
             }
         }
@@ -204,7 +249,7 @@ fn update_game_timer(
     }
 
     // Update the interaction state text if it exists
-    if let Ok(mut text) = text_query.get_single_mut() {
+    if let Ok((_, mut text)) = text_query.get_single_mut() {
         if game_progress.is_interaction_blocked() {
             text.0 = "INTERACTIONS BLOCKED".to_string();
         } else {
@@ -235,7 +280,7 @@ fn check_level_complete(
 
 /// System to handle transition between levels
 fn handle_level_transition(
-    mut commands: Commands,
+    _commands: Commands, // Unused but kept for potential future use
     mut level_settings: ResMut<LevelSettings>,
     mut game_progress: ResMut<GameProgress>,
     game_state: Res<State<GameState>>,
