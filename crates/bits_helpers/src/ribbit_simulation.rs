@@ -1,23 +1,33 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use ribbit_bits::{BitDuration, BitMessage, RibbitMessage};
+use ribbit_bits::{BitDuration, BitMessage, BitResult, RibbitMessage};
 
-use crate::{BIT_MESSAGE_QUEUE, RIBBIT_MESSAGE_QUEUE, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::{BIT_MESSAGE_QUEUE, FONT, RIBBIT_MESSAGE_QUEUE, WINDOW_HEIGHT, WINDOW_WIDTH};
+
+/// Event sent when the game over screen should be cleaned up
+#[derive(Event)]
+pub struct CleanupGameOverEvent;
 
 pub struct RibbitSimulation;
 
 impl Plugin for RibbitSimulation {
     fn build(&self, app: &mut App) {
+        app.add_event::<CleanupGameOverEvent>();
         app.add_systems(Startup, ribbit_simulation_init);
         app.add_systems(Update, ribbit_simulation);
         app.add_systems(Update, update_timer_display);
+        app.add_systems(Update, cleanup_game_over);
     }
 }
 
 /// Component tag for the timer progress bar
 #[derive(Component)]
 pub struct TimerProgressBar;
+
+/// Component marker for game over screen entities
+#[derive(Component)]
+pub struct GameOverScreen;
 
 /// Global game timer
 #[derive(Resource)]
@@ -63,10 +73,13 @@ fn ribbit_simulation(
     mut commands: Commands,
     keycode: Res<ButtonInput<KeyCode>>,
     mut game_timer: ResMut<GameTimer>,
+    asset_server: Res<AssetServer>,
+    mut event_writer: EventWriter<CleanupGameOverEvent>,
 ) {
     if keycode.just_pressed(KeyCode::KeyR) {
         RIBBIT_MESSAGE_QUEUE.lock().push(RibbitMessage::Restart);
         game_timer.timer.reset();
+        event_writer.send(CleanupGameOverEvent);
     } else if keycode.just_pressed(KeyCode::KeyS) {
         RIBBIT_MESSAGE_QUEUE.lock().push(RibbitMessage::Start);
     } else if keycode.just_pressed(KeyCode::KeyE) {
@@ -102,7 +115,79 @@ fn ribbit_simulation(
             BitMessage::Start => {
                 info!("Start");
             }
-            BitMessage::End(bit_result) => info!("End {:?}", bit_result),
+            BitMessage::End(bit_result) => {
+                spawn_game_over_screen(&mut commands, &asset_server, bit_result);
+            }
+        }
+    }
+}
+
+/// Spawns the game over screen with final score
+pub fn spawn_game_over_screen(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    bit_result: BitResult,
+) {
+    // Create a semi-transparent overlay
+    commands.spawn((
+        GameOverScreen,
+        Sprite {
+            color: Color::srgba(0.0, 0.0, 0.0, 0.8),
+            custom_size: Some(Vec2::new(WINDOW_WIDTH, WINDOW_HEIGHT)),
+            ..default()
+        },
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        Visibility::Visible,
+    ));
+
+    // Game Over text
+    commands.spawn((
+        GameOverScreen,
+        Text2d::new("Game Over!"),
+        TextFont {
+            font: asset_server.load(FONT),
+            font_size: 48.0,
+            ..default()
+        },
+        TextLayout::new_with_justify(JustifyText::Center),
+        TextColor(Color::WHITE),
+        Transform::from_xyz(0.0, WINDOW_HEIGHT / 4.0, 1.0),
+    ));
+
+    let text = match bit_result {
+        BitResult::LowestScore(score) | BitResult::HighestScore(score) => {
+            format!("Final score: {score}")
+        }
+        BitResult::LongestDuration(duration) | BitResult::FastestDuration(duration) => {
+            format!("Time: {:1}", duration.as_secs_f32())
+        }
+        BitResult::Success => "You won!".to_string(),
+        BitResult::Failure => "You lost! Try again!".to_string(),
+    };
+
+    // Final score
+    commands.spawn((
+        GameOverScreen,
+        Text2d::new(text),
+        TextFont {
+            font: asset_server.load(FONT),
+            font_size: 32.0,
+            ..default()
+        },
+        TextLayout::new_with_justify(JustifyText::Center),
+        TextColor(Color::WHITE),
+        Transform::from_xyz(0.0, 0.0, 1.0),
+    ));
+}
+
+fn cleanup_game_over(
+    mut commands: Commands,
+    mut event_reader: EventReader<CleanupGameOverEvent>,
+    query: Query<Entity, With<GameOverScreen>>,
+) {
+    for _ in event_reader.read() {
+        for entity in &query {
+            commands.entity(entity).despawn_recursive();
         }
     }
 }
