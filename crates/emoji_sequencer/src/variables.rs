@@ -87,8 +87,7 @@ pub struct GameVariables {
     // UI settings
     /// Font size for welcome screen
     pub welcome_font_size: f32,
-    /// Font size for game over screen
-    pub game_over_font_size: f32,
+
     /// Font size for stage transition screen
     pub stage_transition_font_size: f32,
     /// Font size for score display
@@ -147,7 +146,6 @@ impl Default for GameVariables {
 
             // UI settings
             welcome_font_size: 32.0,
-            game_over_font_size: 32.0,
             stage_transition_font_size: 32.0,
             score_font_size: 24.0,
 
