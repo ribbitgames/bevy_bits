@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bits_helpers::send_bit_message;
 
 use crate::cards::Card;
 use crate::effects::CelebrationState;
@@ -238,6 +239,7 @@ fn handle_game_over_sequence(
     mut game_progress: ResMut<GameProgress>,
     mut cards: Query<(Entity, &mut Card)>,
     mut next_state: ResMut<NextState<GameState>>,
+    score_state: Res<ScoreState>,
 ) {
     if game_progress.game_over && game_progress.game_over_reveal_timer.is_some() {
         // Show all cards
@@ -252,6 +254,9 @@ fn handle_game_over_sequence(
                     commands.entity(entity).despawn_recursive();
                 }
                 next_state.set(GameState::GameOver);
+                send_bit_message(ribbit_bits::BitMessage::End(
+                    ribbit_bits::BitResult::HighestScore(score_state.total_score.into()),
+                ));
             }
         }
     }
