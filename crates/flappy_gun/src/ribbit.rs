@@ -12,6 +12,8 @@ impl RibbitMessageHandler for FlappyGun {
     fn restart(world: &mut bevy::prelude::World) {
         info!("Restarting FlappyGun");
 
+        world.insert_resource(ScoreInfo::default());
+
         let mut next_state = world.resource_mut::<NextState<GameState>>();
         next_state.set(GameState::Dead);
     }
