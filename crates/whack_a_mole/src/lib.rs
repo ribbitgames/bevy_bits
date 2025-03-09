@@ -47,6 +47,11 @@ struct Wave {
 }
 
 #[derive(Component, Default)]
+struct Feedback {
+    timer: Timer,
+}
+
+#[derive(Component, Default)]
 struct GameTimer {
     timer: Timer,
 }
@@ -98,6 +103,7 @@ pub fn run() {
                 init.run_if(in_state(GameState::Init)),
                 update,
                 update_mole,
+                update_feedback,
                 update_game_timer.run_if(in_state(GameState::Game)),
                 update_wave.run_if(in_state(GameState::Game)),
                 result.run_if(in_state(GameState::Result)),
@@ -301,9 +307,13 @@ fn update(
             );
             if diff.length_squared() < HOLE_RADIUS * HOLE_RADIUS {
                 match mole.point {
-                    x if x > 0 => game.score = game.score.saturating_add(mole.point as u32),
+                    x if x > 0 => {
+                        game.score = game.score.saturating_add(mole.point as u32);
+                        spawn_feedback(&mut commands, transform.translation, mole.point);
+                    }
                     x if x < 0 => {
                         game.score = game.score.saturating_sub(mole.point.unsigned_abs());
+                        spawn_feedback(&mut commands, transform.translation, mole.point);
                     }
                     _ => (),
                 }
@@ -392,6 +402,35 @@ fn spawn_mole(
             timer: Timer::new(Duration::from_secs(1), TimerMode::Once),
             point,
         });
+    }
+}
+
+fn spawn_feedback(commands: &mut Commands, pos: Vec3, point: i32) {
+    let color = if point >= 0 {
+        Color::srgb(0., 1., 0.)
+    } else {
+        Color::srgb(1., 0., 0.)
+    };
+    commands.spawn((
+        Feedback {
+            timer: Timer::new(Duration::from_secs(1), TimerMode::Once),
+        },
+        Text2d::new(format!("{point:+}")),
+        Transform::from_xyz(pos.x, HOLE_OFFSET.mul_add(0.5, pos.y), 1.),
+        TextColor(color),
+    ));
+}
+
+fn update_feedback(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut Feedback)>,
+) {
+    for (entity, mut feedback) in &mut query {
+        feedback.timer.tick(time.delta());
+        if feedback.timer.finished() {
+            commands.entity(entity).despawn();
+        }
     }
 }
 
