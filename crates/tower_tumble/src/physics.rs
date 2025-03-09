@@ -15,6 +15,10 @@ pub const INITIAL_SETTLING_TIME: f32 = 5.0; // New constant for settling time
 // Threshold for movement to detect instability
 pub const INSTABILITY_THRESHOLD: f32 = 3.5; // Increased from 2.0 to be more forgiving
 
+/// Component to mark entities that should be cleaned up when exiting the game state
+#[derive(Component)]
+pub struct GameEntity;
+
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
@@ -31,7 +35,26 @@ impl Plugin for PhysicsPlugin {
                 Update,
                 check_tower_stability.run_if(in_state(GameState::Playing)),
             )
-            .add_systems(Update, update_physics_settings);
+            .add_systems(Update, update_physics_settings)
+            // Add despawn system on exit
+            .add_systems(OnExit(GameState::Playing), despawn_game_entities);
+    }
+}
+
+/// System to despawn all game entities when exiting the Playing state
+pub fn despawn_game_entities(
+    mut commands: Commands,
+    query: Query<Entity, With<GameEntity>>,
+    interaction_text_query: Query<Entity, With<crate::game::InteractionStateText>>,
+) {
+    // Clean up all game entities
+    for entity in &query {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    // Clean up interaction text UI
+    for entity in &interaction_text_query {
+        commands.entity(entity).despawn_recursive();
     }
 }
 
@@ -183,6 +206,7 @@ pub fn spawn_floor(mut commands: Commands) {
         RigidBody::Fixed,
         Friction::coefficient(1.0), // Higher friction to prevent sliding
         Restitution::coefficient(0.0), // No bounce from floor
+        GameEntity,                 // Mark as game entity for cleanup
     ));
 }
 
@@ -195,6 +219,7 @@ pub fn spawn_walls(mut commands: Commands) {
         RigidBody::Fixed,
         Friction::coefficient(0.7),
         Restitution::coefficient(0.1),
+        GameEntity, // Mark as game entity for cleanup
     ));
 
     // Right wall
@@ -204,6 +229,7 @@ pub fn spawn_walls(mut commands: Commands) {
         RigidBody::Fixed,
         Friction::coefficient(0.7),
         Restitution::coefficient(0.1),
+        GameEntity, // Mark as game entity for cleanup
     ));
 }
 

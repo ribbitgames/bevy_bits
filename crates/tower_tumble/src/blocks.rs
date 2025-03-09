@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use crate::game::{GameState, LevelSettings};
-use crate::physics::TowerBlock;
+use crate::physics::{GameEntity, TowerBlock};
 
 pub struct BlocksPlugin;
 
@@ -91,6 +91,7 @@ fn spawn_base_block(commands: &mut Commands, position: Vec2, size: Vec2) {
         },
         Collider::cuboid(size.x / 2.0, size.y / 2.0),
         RigidBody::Fixed, // Base blocks are FIXED, not dynamic!
+        GameEntity,       // Mark for cleanup when game ends
     ));
 }
 
@@ -131,5 +132,6 @@ fn spawn_block(commands: &mut Commands, position: Vec2, size: Vec2, is_base: boo
             linear_damping: 0.1,  // Very low damping to allow easy movement
             angular_damping: 0.1, // Very low angular damping
         },
+        GameEntity, // Mark for cleanup when game ends
     ));
 }
