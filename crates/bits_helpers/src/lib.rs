@@ -12,3 +12,6 @@ pub use ribbit_communication::*;
 
 #[cfg(target_arch = "wasm32")]
 mod window_resizing;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod ribbit_simulation;

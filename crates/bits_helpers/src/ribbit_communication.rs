@@ -8,7 +8,11 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use web_sys::MessageEvent;
 
-static RIBBIT_MESSAGE_QUEUE: LazyLock<Arc<Mutex<Vec<RibbitMessage>>>> =
+pub static RIBBIT_MESSAGE_QUEUE: LazyLock<Arc<Mutex<Vec<RibbitMessage>>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(Vec::new())));
+
+#[cfg(not(target_arch = "wasm32"))]
+pub static BIT_MESSAGE_QUEUE: LazyLock<Arc<Mutex<Vec<BitMessage>>>> =
     LazyLock::new(|| Arc::new(Mutex::new(Vec::new())));
 
 #[cfg(target_arch = "wasm32")]
@@ -35,7 +39,7 @@ pub fn listen_ribbit_messages() {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn send_bit_message(message: BitMessage) {
-    info!("Sending bit message {message:?}");
+    BIT_MESSAGE_QUEUE.lock().push(message);
 }
 
 #[cfg(target_arch = "wasm32")]

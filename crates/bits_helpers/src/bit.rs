@@ -9,11 +9,10 @@ use bevy::render::RenderPlugin;
 use bevy::render::settings::{WgpuSettings, WgpuSettingsPriority};
 use bevy::window::{WindowMode, WindowResolution};
 
-#[cfg(target_arch = "wasm32")]
-use crate::RibbitCommunicationPlugin;
-use crate::RibbitMessageHandler;
+use crate::ribbit_simulation::RibbitSimulation;
 #[cfg(target_arch = "wasm32")]
 use crate::window_resizing::handle_browser_resize;
+use crate::{RibbitCommunicationPlugin, RibbitMessageHandler};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub const FONT: &str = concat!(
@@ -30,6 +29,7 @@ pub const FONT: &str = concat!(
 // typical smartphone screen ratio (9:16)
 pub const WINDOW_WIDTH: f32 = 360.0;
 pub const WINDOW_HEIGHT: f32 = 640.0;
+pub const UI_MARGIN: f32 = 60.0;
 
 // Creates a Bevy app with default settings to make Ribbit work
 // This prevent duplication / errors accross different bits
@@ -94,10 +94,16 @@ pub fn get_default_app<T: RibbitMessageHandler>(bit_name: &str, bit_version: &st
     // Add this new code to set the clear color to black
     app.insert_resource(ClearColor(Color::BLACK));
 
+    app.add_plugins(RibbitCommunicationPlugin::<T>::default());
+
     #[cfg(target_arch = "wasm32")]
     {
-        app.add_plugins(RibbitCommunicationPlugin::<T>::default());
         app.add_systems(PreUpdate, handle_browser_resize);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        app.add_plugins(RibbitSimulation);
     }
 
     app
