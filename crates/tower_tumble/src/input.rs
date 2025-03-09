@@ -11,7 +11,7 @@ pub struct InputPlugin;
 
 // Constants for interaction
 const GRAB_DISTANCE: f32 = 35.0; // Maximum distance to grab a block
-const PULL_STRENGTH: f32 = 15.0; // How strongly to pull when extracting
+const PULL_STRENGTH: f32 = 200.0; // Massively increased from 50.0
 const EXTRACTION_THRESHOLD: f32 = 60.0; // Distance needed to extract a block
 
 impl Plugin for InputPlugin {
@@ -44,14 +44,25 @@ fn handle_block_grab(
     mut blocks: Query<(Entity, &GlobalTransform, &mut TowerBlock)>,
     mut interaction_state: ResMut<InteractionState>,
     game_progress: Res<GameProgress>,
+    mut commands: Commands,
+    mut debug_text_query: Query<&mut Text, With<crate::game::InteractionStateText>>,
 ) {
     // Don't allow grabbing if interaction is blocked
     if game_progress.is_interaction_blocked() {
+        if let Ok(mut text) = debug_text_query.get_single_mut() {
+            text.0 = format!("GRAB: Interaction blocked");
+        }
         return;
     }
 
     // Return early if already grabbing a block
     if interaction_state.grabbed_entity.is_some() {
+        if let Ok(mut text) = debug_text_query.get_single_mut() {
+            text.0 = format!(
+                "GRAB: Already grabbing {}",
+                interaction_state.grabbed_entity.unwrap().index()
+            );
+        }
         return;
     }
 
@@ -59,8 +70,16 @@ fn handle_block_grab(
     let Some(world_position) =
         just_pressed_world_position(&buttons, &touch_input, &windows, &camera_q)
     else {
+        // No click detected
         return;
     };
+
+    if let Ok(mut text) = debug_text_query.get_single_mut() {
+        text.0 = format!(
+            "CLICK at ({:.1}, {:.1})",
+            world_position.x, world_position.y
+        );
+    }
 
     // Find the closest block within grab distance
     let mut closest_entity = None;
@@ -76,18 +95,37 @@ fn handle_block_grab(
 
         if distance < closest_distance {
             closest_distance = distance;
-            closest_entity = Some(entity);
+            closest_entity = Some((entity, block_pos));
         }
     }
 
     // If found a block to grab, update its state
-    if let Some(entity) = closest_entity {
+    if let Some((entity, position)) = closest_entity {
         interaction_state.grabbed_entity = Some(entity);
         interaction_state.grab_position = Some(world_position);
 
         // Mark the block as being grabbed
         if let Ok((_, _, mut block)) = blocks.get_mut(entity) {
             block.being_grabbed = true;
+        }
+
+        // Update debug text
+        if let Ok(mut text) = debug_text_query.get_single_mut() {
+            text.0 = format!(
+                "GRABBED #{} at ({:.1}, {:.1}), dist: {:.1}",
+                entity.index(),
+                position.x,
+                position.y,
+                closest_distance
+            );
+        }
+    } else {
+        // No block found to grab
+        if let Ok(mut text) = debug_text_query.get_single_mut() {
+            text.0 = format!(
+                "NO BLOCK FOUND at ({:.1}, {:.1})",
+                world_position.x, world_position.y
+            );
         }
     }
 }
@@ -98,9 +136,15 @@ fn handle_block_movement(
     buttons: Res<ButtonInput<MouseButton>>,
     touch_input: Res<Touches>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
-    mut blocks: Query<(&Transform, &mut ExternalForce, &mut Velocity)>,
+    mut blocks: Query<(
+        &mut Transform,
+        &mut ExternalForce,
+        &mut Velocity,
+        &TowerBlock,
+    )>,
     interaction_state: Res<InteractionState>,
     game_progress: Res<GameProgress>,
+    mut debug_text_query: Query<&mut Text, With<crate::game::InteractionStateText>>,
 ) {
     // Don't move blocks if interaction is blocked
     if game_progress.is_interaction_blocked() {
@@ -123,20 +167,35 @@ fn handle_block_movement(
         return;
     };
 
-    // Calculate pull direction and strength
-    let pull_dir = current_position - grab_position;
+    // Apply direct movement to the block instead of force
+    if let Ok((mut transform, mut ext_force, mut velocity, tower_block)) = blocks.get_mut(entity) {
+        if !tower_block.being_grabbed {
+            return;
+        }
 
-    // Apply force to the block
-    if let Ok((transform, mut ext_force, mut velocity)) = blocks.get_mut(entity) {
-        // Scale force based on distance
-        let force_strength = pull_dir.length().min(PULL_STRENGTH);
-        let force = pull_dir.normalize_or_zero() * force_strength * 50.0;
+        // Calculate movement vector
+        let movement = current_position - grab_position;
 
-        // Apply the force
-        ext_force.force = force;
+        // Instead of applying force, directly move the block by a fraction of the movement
+        // This provides more direct control
+        let new_position = transform.translation.truncate() + (movement * 0.05);
+        transform.translation = new_position.extend(transform.translation.z);
 
-        // Dampen velocity to prevent too much momentum
-        velocity.linvel *= 0.9;
+        // Set velocity based on movement to maintain momentum
+        velocity.linvel = movement * 2.0;
+
+        // Clear any external forces
+        ext_force.force = Vec2::ZERO;
+
+        // Update debug text
+        if let Ok(mut text) = debug_text_query.get_single_mut() {
+            text.0 = format!(
+                "MOVING: #{} to ({:.1}, {:.1})",
+                entity.index(),
+                new_position.x,
+                new_position.y
+            );
+        }
     }
 }
 

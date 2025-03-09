@@ -3,7 +3,7 @@ use bevy::prelude::*;
 pub struct GamePlugin;
 
 /// Time to wait before allowing block interaction (seconds)
-const INITIAL_WAIT_TIME: f32 = 4.0; // Increased to 4 seconds
+const INITIAL_WAIT_TIME: f32 = 1.0; // Increased to 4 seconds
 /// Maximum number of blocks that can be removed before tower collapse
 const MAX_BLOCKS_REMOVED: u32 = 15;
 /// Time limit for each level in seconds
@@ -22,6 +22,9 @@ impl Plugin for GamePlugin {
             );
     }
 }
+
+#[derive(Component)]
+pub struct InteractionStateText;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 pub enum GameState {
@@ -159,14 +162,54 @@ impl LevelSettings {
 }
 
 /// System to update the level timer
-fn update_game_timer(time: Res<Time>, mut game_progress: ResMut<GameProgress>) {
+fn update_game_timer(
+    time: Res<Time>,
+    mut game_progress: ResMut<GameProgress>,
+    mut commands: Commands,
+    mut text_query: Query<&mut Text, With<InteractionStateText>>,
+) {
     // Update initial wait timer
     if let Some(timer) = &mut game_progress.initial_wait_timer {
         if timer.tick(time.delta()).just_finished() {
             game_progress.initial_wait_timer = None;
-            // Add a visual indicator here that the game is ready (could spawn a text entity)
+
+            // Add visual indicator that interactions are now enabled
+            if text_query.is_empty() {
+                commands.spawn((
+                    Text("INTERACTIONS ENABLED".to_string()),
+                    Transform::from_xyz(0.0, 200.0, 10.0),
+                    GlobalTransform::default(),
+                    InteractionStateText,
+                ));
+            } else if let Ok(mut text) = text_query.get_single_mut() {
+                text.0 = "INTERACTIONS ENABLED".to_string();
+            }
+        } else {
+            // Show countdown
+            let remaining = timer.remaining_secs().ceil();
+            let message = format!("WAITING: {:.0} seconds", remaining);
+
+            if text_query.is_empty() {
+                commands.spawn((
+                    Text(message),
+                    Transform::from_xyz(0.0, 200.0, 10.0),
+                    GlobalTransform::default(),
+                    InteractionStateText,
+                ));
+            } else if let Ok(mut text) = text_query.get_single_mut() {
+                text.0 = message;
+            }
         }
         return;
+    }
+
+    // Update the interaction state text if it exists
+    if let Ok(mut text) = text_query.get_single_mut() {
+        if game_progress.is_interaction_blocked() {
+            text.0 = "INTERACTIONS BLOCKED".to_string();
+        } else {
+            text.0 = "INTERACTIONS ENABLED".to_string();
+        }
     }
 
     // Update level timer if game is active
