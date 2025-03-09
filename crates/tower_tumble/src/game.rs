@@ -1,9 +1,11 @@
+use bevy::color::palettes::css;
 use bevy::prelude::*;
+use bits_helpers::FONT;
 
 pub struct GamePlugin;
 
 /// Time to wait before allowing block interaction (seconds)
-const INITIAL_WAIT_TIME: f32 = 4.0; // Increased to 4 seconds
+const INITIAL_WAIT_TIME: f32 = 1.0;
 /// Maximum number of blocks that can be removed before tower collapse
 const MAX_BLOCKS_REMOVED: u32 = 15;
 /// Time limit for each level in seconds
@@ -22,6 +24,9 @@ impl Plugin for GamePlugin {
             );
     }
 }
+
+#[derive(Component)]
+pub struct InteractionStateText;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 pub enum GameState {
@@ -86,8 +91,7 @@ impl GameProgress {
     }
 
     /// Returns true if block interaction should be blocked
-    /// Blocks interaction during initial wait and when level is complete/over
-    pub fn is_interaction_blocked(&self) -> bool {
+    pub const fn is_interaction_blocked(&self) -> bool {
         self.initial_wait_timer.is_some() || self.level_complete || self.tower_collapsed
     }
 
@@ -124,11 +128,11 @@ impl Default for LevelSettings {
     fn default() -> Self {
         Self {
             level: 1,
-            num_blocks: 12,  // Reduced from 30
-            tower_height: 4, // Reduced from 10
-            tower_width: 3,  // Kept the same width
+            num_blocks: 12,
+            tower_height: 4,
+            tower_width: 3,
             block_size: 50.0,
-            gravity: 3.0, // Reduced from 5.0 for easier gameplay
+            gravity: 3.0,
         }
     }
 }
@@ -159,14 +163,97 @@ impl LevelSettings {
 }
 
 /// System to update the level timer
-fn update_game_timer(time: Res<Time>, mut game_progress: ResMut<GameProgress>) {
+fn update_game_timer(
+    time: Res<Time>,
+    mut game_progress: ResMut<GameProgress>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut text_query: Query<(Entity, &mut Text), With<InteractionStateText>>,
+) {
     // Update initial wait timer
     if let Some(timer) = &mut game_progress.initial_wait_timer {
         if timer.tick(time.delta()).just_finished() {
             game_progress.initial_wait_timer = None;
-            // Add a visual indicator here that the game is ready (could spawn a text entity)
+
+            // Add visual indicator that interactions are now enabled
+            if text_query.is_empty() {
+                // Create a new UI root for the interaction state text
+                let ui_root = commands
+                    .spawn(Node {
+                        position_type: PositionType::Absolute,
+                        width: Val::Percent(100.0),
+                        top: Val::Px(200.0),
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    })
+                    .id();
+
+                // Add the text as a child
+                let text_entity = commands
+                    .spawn((
+                        Text::new("INTERACTIONS ENABLED"),
+                        TextColor(css::GREEN.into()),
+                        TextFont {
+                            font: asset_server.load(FONT),
+                            font_size: 24.0,
+                            ..default()
+                        },
+                        TextLayout::new_with_justify(JustifyText::Center),
+                        InteractionStateText,
+                    ))
+                    .id();
+
+                commands.entity(ui_root).add_child(text_entity);
+            } else if let Ok((_, mut text)) = text_query.get_single_mut() {
+                text.0 = "INTERACTIONS ENABLED".to_string();
+            }
+        } else {
+            // Show countdown
+            let remaining = timer.remaining_secs().ceil();
+            let message = format!("WAITING: {:.0} seconds", remaining);
+
+            if text_query.is_empty() {
+                // Create a new UI root for the interaction state text
+                let ui_root = commands
+                    .spawn(Node {
+                        position_type: PositionType::Absolute,
+                        width: Val::Percent(100.0),
+                        top: Val::Px(200.0),
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    })
+                    .id();
+
+                // Add the text as a child
+                let text_entity = commands
+                    .spawn((
+                        Text::new(message),
+                        TextColor(css::YELLOW.into()),
+                        TextFont {
+                            font: asset_server.load(FONT),
+                            font_size: 24.0,
+                            ..default()
+                        },
+                        TextLayout::new_with_justify(JustifyText::Center),
+                        InteractionStateText,
+                    ))
+                    .id();
+
+                commands.entity(ui_root).add_child(text_entity);
+            } else if let Ok((_, mut text)) = text_query.get_single_mut() {
+                text.0 = message;
+            }
         }
         return;
+    }
+
+    // Update the interaction state text if it exists
+    if let Ok((_, mut text)) = text_query.get_single_mut() {
+        if game_progress.is_interaction_blocked() {
+            text.0 = "INTERACTIONS BLOCKED".to_string();
+        } else {
+            text.0 = "INTERACTIONS ENABLED".to_string();
+        }
     }
 
     // Update level timer if game is active
@@ -192,7 +279,6 @@ fn check_level_complete(
 
 /// System to handle transition between levels
 fn handle_level_transition(
-    mut commands: Commands,
     mut level_settings: ResMut<LevelSettings>,
     mut game_progress: ResMut<GameProgress>,
     game_state: Res<State<GameState>>,

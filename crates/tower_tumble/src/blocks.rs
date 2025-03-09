@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use crate::game::{GameState, LevelSettings};
-use crate::physics::TowerBlock;
+use crate::physics::{GameEntity, TowerBlock};
 
 pub struct BlocksPlugin;
 
@@ -91,6 +91,7 @@ fn spawn_base_block(commands: &mut Commands, position: Vec2, size: Vec2) {
         },
         Collider::cuboid(size.x / 2.0, size.y / 2.0),
         RigidBody::Fixed, // Base blocks are FIXED, not dynamic!
+        GameEntity,       // Mark for cleanup when game ends
     ));
 }
 
@@ -103,7 +104,7 @@ fn spawn_block(commands: &mut Commands, position: Vec2, size: Vec2, is_base: boo
         TOWER_BLOCK_COLOR
     };
 
-    // Create the visual block entity
+    // Use a much simpler physics setup
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
@@ -120,6 +121,17 @@ fn spawn_block(commands: &mut Commands, position: Vec2, size: Vec2, is_base: boo
             being_grabbed: false,
             initial_position: position,
         },
+        RigidBody::Dynamic, // Most important - this makes the block movable
         Collider::cuboid(size.x / 2.0, size.y / 2.0),
+        Velocity::zero(),
+        ExternalForce::default(),
+        GravityScale(1.0),             // Normal gravity from the start
+        Friction::coefficient(0.5),    // Lower friction to move more easily
+        Restitution::coefficient(0.1), // Small bounce
+        Damping {
+            linear_damping: 0.1,  // Very low damping to allow easy movement
+            angular_damping: 0.1, // Very low angular damping
+        },
+        GameEntity, // Mark for cleanup when game ends
     ));
 }

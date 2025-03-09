@@ -81,28 +81,36 @@ fn try_spawn_welcome_screen(
         return;
     }
 
-    commands
+    // Create a UI root node
+    let ui_root = commands
         .spawn((
-            WelcomeScreen,
-            Transform::from_xyz(0.0, 0.0, 1.0),
-            GlobalTransform::default(),
-            Visibility::Visible,
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
-            Sprite {
-                color: Color::srgba(0.0, 0.0, 0.0, 0.7),
-                custom_size: Some(Vec2::new(800.0, 600.0)),
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
                 ..default()
             },
-            Name::new("Welcome Screen"),
+            WelcomeScreen,
         ))
-        .with_children(|parent| {
-            parent.spawn((
-                Text("Tower Tumble\n\nCarefully remove blocks\nwithout toppling the tower\n\nClick to Start".to_string()),
-                Transform::from_xyz(0.0, 0.0, 0.1),
-                GlobalTransform::default(),
-            ));
-        });
+        .id();
+
+    // Spawn the welcome text as a child of the root
+    let welcome_text = commands
+        .spawn((
+            Text::new("Tower Tumble\n\nCarefully remove\nblocks without\ntoppling the tower\n\nClick to Start"),
+            TextColor(Color::WHITE),
+            TextFont {
+                font: asset_server.load(FONT),
+                font_size: 28.0,
+                ..default()
+            },
+            TextLayout::new_with_justify(JustifyText::Center),
+        ))
+        .id();
+
+    // Build the hierarchy
+    commands.entity(ui_root).add_child(welcome_text);
 }
 
 fn handle_welcome_input(
@@ -126,31 +134,40 @@ fn try_spawn_game_over(
         return;
     }
 
-    commands
+    // Create a UI overlay
+    let overlay = commands
         .spawn((
-            GameOverScreen,
-            Transform::from_xyz(0.0, 0.0, 1.0),
-            GlobalTransform::default(),
-            Visibility::Visible,
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
-            Sprite {
-                color: Color::srgba(0.0, 0.0, 0.0, 0.7),
-                custom_size: Some(Vec2::new(800.0, 600.0)),
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
                 ..default()
             },
+            GameOverScreen,
             Name::new("Game Over Screen"),
         ))
-        .with_children(|parent| {
-            parent.spawn((
-                Text(format!(
-                    "Game Over!\n\nTower Collapsed\nReached Level {}\nFinal Score: {}\n\nClick to Restart",
-                    level_settings.level, game_progress.score
-                )),
-                Transform::from_xyz(0.0, 0.0, 0.1),
-                GlobalTransform::default(),
-            ));
-        });
+        .id();
+
+    // Add the game over text as a child
+    let gameover_text = commands
+        .spawn((
+            Text::new(format!(
+                "Game Over!\n\nTower Collapsed\nReached Level {}\nFinal Score: {}\n\nClick to Restart",
+                level_settings.level, game_progress.score
+            )),
+            TextColor(Color::WHITE),
+            TextFont {
+                font: asset_server.load(FONT),
+                font_size: 28.0,
+                ..default()
+            },
+            TextLayout::new_with_justify(JustifyText::Center),
+        ))
+        .id();
+
+    // Build the hierarchy
+    commands.entity(overlay).add_child(gameover_text);
 }
 
 fn handle_game_over_input(
@@ -180,34 +197,43 @@ fn try_spawn_level_complete(
     let time_bonus = (game_progress.level_timer.remaining_secs() as u32) * 5;
     game_progress.add_time_bonus();
 
-    commands
+    // Create a UI overlay
+    let overlay = commands
         .spawn((
-            LevelCompleteScreen,
-            Transform::from_xyz(0.0, 0.0, 1.0),
-            GlobalTransform::default(),
-            Visibility::Visible,
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
-            Sprite {
-                color: Color::srgba(0.0, 0.0, 0.0, 0.7),
-                custom_size: Some(Vec2::new(800.0, 600.0)),
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
                 ..default()
             },
+            LevelCompleteScreen,
             Name::new("Level Complete Screen"),
         ))
-        .with_children(|parent| {
-            parent.spawn((
-                Text(format!(
-                    "Level {} Complete!\n\nScore: {}\nTime Bonus: +{}\nTotal Score: {}\n\nClick to Continue",
-                    level_settings.level,
-                    game_progress.score - time_bonus,
-                    time_bonus,
-                    game_progress.score
-                )),
-                Transform::from_xyz(0.0, 0.0, 0.1),
-                GlobalTransform::default(),
-            ));
-        });
+        .id();
+
+    // Add the level complete text as a child
+    let complete_text = commands
+        .spawn((
+            Text::new(format!(
+                "Level {} Complete!\n\nScore: {}\nTime Bonus: +{}\nTotal Score: {}\n\nClick to Continue",
+                level_settings.level,
+                game_progress.score - time_bonus,
+                time_bonus,
+                game_progress.score
+            )),
+            TextColor(Color::WHITE),
+            TextFont {
+                font: asset_server.load(FONT),
+                font_size: 28.0,
+                ..default()
+            },
+            TextLayout::new_with_justify(JustifyText::Center),
+        ))
+        .id();
+
+    // Build the hierarchy
+    commands.entity(overlay).add_child(complete_text);
 }
 
 fn handle_level_complete_input(
@@ -221,49 +247,106 @@ fn handle_level_complete_input(
 }
 
 fn spawn_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands
+    // Create UI root node
+    let ui_root = commands
         .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                ..default()
+            },
             GameUI,
-            Transform::default(),
-            GlobalTransform::default(),
-            Visibility::Visible,
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
             Name::new("Game UI"),
         ))
-        .with_children(|parent| {
-            // Score
-            parent.spawn((
-                UITextType::Score,
-                Text("Score: 0".to_string()),
-                Transform::from_xyz(-250.0, 280.0, 10.0),
-                GlobalTransform::default(),
-            ));
+        .id();
 
-            // Level
-            parent.spawn((
-                UITextType::Level,
-                Text("Level: 1".to_string()),
-                Transform::from_xyz(250.0, 280.0, 10.0),
-                GlobalTransform::default(),
-            ));
+    // Score - top left
+    let score_text = commands
+        .spawn((
+            Text::new("Score: 0"),
+            UITextType::Score,
+            TextFont {
+                font: asset_server.load(FONT),
+                font_size: 20.0,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(10.0),
+                top: Val::Px(10.0),
+                ..default()
+            },
+        ))
+        .id();
 
-            // Timer
-            parent.spawn((
-                UITextType::Timer,
-                Text("Time: 90".to_string()),
-                Transform::from_xyz(250.0, 250.0, 10.0),
-                GlobalTransform::default(),
-            ));
+    // Level - top right
+    let level_text = commands
+        .spawn((
+            Text::new("Level: 1"),
+            UITextType::Level,
+            TextFont {
+                font: asset_server.load(FONT),
+                font_size: 20.0,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            Node {
+                position_type: PositionType::Absolute,
+                right: Val::Px(10.0),
+                top: Val::Px(10.0),
+                ..default()
+            },
+        ))
+        .id();
 
-            // Blocks
-            parent.spawn((
-                UITextType::Blocks,
-                Text("Blocks: 0/15".to_string()),
-                Transform::from_xyz(-250.0, 250.0, 10.0),
-                GlobalTransform::default(),
-            ));
-        });
+    // Timer - below level
+    let timer_text = commands
+        .spawn((
+            Text::new("Time: 90"),
+            UITextType::Timer,
+            TextFont {
+                font: asset_server.load(FONT),
+                font_size: 20.0,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            Node {
+                position_type: PositionType::Absolute,
+                right: Val::Px(10.0),
+                top: Val::Px(40.0),
+                ..default()
+            },
+        ))
+        .id();
+
+    // Blocks - below score
+    let blocks_text = commands
+        .spawn((
+            Text::new("Blocks: 0/15"),
+            UITextType::Blocks,
+            TextFont {
+                font: asset_server.load(FONT),
+                font_size: 20.0,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(10.0),
+                top: Val::Px(40.0),
+                ..default()
+            },
+        ))
+        .id();
+
+    // Build the hierarchy
+    commands
+        .entity(ui_root)
+        .add_child(score_text)
+        .add_child(level_text)
+        .add_child(timer_text)
+        .add_child(blocks_text);
 }
 
 fn update_game_ui(
@@ -281,8 +364,7 @@ fn update_game_ui(
             }
             UITextType::Timer => {
                 let time_remaining = game_progress.level_timer.remaining_secs() as u32;
-                text.0 = format!("Time: {}", time_remaining);
-                // Note: Color cannot be changed here with 2D Text; requires UI text or custom sprite
+                text.0 = format!("Time: {time_remaining}");
             }
             UITextType::Blocks => {
                 text.0 = format!("Blocks: {}/15", game_progress.blocks_removed);

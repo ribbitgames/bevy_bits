@@ -10,22 +10,17 @@ workspace = true
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ribbit_bits.workspace = true
 
-flappy_gun = { path = "../flappy_gun" }
-master_mind = { path = "../master_mind" }
-match3 = { path = "../match3" }
-math_quiz = { path = "../math_quiz" }
-maze = { path = "../maze" }
-memoji = { path = "../memoji" }
-puzzle15 = { path = "../puzzle15" }
 emoji_avoidance = { path = "../emoji_avoidance" }
+emoji_catcher = { path = "../emoji_catcher" }
 emoji_grabber = { path = "../emoji_grabber" }
 emoji_sequencer = { path = "../emoji_sequencer" }
-shape_grabber = { path = "../shape_grabber" }
-shape_masher = { path = "../shape_masher" }
-shape_memorizer = { path = "../shape_memorizer" }
-shape_racer = { path = "../shape_racer" }
-shape_sidescroller = { path = "../shape_sidescroller" }
-shape_shooter = { path = "../shape_shooter" }
+flappy_gun = { path = "../flappy_gun" }
+master_mind = { path = "../master_mind" }
+math_quiz = { path = "../math_quiz" }
+memoji = { path = "../memoji" }
+puzzle15 = { path = "../puzzle15" }
+tower_tumble = { path = "../tower_tumble" }
+whack_a_mole = { path = "../whack_a_mole" }
 wheres_waldo = { path = "../wheres_waldo" }
 
 bevy.workspace = true
