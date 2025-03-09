@@ -1,8 +1,8 @@
 use bevy::color::palettes::css::{GREEN, RED};
 use bevy::prelude::*;
-use bits_helpers::floating_score::{spawn_floating_score, FloatingScore};
+use bits_helpers::floating_score::{FloatingScore, spawn_floating_score};
 use bits_helpers::input::{just_pressed_screen_position, just_pressed_world_position};
-use bits_helpers::{emoji, FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
+use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH, emoji};
 
 use crate::core::{
     CorrectEmojisFound, EmojiClickedEvent, GameState, GameTimer, MovingEmoji, Score, StageConfig,
@@ -304,4 +304,8 @@ pub fn cleanup_playing_state(
     for entity in &query {
         commands.entity(entity).despawn_recursive();
     }
+}
+
+pub fn reset_score(mut score: ResMut<Score>) {
+    score.0 = 0;
 }

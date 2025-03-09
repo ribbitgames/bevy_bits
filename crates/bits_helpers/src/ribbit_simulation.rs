@@ -83,7 +83,6 @@ fn ribbit_simulation(
     } else if keycode.just_pressed(KeyCode::KeyS) {
         RIBBIT_MESSAGE_QUEUE.lock().push(RibbitMessage::Start);
     } else if keycode.just_pressed(KeyCode::KeyE) {
-        RIBBIT_MESSAGE_QUEUE.lock().push(RibbitMessage::End);
         let initial_duration = game_timer.initial_duration;
         game_timer.timer.set_elapsed(initial_duration);
     }
@@ -116,7 +115,6 @@ fn ribbit_simulation(
                 info!("Start");
             }
             BitMessage::End(bit_result) => {
-                game_timer.timer.pause();
                 spawn_game_over_screen(&mut commands, &asset_server, bit_result);
             }
         }

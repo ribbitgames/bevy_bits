@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bits_helpers::{emoji, FONT};
+use bits_helpers::{FONT, emoji};
 
 use crate::core::{CorrectEmojisFound, GameState, GameTimer, Score, StageConfig, TargetEmojiInfo};
 
@@ -83,4 +83,13 @@ pub fn cleanup_stage_complete(
     for entity in &query {
         commands.entity(entity).despawn_recursive();
     }
+}
+
+pub fn reset_stage_config(mut commands: Commands, mut stage_config: ResMut<StageConfig>) {
+    *stage_config = StageConfig::default();
+    commands.insert_resource(CorrectEmojisFound(0));
+    commands.insert_resource(GameTimer(Timer::new(
+        std::time::Duration::from_secs_f32(stage_config.stage.time_limit),
+        TimerMode::Once,
+    )));
 }
