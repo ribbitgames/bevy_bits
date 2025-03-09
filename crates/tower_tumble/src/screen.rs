@@ -81,28 +81,19 @@ fn try_spawn_welcome_screen(
         return;
     }
 
-    commands
-        .spawn((
-            WelcomeScreen,
-            Transform::from_xyz(0.0, 0.0, 1.0),
-            GlobalTransform::default(),
-            Visibility::Visible,
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
-            Sprite {
-                color: Color::srgba(0.0, 0.0, 0.0, 0.7),
-                custom_size: Some(Vec2::new(800.0, 600.0)),
-                ..default()
-            },
-            Name::new("Welcome Screen"),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Text("Tower Tumble\n\nCarefully remove blocks\nwithout toppling the tower\n\nClick to Start".to_string()),
-                Transform::from_xyz(0.0, 0.0, 0.1),
-                GlobalTransform::default(),
-            ));
-        });
+    // Create the welcome screen with better text fitting
+    commands.spawn((
+        WelcomeScreen,
+        Text2d::new("Tower Tumble\n\nCarefully remove\nblocks without\ntoppling the tower\n\nClick to Start".to_string()),
+        TextFont {
+            font: asset_server.load(FONT),
+            font_size: 28.0, // Reduced font size for better fitting
+            ..default()
+        },
+        TextLayout::new_with_justify(JustifyText::Center),
+        TextColor(Color::WHITE),
+        Transform::default(),
+    ));
 }
 
 fn handle_welcome_input(
