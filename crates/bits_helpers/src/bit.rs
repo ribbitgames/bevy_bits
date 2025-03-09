@@ -9,6 +9,7 @@ use bevy::render::RenderPlugin;
 use bevy::render::settings::{WgpuSettings, WgpuSettingsPriority};
 use bevy::window::{WindowMode, WindowResolution};
 
+#[cfg(not(target_arch = "wasm32"))]
 use crate::ribbit_simulation::RibbitSimulation;
 #[cfg(target_arch = "wasm32")]
 use crate::window_resizing::handle_browser_resize;
