@@ -1,4 +1,3 @@
-use bevy::color::palettes::css;
 use bevy::prelude::*;
 use bits_helpers::FONT;
 
@@ -135,7 +134,7 @@ fn try_spawn_game_over(
         return;
     }
 
-    // Create a semi-transparent overlay with a UI root node
+    // Create a UI overlay
     let overlay = commands
         .spawn((
             Node {
@@ -143,7 +142,6 @@ fn try_spawn_game_over(
                 height: Val::Percent(100.0),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
-
                 ..default()
             },
             GameOverScreen,
@@ -199,7 +197,7 @@ fn try_spawn_level_complete(
     let time_bonus = (game_progress.level_timer.remaining_secs() as u32) * 5;
     game_progress.add_time_bonus();
 
-    // Create a semi-transparent overlay with a UI root node
+    // Create a UI overlay
     let overlay = commands
         .spawn((
             Node {
@@ -207,7 +205,6 @@ fn try_spawn_level_complete(
                 height: Val::Percent(100.0),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
-
                 ..default()
             },
             LevelCompleteScreen,
@@ -274,7 +271,6 @@ fn spawn_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..default()
             },
             TextColor(Color::WHITE),
-            // Position manually within the node
             Node {
                 position_type: PositionType::Absolute,
                 left: Val::Px(10.0),
@@ -368,11 +364,7 @@ fn update_game_ui(
             }
             UITextType::Timer => {
                 let time_remaining = game_progress.level_timer.remaining_secs() as u32;
-                text.0 = format!("Time: {}", time_remaining);
-
-                // Change color based on time remaining
-                // Can't change text color dynamically in Bevy 0.15.3
-                // We only update the text content
+                text.0 = format!("Time: {time_remaining}");
             }
             UITextType::Blocks => {
                 text.0 = format!("Blocks: {}/15", game_progress.blocks_removed);

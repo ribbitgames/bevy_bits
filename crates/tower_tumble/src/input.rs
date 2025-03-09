@@ -11,7 +11,7 @@ pub struct InputPlugin;
 
 // Constants for interaction
 const GRAB_DISTANCE: f32 = 35.0; // Maximum distance to grab a block
-const PULL_STRENGTH: f32 = 200.0; // Massively increased from 50.0
+const PULL_STRENGTH: f32 = 200.0; // Force for pulling blocks
 const EXTRACTION_THRESHOLD: f32 = 60.0; // Distance needed to extract a block
 
 impl Plugin for InputPlugin {
@@ -50,7 +50,7 @@ fn handle_block_grab(
     // Don't allow grabbing if interaction is blocked
     if game_progress.is_interaction_blocked() {
         if let Ok(mut text) = debug_text_query.get_single_mut() {
-            text.0 = format!("GRAB: Interaction blocked");
+            text.0 = "GRAB: Interaction blocked".to_string();
         }
         return;
     }
@@ -167,7 +167,7 @@ fn handle_block_movement(
         return;
     };
 
-    // Apply direct movement to the block instead of force
+    // Apply direct movement to the block
     if let Ok((mut transform, mut ext_force, mut velocity, tower_block)) = blocks.get_mut(entity) {
         if !tower_block.being_grabbed {
             return;
@@ -176,8 +176,7 @@ fn handle_block_movement(
         // Calculate movement vector
         let movement = current_position - grab_position;
 
-        // Instead of applying force, directly move the block by a fraction of the movement
-        // This provides more direct control
+        // Directly move the block by a fraction of the movement for better control
         let new_position = transform.translation.truncate() + (movement * 0.05);
         transform.translation = new_position.extend(transform.translation.z);
 

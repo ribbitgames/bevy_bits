@@ -5,7 +5,7 @@ use bits_helpers::FONT;
 pub struct GamePlugin;
 
 /// Time to wait before allowing block interaction (seconds)
-const INITIAL_WAIT_TIME: f32 = 1.0; // Increased to 4 seconds
+const INITIAL_WAIT_TIME: f32 = 1.0;
 /// Maximum number of blocks that can be removed before tower collapse
 const MAX_BLOCKS_REMOVED: u32 = 15;
 /// Time limit for each level in seconds
@@ -91,8 +91,7 @@ impl GameProgress {
     }
 
     /// Returns true if block interaction should be blocked
-    /// Blocks interaction during initial wait and when level is complete/over
-    pub fn is_interaction_blocked(&self) -> bool {
+    pub const fn is_interaction_blocked(&self) -> bool {
         self.initial_wait_timer.is_some() || self.level_complete || self.tower_collapsed
     }
 
@@ -129,11 +128,11 @@ impl Default for LevelSettings {
     fn default() -> Self {
         Self {
             level: 1,
-            num_blocks: 12,  // Reduced from 30
-            tower_height: 4, // Reduced from 10
-            tower_width: 3,  // Kept the same width
+            num_blocks: 12,
+            tower_height: 4,
+            tower_width: 3,
             block_size: 50.0,
-            gravity: 3.0, // Reduced from 5.0 for easier gameplay
+            gravity: 3.0,
         }
     }
 }
@@ -280,7 +279,6 @@ fn check_level_complete(
 
 /// System to handle transition between levels
 fn handle_level_transition(
-    _commands: Commands, // Unused but kept for potential future use
     mut level_settings: ResMut<LevelSettings>,
     mut game_progress: ResMut<GameProgress>,
     game_state: Res<State<GameState>>,

@@ -34,9 +34,5 @@ pub fn run() {
 
 fn setup(mut commands: Commands) {
     // Add a 2D camera for the gameplay
-    commands.spawn(Camera2dBundle::default());
-
-    // Add a UI camera that will render UI elements
-    // No need for a separate camera in Bevy 0.15 since the Camera2dBundle
-    // already handles UI rendering by default
+    commands.spawn(Camera2d);
 }
