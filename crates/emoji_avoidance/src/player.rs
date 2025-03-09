@@ -1,10 +1,13 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
 use bits_helpers::input::{just_pressed_world_position, pressed_world_position};
-use bits_helpers::FONT;
+use bits_helpers::{FONT, send_bit_message};
+use ribbit_bits::{BitMessage, BitResult};
 
-use crate::game::{GameState, TimerText, WINDOW_HEIGHT};
-use crate::obstacles::{check_collision, Obstacle};
+use crate::game::{GameState, GameTimer, TimerText, WINDOW_HEIGHT};
+use crate::obstacles::{Obstacle, check_collision};
 
 pub const PLAYER_WIDTH: f32 = 40.0;
 pub const PLAYER_HEIGHT: f32 = 60.0;
@@ -31,7 +34,8 @@ impl Plugin for PlayerPlugin {
                 Update,
                 (handle_drag_input, player_movement, check_collisions)
                     .run_if(in_state(GameState::Playing)),
-            );
+            )
+            .add_systems(OnExit(GameState::Playing), despawn_player);
     }
 }
 
@@ -78,6 +82,19 @@ fn spawn_player(
         },
         TimerText,
     ));
+}
+
+fn despawn_player(
+    mut commands: Commands,
+    query: Query<Entity, With<Player>>,
+    timer_query: Query<Entity, With<TimerText>>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
+    for entity in timer_query.iter() {
+        commands.entity(entity).despawn();
+    }
 }
 
 fn handle_drag_input(
@@ -138,6 +155,7 @@ fn check_collisions(
     player_query: Query<(&Transform, &Player)>,
     obstacle_query: Query<(&Transform, &Obstacle)>,
     mut next_state: ResMut<NextState<GameState>>,
+    game_timer: ResMut<GameTimer>,
 ) {
     let (player_transform, player) = player_query.single();
     let player_pos = player_transform.translation.truncate();
@@ -147,6 +165,9 @@ fn check_collisions(
 
         if check_collision(player_pos, player.radius, obstacle_pos, obstacle.radius) {
             next_state.set(GameState::GameOver);
+            send_bit_message(BitMessage::End(BitResult::LongestDuration(
+                Duration::from_secs_f32(game_timer.0),
+            )));
             return;
         }
     }

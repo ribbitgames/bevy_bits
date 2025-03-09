@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas, EMOJI_SIZE};
+use bits_helpers::emoji::{self, AtlasValidation, EMOJI_SIZE, EmojiAtlas};
 
 use crate::game::{GameState, GameTimer, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::player::PLAYER_WIDTH;
@@ -62,7 +62,14 @@ impl Plugin for ObstaclesPlugin {
             .add_systems(
                 Update,
                 update_obstacles.run_if(in_state(GameState::Playing)),
-            );
+            )
+            .add_systems(OnExit(GameState::Playing), despawn_obstacles);
+    }
+}
+
+fn despawn_obstacles(mut commands: Commands, query: Query<Entity, With<Obstacle>>) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
     }
 }
 

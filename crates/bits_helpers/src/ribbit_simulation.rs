@@ -116,6 +116,7 @@ fn ribbit_simulation(
                 info!("Start");
             }
             BitMessage::End(bit_result) => {
+                game_timer.timer.pause();
                 spawn_game_over_screen(&mut commands, &asset_server, bit_result);
             }
         }
@@ -132,11 +133,11 @@ pub fn spawn_game_over_screen(
     commands.spawn((
         GameOverScreen,
         Sprite {
-            color: Color::srgba(0.0, 0.0, 0.0, 0.8),
+            color: Color::srgba(1.0, 1.0, 1.0, 0.5),
             custom_size: Some(Vec2::new(WINDOW_WIDTH, WINDOW_HEIGHT)),
             ..default()
         },
-        Transform::from_xyz(0.0, 0.0, 0.0),
+        Transform::from_xyz(0.0, 0.0, 1.0),
         Visibility::Visible,
     ));
 
@@ -150,7 +151,7 @@ pub fn spawn_game_over_screen(
             ..default()
         },
         TextLayout::new_with_justify(JustifyText::Center),
-        TextColor(Color::WHITE),
+        TextColor(Color::BLACK),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Percent(5.0),
@@ -165,7 +166,7 @@ pub fn spawn_game_over_screen(
             format!("Final score: {score}")
         }
         BitResult::LongestDuration(duration) | BitResult::FastestDuration(duration) => {
-            format!("Time: {:1}", duration.as_secs_f32())
+            format!("Time: {:.2}", duration.as_secs_f32())
         }
         BitResult::Success => "You won!".to_string(),
         BitResult::Failure => "You lost! Try again!".to_string(),
@@ -180,7 +181,7 @@ pub fn spawn_game_over_screen(
             ..default()
         },
         TextLayout::new_with_justify(JustifyText::Center),
-        TextColor(Color::WHITE),
+        TextColor(Color::BLACK),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Percent(45.0),
@@ -198,7 +199,7 @@ pub fn spawn_game_over_screen(
             ..default()
         },
         TextLayout::new_with_justify(JustifyText::Center),
-        TextColor(Color::WHITE),
+        TextColor(Color::BLACK),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Percent(90.0),
