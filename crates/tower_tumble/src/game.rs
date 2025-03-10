@@ -1,6 +1,7 @@
 use bevy::color::palettes::css;
 use bevy::prelude::*;
-use bits_helpers::FONT;
+use bits_helpers::{FONT, send_bit_message};
+use ribbit_bits::BitMessage;
 
 pub struct GamePlugin;
 
@@ -158,7 +159,7 @@ impl LevelSettings {
         self.num_blocks = self.tower_height * self.tower_width;
 
         // Adjust gravity more gradually
-        self.gravity = 3.0 + (self.level as f32 * 0.3);
+        self.gravity = (self.level as f32).mul_add(0.3, 3.0);
     }
 }
 
@@ -257,11 +258,12 @@ fn update_game_timer(
     }
 
     // Update level timer if game is active
-    if !game_progress.level_complete && !game_progress.tower_collapsed {
-        if game_progress.level_timer.tick(time.delta()).just_finished() {
-            // Time's up - set game over
-            game_progress.tower_collapsed = true;
-        }
+    if !game_progress.level_complete
+        && !game_progress.tower_collapsed
+        && game_progress.level_timer.tick(time.delta()).just_finished()
+    {
+        // Time's up - set game over
+        game_progress.tower_collapsed = true;
     }
 }
 
@@ -273,6 +275,9 @@ fn check_level_complete(
     if game_progress.level_complete {
         next_state.set(GameState::LevelComplete);
     } else if game_progress.tower_collapsed {
+        send_bit_message(BitMessage::End(ribbit_bits::BitResult::HighestScore(
+            game_progress.score.into(),
+        )));
         next_state.set(GameState::GameOver);
     }
 }

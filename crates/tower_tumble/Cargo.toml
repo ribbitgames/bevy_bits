@@ -9,9 +9,9 @@ license.workspace = true
 bits_helpers.workspace = true
 ribbit_bits.workspace = true
 
-bevy_rapier2d = "0.29.0"
 
 bevy.workspace = true
+bevy_rapier2d.workspace = true
 fastrand.workspace = true
 strum.workspace = true
 
