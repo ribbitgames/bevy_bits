@@ -1,5 +1,5 @@
 use bevy::log::info;
-use bevy::prelude::NextState;
+use bevy::prelude::*;
 use bits_helpers::RibbitMessageHandler;
 use ribbit_bits::{BitDuration, BitResult};
 
@@ -12,12 +12,16 @@ impl RibbitMessageHandler for Puzzle15 {
     fn restart(world: &mut bevy::prelude::World) {
         info!("Restarting Puzzle15");
 
-        let mut next_state = world.resource_mut::<NextState<GameState>>();
-        next_state.set(GameState::Game);
+        let mut next_state: Mut<'_, NextState<GameState>> =
+            world.resource_mut::<NextState<GameState>>();
+        next_state.set(GameState::Reset);
     }
 
-    fn end(_world: &mut bevy::prelude::World) -> BitResult {
+    fn end(world: &mut World) -> BitResult {
         info!("Ending Puzzle15");
+
+        let mut next_state = world.resource_mut::<NextState<GameState>>();
+        next_state.set(GameState::Result);
 
         // Player did not complete the game
         BitResult::Failure

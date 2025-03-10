@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bits_helpers::emoji::EmojiPlugin;
 use bits_helpers::floating_score::animate_floating_scores;
+use gameplay::reset_score;
 use ribbit::EmojiGrabber;
+use stage::reset_stage_config;
 
 mod core;
 mod gameplay;
@@ -65,6 +67,10 @@ pub fn run() {
                 .run_if(in_state(GameState::Playing)),
         )
         .add_systems(OnExit(GameState::Playing), cleanup_playing_state)
+        .add_systems(
+            OnEnter(GameState::GameOver),
+            (reset_stage_config, reset_score),
+        )
         // Stage complete state
         .add_systems(
             OnEnter(GameState::StageComplete),

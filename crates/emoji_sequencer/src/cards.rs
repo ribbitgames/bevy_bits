@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
 use bits_helpers::WINDOW_WIDTH;
+use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas};
 
 use crate::game::{GameDifficulty, GameProgress, GameState, SequenceState, SequenceStep};
 use crate::variables::GameVariables;
@@ -100,105 +100,106 @@ fn handle_sequence_spawn(
         return;
     }
 
-    if !query
+    if query
         .iter()
         .any(|(_, card)| card.sequence_position.is_some())
     {
-        let sequence_length = difficulty.sequence_length as usize;
-        let target_sequence = emoji::get_random_emojis(&atlas, &validation, sequence_length);
-
-        let card_width = vars.card_size;
-        let card_height = vars.card_size;
-        let sequence_spacing = 10.0;
-        let vertical_spacing = 10.0;
-
-        let max_columns = (WINDOW_WIDTH / (card_width + sequence_spacing)).floor() as usize;
-        let row_limit = sequence_length.min(max_columns);
-        let num_rows = sequence_length.div_ceil(row_limit);
-
-        let mut current_index = 0;
-        for row in 0..num_rows {
-            let cards_in_row = if row == num_rows - 1 && sequence_length % row_limit != 0 {
-                sequence_length % row_limit
-            } else {
-                row_limit
-            };
-
-            let row_spacing = if cards_in_row > 1 {
-                sequence_spacing
-            } else {
-                0.0
-            };
-
-            let row_width = (cards_in_row as f32)
-                .mul_add(card_width, ((cards_in_row as f32) - 1.0) * row_spacing);
-            let start_x = -row_width / 2.0 + card_width / 2.0;
-            let y = (row as f32).mul_add(-(card_height + vertical_spacing), vars.sequence_card_y);
-
-            for col in 0..cards_in_row {
-                let x = (col as f32).mul_add(card_width + row_spacing, start_x);
-                let emoji_index = *target_sequence
-                    .get(current_index)
-                    .expect("Index out-of-bound: target_sequence has fewer elements than expected");
-                current_index += 1;
-
-                let card_entity = commands
-                    .spawn((
-                        Card {
-                            emoji_index,
-                            face_up: false,
-                            sequence_position: Some(row * row_limit + col),
-                            locked: false,
-                        },
-                        Transform::from_xyz(x, y, 0.0).with_scale(Vec3::splat(0.5)),
-                        Visibility::Inherited,
-                    ))
-                    .id();
-
-                // Create emoji transform relative to card
-                let emoji_transform =
-                    Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(2.0));
-
-                if let Some(emoji_entity) = emoji::spawn_emoji(
-                    &mut commands,
-                    &atlas,
-                    &validation,
-                    emoji_index,
-                    emoji_transform,
-                ) {
-                    commands
-                        .entity(emoji_entity)
-                        .insert(CardFace)
-                        .insert(Visibility::Hidden);
-                    commands.entity(card_entity).add_child(emoji_entity);
-                }
-
-                let card_back_entity = commands
-                    .spawn(CardBackBundle {
-                        sprite: Sprite {
-                            image: card_back.0.clone(),
-                            custom_size: Some(Vec2::new(card_width, card_height)),
-                            ..default()
-                        },
-                        transform: Transform::from_translation(Vec3::ZERO),
-                        global_transform: GlobalTransform::default(),
-                        visibility: Visibility::Visible,
-                        inherited_visibility: InheritedVisibility::default(),
-                        view_visibility: ViewVisibility::default(),
-                        card_back: CardBack,
-                    })
-                    .id();
-                commands.entity(card_entity).add_child(card_back_entity);
-            }
-        }
-
-        sequence_state.target_sequence = target_sequence;
-        game_progress.sequence_step = SequenceStep::RevealingSequence;
-        game_progress.step_timer = Some(Timer::from_seconds(
-            vars.reveal_time_per_emoji,
-            TimerMode::Once,
-        ));
+        return;
     }
+
+    let sequence_length = difficulty.sequence_length as usize;
+    let target_sequence = emoji::get_random_emojis(&atlas, &validation, sequence_length);
+
+    let card_width = vars.card_size;
+    let card_height = vars.card_size;
+    let sequence_spacing = 10.0;
+    let vertical_spacing = 10.0;
+
+    let max_columns = (WINDOW_WIDTH / (card_width + sequence_spacing)).floor() as usize;
+    let row_limit = sequence_length.min(max_columns);
+    let num_rows = sequence_length.div_ceil(row_limit);
+
+    let mut current_index = 0;
+    for row in 0..num_rows {
+        let cards_in_row = if row == num_rows - 1 && sequence_length % row_limit != 0 {
+            sequence_length % row_limit
+        } else {
+            row_limit
+        };
+
+        let row_spacing = if cards_in_row > 1 {
+            sequence_spacing
+        } else {
+            0.0
+        };
+
+        let row_width =
+            (cards_in_row as f32).mul_add(card_width, ((cards_in_row as f32) - 1.0) * row_spacing);
+        let start_x = -row_width / 2.0 + card_width / 2.0;
+        let y = (row as f32).mul_add(-(card_height + vertical_spacing), vars.sequence_card_y);
+
+        for col in 0..cards_in_row {
+            let x = (col as f32).mul_add(card_width + row_spacing, start_x);
+            let emoji_index = *target_sequence
+                .get(current_index)
+                .expect("Index out-of-bound: target_sequence has fewer elements than expected");
+            current_index += 1;
+
+            let card_entity = commands
+                .spawn((
+                    Card {
+                        emoji_index,
+                        face_up: false,
+                        sequence_position: Some(row * row_limit + col),
+                        locked: false,
+                    },
+                    Transform::from_xyz(x, y, 0.0).with_scale(Vec3::splat(0.5)),
+                    Visibility::Inherited,
+                ))
+                .id();
+
+            // Create emoji transform relative to card
+            let emoji_transform = Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(2.0));
+
+            if let Some(emoji_entity) = emoji::spawn_emoji(
+                &mut commands,
+                &atlas,
+                &validation,
+                emoji_index,
+                emoji_transform,
+            ) {
+                commands
+                    .entity(emoji_entity)
+                    .insert(CardFace)
+                    .insert(Visibility::Hidden);
+                commands.entity(card_entity).add_child(emoji_entity);
+            }
+
+            let card_back_entity = commands
+                .spawn(CardBackBundle {
+                    sprite: Sprite {
+                        image: card_back.0.clone(),
+                        custom_size: Some(Vec2::new(card_width, card_height)),
+                        ..default()
+                    },
+                    transform: Transform::from_translation(Vec3::ZERO),
+                    global_transform: GlobalTransform::default(),
+                    visibility: Visibility::Visible,
+                    inherited_visibility: InheritedVisibility::default(),
+                    view_visibility: ViewVisibility::default(),
+                    card_back: CardBack,
+                })
+                .id();
+            commands.entity(card_entity).add_child(card_back_entity);
+        }
+    }
+
+    sequence_state.target_sequence = target_sequence;
+    game_progress.sequence_step = SequenceStep::RevealingSequence;
+    game_progress.step_timer = Some(Timer::from_seconds(
+        vars.reveal_time_per_emoji,
+        TimerMode::Once,
+    ));
 }
 
 /// Handles revealing sequence cards one by one.

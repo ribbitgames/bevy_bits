@@ -4,7 +4,7 @@ use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas, EmojiPlugin};
 use bits_helpers::input::just_pressed_world_position;
 use bits_helpers::{WINDOW_HEIGHT, WINDOW_WIDTH};
 use ribbit::WhackAMole;
-use ui::{BottomTextUI, CenterTextUI, ScoreUI, TimeUI};
+use ui::{BottomTextUI, ScoreUI, TimeUI};
 
 mod ribbit;
 mod ui;
@@ -84,6 +84,7 @@ enum GameState {
     Init,
     Game,
     Result,
+    Reset,
 }
 
 pub fn run() {
@@ -96,7 +97,6 @@ pub fn run() {
         .add_systems(OnEnter(GameState::Init), init_enter)
         .add_systems(OnEnter(GameState::Game), game_enter)
         .add_systems(OnExit(GameState::Game), game_exit)
-        .add_systems(OnEnter(GameState::Result), result_enter)
         .add_systems(
             Update,
             (
@@ -106,10 +106,15 @@ pub fn run() {
                 update_feedback,
                 update_game_timer.run_if(in_state(GameState::Game)),
                 update_wave.run_if(in_state(GameState::Game)),
-                result.run_if(in_state(GameState::Result)),
+                reset.run_if(in_state(GameState::Reset)),
             ),
         )
         .run();
+}
+
+fn reset(mut commands: Commands, mut next_state: ResMut<NextState<GameState>>) {
+    commands.insert_resource(GameProgress::default());
+    next_state.set(GameState::Game);
 }
 
 fn init_enter(
@@ -119,7 +124,6 @@ fn init_enter(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut score_text: ResMut<ScoreUI>,
     mut time_text: ResMut<TimeUI>,
-    mut center_text: ResMut<CenterTextUI>,
     mut bottom_text: ResMut<BottomTextUI>,
 ) {
     commands.spawn(Camera2d);
@@ -132,8 +136,6 @@ fn init_enter(
     score_text.set_visiblity(Visibility::Inherited);
     time_text.update(Duration::new(TIME_LIMIT, 0));
     time_text.set_visiblity(Visibility::Inherited);
-    center_text.update("Game Over!".to_string());
-    center_text.set_visiblity(Visibility::Hidden);
     bottom_text.update("Whack a mole!".to_string());
     bottom_text.set_visiblity(Visibility::Hidden);
 }
@@ -214,7 +216,6 @@ fn game_enter(
     mut commands: Commands,
     mut game: ResMut<GameProgress>,
     mut score_text: ResMut<ScoreUI>,
-    mut center_text: ResMut<CenterTextUI>,
     atlas: Res<EmojiAtlas>,
     validation: Res<AtlasValidation>,
     query: Query<(&LegendBase, &GlobalTransform)>,
@@ -238,7 +239,6 @@ fn game_enter(
     spawn_legend(&mut commands, &indices, &atlas, &validation, &query);
     game.score = 0;
     score_text.update(game.score);
-    center_text.set_visiblity(Visibility::Hidden);
 }
 
 fn spawn_legend(
@@ -439,9 +439,3 @@ fn game_exit(mut commands: Commands, query: Query<(Entity, &LifespanGame)>) {
         commands.entity(entity).despawn_recursive();
     }
 }
-
-fn result_enter(mut center_text: ResMut<CenterTextUI>) {
-    center_text.set_visiblity(Visibility::Inherited);
-}
-
-const fn result() {}

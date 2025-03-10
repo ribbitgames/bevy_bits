@@ -8,9 +8,6 @@ use crate::variables::GameVariables;
 pub struct WelcomeScreen;
 
 #[derive(Component)]
-pub struct GameOverScreen;
-
-#[derive(Component)]
 pub struct StageTransitionScreen;
 
 #[derive(Component)]
@@ -29,18 +26,6 @@ impl Plugin for ScreenPlugin {
             handle_welcome_input.run_if(in_state(GameState::Welcome)),
         )
         .add_systems(OnExit(GameState::Welcome), despawn_screen::<WelcomeScreen>)
-        .add_systems(
-            Update,
-            try_spawn_game_over.run_if(in_state(GameState::GameOver)),
-        )
-        .add_systems(
-            Update,
-            handle_game_over_input.run_if(in_state(GameState::GameOver)),
-        )
-        .add_systems(
-            OnExit(GameState::GameOver),
-            despawn_screen::<GameOverScreen>,
-        )
         .add_systems(
             Update,
             try_spawn_stage_transition.run_if(in_state(GameState::StageComplete)),
@@ -97,52 +82,6 @@ fn handle_welcome_input(
 ) {
     if mouse_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
         next_state.set(GameState::Playing);
-    }
-}
-
-fn try_spawn_game_over(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    vars: Res<GameVariables>,
-    difficulty: Res<GameDifficulty>,
-    game_progress: Res<GameProgress>,
-    score_state: Res<ScoreState>,
-    query: Query<&GameOverScreen>,
-) {
-    if !query.is_empty() {
-        return;
-    }
-
-    commands.spawn((
-        GameOverScreen,
-        Text2d::new(format!(
-            "Game Over!\n\nReached Stage {}\nFinal Score: {}\nMistakes: {}/{}\n\nClick to Restart",
-            difficulty.stage,
-            score_state.total_score,
-            game_progress.mistakes,
-            game_progress.max_mistakes
-        )),
-        TextFont {
-            font: asset_server.load(FONT),
-            font_size: vars.game_over_font_size,
-            ..default()
-        },
-        TextLayout::new_with_justify(JustifyText::Center),
-        Transform::default(),
-    ));
-}
-
-fn handle_game_over_input(
-    mouse_input: Res<ButtonInput<MouseButton>>,
-    touch_input: Res<Touches>,
-    mut next_state: ResMut<NextState<GameState>>,
-    mut commands: Commands,
-) {
-    if mouse_input.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
-        commands.insert_resource(GameDifficulty::default());
-        commands.insert_resource(GameProgress::default());
-        commands.insert_resource(ScoreState::default());
-        next_state.set(GameState::Welcome);
     }
 }
 

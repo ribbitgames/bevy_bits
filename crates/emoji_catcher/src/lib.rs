@@ -4,14 +4,12 @@ use bits_helpers::floating_score::animate_floating_scores;
 use ribbit::EmojiCatcher;
 
 mod core;
-mod game_over;
 mod gameplay;
 mod ribbit;
 mod welcome;
 
 use core::{GameState, GameTimer, Score, TargetEmojiIndex};
 
-use game_over::{cleanup_game_over, handle_game_over_input, spawn_game_over_screen};
 use gameplay::{
     cleanup_game, handle_input, move_emojis, render_circles, spawn_game_elements, update_game,
     update_game_timer,
@@ -64,14 +62,7 @@ pub fn run() {
                 .run_if(in_state(GameState::Playing))
                 .run_if(emoji_system_ready),
         )
-        .add_systems(OnExit(GameState::Playing), cleanup_game)
-        // Game over state
-        .add_systems(OnEnter(GameState::GameOver), spawn_game_over_screen)
-        .add_systems(
-            Update,
-            handle_game_over_input.run_if(in_state(GameState::GameOver)),
-        )
-        .add_systems(OnExit(GameState::GameOver), cleanup_game_over);
+        .add_systems(OnExit(GameState::Playing), cleanup_game);
 
     app.run();
 }

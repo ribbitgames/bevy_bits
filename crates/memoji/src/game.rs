@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use bits_helpers::send_bit_message;
+use ribbit_bits::{BitMessage, BitResult};
 
 use crate::cards::Card;
 use crate::effects::CelebrationState;
@@ -260,6 +262,7 @@ fn handle_game_over_sequence(
                 for (entity, _) in cards.iter() {
                     commands.entity(entity).despawn_recursive();
                 }
+                send_bit_message(BitMessage::End(BitResult::Failure));
                 next_state.set(GameState::GameOver);
             }
         }

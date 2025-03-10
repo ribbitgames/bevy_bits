@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bits_helpers::welcome_screen::{despawn_welcome_screen, WelcomeScreenElement};
 use bits_helpers::FONT;
+use bits_helpers::welcome_screen::{WelcomeScreenElement, despawn_welcome_screen};
 
 pub const WINDOW_WIDTH: f32 = 800.0;
 pub const WINDOW_HEIGHT: f32 = 600.0;
@@ -37,15 +37,19 @@ impl Plugin for GamePlugin {
             .init_resource::<GameTimer>()
             .add_systems(OnEnter(GameState::Welcome), spawn_welcome_screen)
             .add_systems(OnExit(GameState::Welcome), despawn_welcome_screen)
+            .add_systems(OnEnter(GameState::Playing), init_timer)
             .add_systems(
                 Update,
                 (
                     handle_welcome_input.run_if(in_state(GameState::Welcome)),
                     update_timer.run_if(in_state(GameState::Playing)),
                 ),
-            )
-            .add_systems(OnEnter(GameState::GameOver), spawn_game_over_screen);
+            );
     }
+}
+
+fn init_timer(mut game_timer: ResMut<GameTimer>) {
+    game_timer.0 = 0.0;
 }
 
 fn spawn_welcome_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -114,43 +118,4 @@ fn update_timer(
     if let Ok(mut text) = query.get_single_mut() {
         text.0 = format!("Time: {:.1}", game_timer.0);
     }
-}
-
-fn spawn_game_over_screen(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    game_timer: Res<GameTimer>,
-) {
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                flex_direction: FlexDirection::Column,
-                ..default()
-            },
-            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.7)),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Text::new("Game Over!"),
-                TextFont {
-                    font: asset_server.load(FONT),
-                    font_size: 40.0,
-                    ..default()
-                },
-                TextColor(Color::WHITE),
-            ));
-            parent.spawn((
-                Text::new(format!("Time: {:.1}s", game_timer.0)),
-                TextFont {
-                    font: asset_server.load(FONT),
-                    font_size: 30.0,
-                    ..default()
-                },
-                TextColor(Color::WHITE),
-            ));
-        });
 }

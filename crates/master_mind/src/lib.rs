@@ -1,7 +1,7 @@
 use bevy::prelude::*;
+use bits_helpers::send_bit_message;
 use decoding_board::{AddCharacterAt, RemoveCharacterAt, ResetBoard, SetColorsAt};
 use ribbit::MasterMind;
-use ui::{EndMessageEvent, ShowMessageEvent};
 
 mod decoding_board;
 mod ribbit;
@@ -45,7 +45,7 @@ pub fn run() {
         })
         .add_plugins(ui::UIPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (reset_game, ui_input, ui_callback, keyboard_input))
+        .add_systems(Update, (reset_game, ui_input, keyboard_input))
         .run();
 }
 
@@ -203,18 +203,11 @@ fn delete_character(game_progress: &mut ResMut<GameProgress>) -> bool {
     false
 }
 
-fn ui_callback(mut reset_event: EventWriter<ResetGame>, mut events: EventReader<EndMessageEvent>) {
-    for _event in events.read() {
-        reset_event.send(ResetGame);
-    }
-}
-
 fn common_input(
     c: char,
     game_progress: &mut ResMut<GameProgress>,
     add_event: &mut EventWriter<decoding_board::AddCharacterAt>,
     board_event: &mut EventWriter<decoding_board::SetColorsAt>,
-    ui_event: &mut EventWriter<ShowMessageEvent>,
 ) {
     let row = game_progress.turn;
     let result = enter_character(c, game_progress);
@@ -228,15 +221,13 @@ fn common_input(
     if colors.len() == CODE_LENGTH {
         board_event.send(SetColorsAt { row, colors });
         if res {
-            println!("Congrats!");
-            ui_event.send(ShowMessageEvent {
-                message: "Congrats!".to_string(),
-            });
+            send_bit_message(ribbit_bits::BitMessage::End(
+                ribbit_bits::BitResult::Success,
+            ));
         } else if row == MAX_TURN - 1 {
-            println!("Gameover!");
-            ui_event.send(ShowMessageEvent {
-                message: "Game Over!".to_string(),
-            });
+            send_bit_message(ribbit_bits::BitMessage::End(
+                ribbit_bits::BitResult::Failure,
+            ));
         }
     }
 }
@@ -247,7 +238,6 @@ fn ui_input(
     mut add_event: EventWriter<decoding_board::AddCharacterAt>,
     mut remove_event: EventWriter<decoding_board::RemoveCharacterAt>,
     mut board_event: EventWriter<decoding_board::SetColorsAt>,
-    mut ui_event: EventWriter<ShowMessageEvent>,
 ) {
     for event in button_events.read() {
         let mut c = ' ';
@@ -293,13 +283,7 @@ fn ui_input(
             _ => {}
         }
         if c != ' ' {
-            common_input(
-                c,
-                &mut game_progress,
-                &mut add_event,
-                &mut board_event,
-                &mut ui_event,
-            );
+            common_input(c, &mut game_progress, &mut add_event, &mut board_event);
         }
     }
 }
@@ -311,7 +295,6 @@ fn keyboard_input(
     mut add_event: EventWriter<decoding_board::AddCharacterAt>,
     mut remove_event: EventWriter<decoding_board::RemoveCharacterAt>,
     mut board_event: EventWriter<decoding_board::SetColorsAt>,
-    mut ui_event: EventWriter<ShowMessageEvent>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Minus)
         || keyboard_input.just_pressed(KeyCode::Backspace)
@@ -366,12 +349,6 @@ fn keyboard_input(
         c = '9';
     }
     if c != ' ' {
-        common_input(
-            c,
-            &mut game_progress,
-            &mut add_event,
-            &mut board_event,
-            &mut ui_event,
-        );
+        common_input(c, &mut game_progress, &mut add_event, &mut board_event);
     }
 }

@@ -7,9 +7,6 @@ use crate::game::{GameProgress, GameState, LevelSettings};
 pub struct WelcomeScreen;
 
 #[derive(Component)]
-pub struct GameOverScreen;
-
-#[derive(Component)]
 pub struct LevelCompleteScreen;
 
 #[derive(Component)]
@@ -36,18 +33,6 @@ impl Plugin for ScreenPlugin {
             handle_welcome_input.run_if(in_state(GameState::Welcome)),
         )
         .add_systems(OnExit(GameState::Welcome), despawn_screen::<WelcomeScreen>)
-        .add_systems(
-            Update,
-            try_spawn_game_over.run_if(in_state(GameState::GameOver)),
-        )
-        .add_systems(
-            Update,
-            handle_game_over_input.run_if(in_state(GameState::GameOver)),
-        )
-        .add_systems(
-            OnExit(GameState::GameOver),
-            despawn_screen::<GameOverScreen>,
-        )
         .add_systems(
             Update,
             try_spawn_level_complete.run_if(in_state(GameState::LevelComplete)),
@@ -120,66 +105,6 @@ fn handle_welcome_input(
 ) {
     if buttons.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
         next_state.set(GameState::Playing);
-    }
-}
-
-fn try_spawn_game_over(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    level_settings: Res<LevelSettings>,
-    game_progress: Res<GameProgress>,
-    query: Query<&GameOverScreen>,
-) {
-    if !query.is_empty() {
-        return;
-    }
-
-    // Create a UI overlay
-    let overlay = commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            GameOverScreen,
-            Name::new("Game Over Screen"),
-        ))
-        .id();
-
-    // Add the game over text as a child
-    let gameover_text = commands
-        .spawn((
-            Text::new(format!(
-                "Game Over!\n\nTower Collapsed\nReached Level {}\nFinal Score: {}\n\nClick to Restart",
-                level_settings.level, game_progress.score
-            )),
-            TextColor(Color::WHITE),
-            TextFont {
-                font: asset_server.load(FONT),
-                font_size: 28.0,
-                ..default()
-            },
-            TextLayout::new_with_justify(JustifyText::Center),
-        ))
-        .id();
-
-    // Build the hierarchy
-    commands.entity(overlay).add_child(gameover_text);
-}
-
-fn handle_game_over_input(
-    buttons: Res<ButtonInput<MouseButton>>,
-    touch_input: Res<Touches>,
-    mut next_state: ResMut<NextState<GameState>>,
-    mut commands: Commands,
-) {
-    if buttons.just_pressed(MouseButton::Left) || touch_input.any_just_pressed() {
-        commands.insert_resource(LevelSettings::default());
-        commands.insert_resource(GameProgress::default());
-        next_state.set(GameState::Welcome);
     }
 }
 

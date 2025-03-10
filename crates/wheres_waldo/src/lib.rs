@@ -2,8 +2,9 @@ use bevy::prelude::*;
 use bevy::utils::Duration;
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas, EmojiPlugin};
 use bits_helpers::input::just_pressed_world_position;
-use bits_helpers::{WINDOW_HEIGHT, WINDOW_WIDTH};
+use bits_helpers::{WINDOW_HEIGHT, WINDOW_WIDTH, send_bit_message};
 use ribbit::WheresWaldo;
+use ribbit_bits::{BitMessage, BitResult};
 
 mod ribbit;
 
@@ -75,6 +76,7 @@ enum GameState {
     Init,
     Game,
     Result,
+    Reset,
 }
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -96,9 +98,8 @@ pub fn run() {
             ),
         )
         .add_systems(OnEnter(GameState::Init), init_enter)
-        .add_systems(OnEnter(GameState::Game), game_enter)
-        .add_systems(OnEnter(GameState::Result), result_enter)
-        .add_systems(OnExit(GameState::Result), result_exit)
+        .add_systems(OnEnter(GameState::Game), (clear_puzzle, game_enter))
+        .add_systems(OnEnter(GameState::Reset), reset_enter)
         .add_systems(
             Update,
             (
@@ -121,6 +122,10 @@ pub fn run() {
 // For the initalizatino state
 fn init_enter(mut commands: Commands) {
     setup_static_entities(&mut commands);
+}
+
+fn reset_enter(mut next_state: ResMut<NextState<GameState>>) {
+    next_state.set(GameState::Game);
 }
 
 fn setup_static_entities(commands: &mut Commands) {
@@ -182,15 +187,6 @@ fn game_enter(
     create_puzzle(&mut commands, &mut grid, &mut progress, &atlas, &validation);
 }
 
-// For the result state
-fn result_enter(mut commands: Commands, progress: Res<GameProgress>) {
-    if progress.result {
-        spawn_feedback_ui(&mut commands, "Good Job!", 0);
-    } else {
-        spawn_feedback_ui(&mut commands, "Game Over!", 0);
-    }
-}
-
 fn result(
     mut commands: Commands,
     query: Query<(Entity, &FeedbackUI)>,
@@ -217,12 +213,17 @@ fn result(
     }
 }
 
-fn result_exit(
+fn clear_puzzle(
     mut commands: Commands,
-    query: Query<(Entity, &Character)>,
-    q: Query<(Entity, &GameTimer)>,
+    characters: Query<Entity, With<Character>>,
+    game_timers: Query<Entity, With<GameTimer>>,
 ) {
-    clear_puzzle(&mut commands, &query, &q);
+    for character in characters.iter() {
+        commands.entity(character).despawn();
+    }
+    for game_timer in game_timers.iter() {
+        commands.entity(game_timer).despawn();
+    }
 }
 
 // Game related
@@ -344,19 +345,6 @@ fn create_puzzle(
     progress.result = false;
 }
 
-fn clear_puzzle(
-    commands: &mut Commands,
-    query: &Query<(Entity, &Character)>,
-    q: &Query<(Entity, &GameTimer)>,
-) {
-    for (entity, _character) in query {
-        commands.entity(entity).despawn();
-    }
-    for (entity, _character) in q {
-        commands.entity(entity).despawn();
-    }
-}
-
 fn inquire_position(
     mut commands: Commands,
     mut inquire_event: EventReader<InquireEvent>,
@@ -386,6 +374,7 @@ fn inquire_position(
             let dist = ev_pos.distance_squared(transform.translation.truncate());
             if dist < squared_radius {
                 progress.result = true;
+                send_bit_message(BitMessage::End(BitResult::Success));
                 next_state.set(GameState::Result);
                 return;
             }
@@ -398,6 +387,7 @@ fn inquire_position(
                 if progress.mistakes < 3 {
                     spawn_feedback_ui(&mut commands, "It's not me!", 1);
                 } else {
+                    send_bit_message(BitMessage::End(BitResult::Failure));
                     next_state.set(GameState::Result);
                 }
                 return;
