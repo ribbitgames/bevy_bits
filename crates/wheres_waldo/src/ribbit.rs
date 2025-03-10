@@ -1,4 +1,3 @@
-use bevy::log::info;
 use bevy::prelude::NextState;
 use bits_helpers::RibbitMessageHandler;
 use ribbit_bits::{BitDuration, BitResult};
@@ -10,14 +9,13 @@ pub struct WheresWaldo;
 
 impl RibbitMessageHandler for WheresWaldo {
     fn restart(world: &mut bevy::prelude::World) {
-        info!("Restarting WheresWaldo");
-
         let mut next_state = world.resource_mut::<NextState<GameState>>();
-        next_state.set(GameState::Result);
+        next_state.set(GameState::Reset);
     }
 
-    fn end(_world: &mut bevy::prelude::World) -> BitResult {
-        info!("Ending WheresWaldo");
+    fn end(world: &mut bevy::prelude::World) -> BitResult {
+        let mut next_state = world.resource_mut::<NextState<GameState>>();
+        next_state.set(GameState::Result);
 
         // Player did not complete the game
         BitResult::Failure
