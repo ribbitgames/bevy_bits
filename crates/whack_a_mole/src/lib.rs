@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use bevy::utils::Duration;
-use bits_helpers::WINDOW_WIDTH;
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas, EmojiPlugin};
 use bits_helpers::input::just_pressed_world_position;
+use bits_helpers::{WINDOW_HEIGHT, WINDOW_WIDTH};
 use ribbit::WhackAMole;
 use ui::{BottomTextUI, CenterTextUI, ScoreUI, TimeUI};
 
@@ -12,20 +12,42 @@ mod ui;
 const COLUMN: usize = 3;
 const ROW: usize = 4;
 
+const TIME_LIMIT: u64 = 20;
+const MOLE_VARIATIONS: usize = 3;
+
 const HOLE_SCALE: f32 = 0.9;
 const HOLE_THICKNESS: f32 = 0.1;
 const HOLE_COLOR: Color = Color::srgba(1., 1., 1., 1.);
 const HOLE_OFFSET: f32 = WINDOW_WIDTH / (COLUMN as f32);
 const HOLE_RADIUS: f32 = HOLE_OFFSET * HOLE_SCALE * 0.5;
 
+const POINTS: [i32; MOLE_VARIATIONS] = [1, -1, 5];
+
+#[derive(Component, Default)]
+struct LegendBase {
+    index: usize,
+}
+
+#[derive(Component, Default)]
+struct Legend;
+
+#[derive(Component, Default)]
+struct LifespanGame;
+
 #[derive(Component, Default)]
 struct Mole {
     timer: Timer,
+    point: i32,
 }
 
 #[derive(Component, Default)]
 struct Wave {
     count: usize,
+    timer: Timer,
+}
+
+#[derive(Component, Default)]
+struct Feedback {
     timer: Timer,
 }
 
@@ -73,6 +95,7 @@ pub fn run() {
         .insert_resource(GameProgress::default())
         .add_systems(OnEnter(GameState::Init), init_enter)
         .add_systems(OnEnter(GameState::Game), game_enter)
+        .add_systems(OnExit(GameState::Game), game_exit)
         .add_systems(OnEnter(GameState::Result), result_enter)
         .add_systems(
             Update,
@@ -80,6 +103,7 @@ pub fn run() {
                 init.run_if(in_state(GameState::Init)),
                 update,
                 update_mole,
+                update_feedback,
                 update_game_timer.run_if(in_state(GameState::Game)),
                 update_wave.run_if(in_state(GameState::Game)),
                 result.run_if(in_state(GameState::Result)),
@@ -100,17 +124,18 @@ fn init_enter(
 ) {
     commands.spawn(Camera2d);
     spawn_background(&mut commands, &grid, &mut meshes, &mut materials);
+    spawn_legend_base(&mut commands);
 
     // Initialize UI plugin
     score_text.set_digit(2);
     score_text.update(0);
     score_text.set_visiblity(Visibility::Inherited);
-    time_text.update(Duration::new(15, 0));
+    time_text.update(Duration::new(TIME_LIMIT, 0));
     time_text.set_visiblity(Visibility::Inherited);
     center_text.update("Game Over!".to_string());
     center_text.set_visiblity(Visibility::Hidden);
     bottom_text.update("Whack a mole!".to_string());
-    bottom_text.set_visiblity(Visibility::Inherited);
+    bottom_text.set_visiblity(Visibility::Hidden);
 }
 
 fn init(validation: Res<AtlasValidation>, mut next_state: ResMut<NextState<GameState>>) {
@@ -158,6 +183,33 @@ fn spawn_background(
     }
 }
 
+fn spawn_legend_base(commands: &mut Commands) {
+    let node_id = commands
+        .spawn({
+            Node {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                display: Display::Grid,
+                grid_template_columns: RepeatedGridTrack::fr(MOLE_VARIATIONS as u16, 1.),
+                ..default()
+            }
+        })
+        .id();
+    for (index, point) in POINTS.iter().enumerate() {
+        commands.entity(node_id).with_children(|parent| {
+            parent.spawn((
+                Node {
+                    align_self: AlignSelf::End,
+                    justify_self: JustifySelf::Center,
+                    ..default()
+                },
+                Text::new(format!("{point} pt")),
+                LegendBase { index },
+            ));
+        });
+    }
+}
+
 fn game_enter(
     mut commands: Commands,
     mut game: ResMut<GameProgress>,
@@ -165,22 +217,63 @@ fn game_enter(
     mut center_text: ResMut<CenterTextUI>,
     atlas: Res<EmojiAtlas>,
     validation: Res<AtlasValidation>,
+    query: Query<(&LegendBase, &GlobalTransform)>,
 ) {
-    commands.spawn(GameManager {
-        game_timer: GameTimer {
-            timer: Timer::new(Duration::from_secs(15), TimerMode::Once),
-        },
-        wave: Wave {
-            timer: Timer::new(Duration::from_secs(2), TimerMode::Repeating),
-            ..default()
-        },
-        emojis: EmojiIndices {
-            indices: emoji::get_random_emojis(&atlas, &validation, 1),
-        },
-    });
+    let indices = emoji::get_random_emojis(&atlas, &validation, MOLE_VARIATIONS);
+
+    commands
+        .spawn(GameManager {
+            game_timer: GameTimer {
+                timer: Timer::new(Duration::from_secs(TIME_LIMIT), TimerMode::Once),
+            },
+            wave: Wave {
+                timer: Timer::new(Duration::from_secs(2), TimerMode::Repeating),
+                ..default()
+            },
+            emojis: EmojiIndices {
+                indices: indices.clone(),
+            },
+        })
+        .insert(LifespanGame);
+    spawn_legend(&mut commands, &indices, &atlas, &validation, &query);
     game.score = 0;
     score_text.update(game.score);
     center_text.set_visiblity(Visibility::Hidden);
+}
+
+fn spawn_legend(
+    commands: &mut Commands,
+    indices: &[usize],
+    atlas: &Res<EmojiAtlas>,
+    validation: &Res<AtlasValidation>,
+    query: &Query<(&LegendBase, &GlobalTransform)>,
+) {
+    // It needs to be tied to the UI position (legend base) eventually...
+    for (base, _transform) in query {
+        if let Some(id) = emoji::spawn_emoji(
+            commands,
+            atlas,
+            validation,
+            *indices.get(base.index).expect(""),
+            Transform {
+                translation: Vec3::new(
+                    (WINDOW_WIDTH / MOLE_VARIATIONS as f32).mul_add(
+                        0.5,
+                        WINDOW_WIDTH.mul_add(
+                            -0.5,
+                            base.index as f32 * WINDOW_WIDTH / MOLE_VARIATIONS as f32,
+                        ),
+                    ),
+                    -WINDOW_HEIGHT * 0.425,
+                    0.,
+                ),
+                scale: Vec3::new(0.5, 0.5, 1.),
+                ..default()
+            },
+        ) {
+            commands.entity(id).insert((Legend, LifespanGame));
+        }
+    }
 }
 
 fn update(
@@ -207,13 +300,23 @@ fn update(
         }
         println!("{world_position}");
 
-        for (entity, _, transform) in &mut query {
+        for (entity, mole, transform) in &mut query {
             let diff = Vec2::new(
                 transform.translation.x - world_position.x,
                 transform.translation.y - world_position.y,
             );
             if diff.length_squared() < HOLE_RADIUS * HOLE_RADIUS {
-                game.score += 1;
+                match mole.point {
+                    x if x > 0 => {
+                        game.score = game.score.saturating_add(mole.point as u32);
+                        spawn_feedback(&mut commands, transform.translation, mole.point);
+                    }
+                    x if x < 0 => {
+                        game.score = game.score.saturating_sub(mole.point.unsigned_abs());
+                        spawn_feedback(&mut commands, transform.translation, mole.point);
+                    }
+                    _ => (),
+                }
                 score_text.update(game.score);
                 commands.entity(entity).despawn();
             }
@@ -222,17 +325,17 @@ fn update(
 }
 
 fn update_game_timer(
-    mut commands: Commands,
+    //mut commands: Commands,
     time: Res<Time>,
     mut time_text: ResMut<TimeUI>,
     mut query: Query<(Entity, &mut GameTimer, &Wave)>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    let (entity, mut game_timer, _wave) = query.single_mut();
+    let (_entity, mut game_timer, _wave) = query.single_mut();
     game_timer.timer.tick(time.delta());
     time_text.update(game_timer.timer.remaining());
     if game_timer.timer.finished() {
-        commands.entity(entity).despawn();
+        //commands.entity(entity).despawn();
         next_state.set(GameState::Result);
     }
 }
@@ -248,16 +351,21 @@ fn update_wave(
     let (_entity, mut wave, emojis) = query.single_mut();
     wave.timer.tick(time.delta());
     if wave.timer.finished() {
+        let mut positions = grid.grid.clone();
+        fastrand::shuffle(&mut positions);
+        let mut variations: Vec<usize> = (1..MOLE_VARIATIONS).collect();
+        fastrand::shuffle(&mut variations);
+        variations.insert(0, 0);
         let num = fastrand::usize(1..std::cmp::max(2, wave.count >> 1));
-        for _i in 0..num {
-            let idx = fastrand::usize(0..grid.grid.len());
-            let pos = grid.grid.get(idx).expect("");
+        for i in 0..num {
+            let pos = positions.get(i).expect("");
             spawn_mole(
                 &mut commands,
                 *pos,
                 &atlas,
                 &validation,
-                *emojis.indices.first().expect(""),
+                *variations.get(i).expect(""),
+                &emojis.indices,
             );
         }
         wave.count += 1;
@@ -278,8 +386,10 @@ fn spawn_mole(
     pos: Vec2,
     atlas: &Res<EmojiAtlas>,
     validation: &Res<AtlasValidation>,
-    index: usize,
+    variation: usize,
+    emojis: &[usize],
 ) {
+    let index = *emojis.get(variation).expect("");
     if let Some(id) = emoji::spawn_emoji(
         commands,
         atlas,
@@ -287,9 +397,46 @@ fn spawn_mole(
         index,
         Transform::from_xyz(pos.x, pos.y, 0.),
     ) {
+        let point = POINTS.get(variation).map_or(1, |p| *p);
         commands.entity(id).insert(Mole {
             timer: Timer::new(Duration::from_secs(1), TimerMode::Once),
+            point,
         });
+    }
+}
+
+fn spawn_feedback(commands: &mut Commands, pos: Vec3, point: i32) {
+    let color = if point >= 0 {
+        Color::srgb(0., 1., 0.)
+    } else {
+        Color::srgb(1., 0., 0.)
+    };
+    commands.spawn((
+        Feedback {
+            timer: Timer::new(Duration::from_secs(1), TimerMode::Once),
+        },
+        Text2d::new(format!("{point:+}")),
+        Transform::from_xyz(pos.x, HOLE_OFFSET.mul_add(0.5, pos.y), 1.),
+        TextColor(color),
+    ));
+}
+
+fn update_feedback(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut Feedback)>,
+) {
+    for (entity, mut feedback) in &mut query {
+        feedback.timer.tick(time.delta());
+        if feedback.timer.finished() {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+fn game_exit(mut commands: Commands, query: Query<(Entity, &LifespanGame)>) {
+    for (entity, _) in &query {
+        commands.entity(entity).despawn_recursive();
     }
 }
 
