@@ -1,10 +1,9 @@
-use std::time::Duration;
-
 use bevy::prelude::*;
 use bits_helpers::input::{just_pressed_world_position, just_released_world_position};
-use bits_helpers::FONT;
+use bits_helpers::{FONT, send_bit_message};
 use puzzle15::{Panel, PuzzlePanels};
 use ribbit::Puzzle15;
+use ribbit_bits::{BitMessage, BitResult};
 
 mod puzzle15;
 mod ribbit;
@@ -19,6 +18,7 @@ enum GameState {
     Init,
     Game,
     Result,
+    Reset,
 }
 
 #[derive(States, Default, Debug, Clone, PartialEq, Eq, Hash)]
@@ -80,17 +80,11 @@ pub struct PanelVisual {
     index: usize,
 }
 
-#[derive(Component)]
-struct ResultTimer {
-    timer: Timer,
-}
-
 pub fn run() {
     bits_helpers::get_default_app::<Puzzle15>(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
         .init_state::<GameState>()
         .init_state::<PanelState>()
         .add_systems(OnEnter(GameState::Game), reset_puzzle)
-        .add_systems(OnEnter(GameState::Result), result_init)
         .add_systems(
             Update,
             (
@@ -101,7 +95,7 @@ pub fn run() {
                 panel_slide_system
                     .run_if(in_state(GameState::Game))
                     .run_if(in_state(PanelState::Slide)),
-                result_puzzle.run_if(in_state(GameState::Result)),
+                reset_state.run_if(in_state(GameState::Reset)),
             ),
         )
         .run();
@@ -139,11 +133,19 @@ fn reset_puzzle(
 ) {
     let mut puzzle_panels = panels_query.single_mut();
     puzzle_panels.reset();
-    println!("{}", *puzzle_panels);
     puzzle_panels.slide_random(4);
-    println!("{}", *puzzle_panels);
     spawn_panels(&mut commands, &puzzle_panels, &asset_server);
-    println!("reset puzzle");
+}
+
+fn reset_state(
+    mut commands: Commands,
+    panels: Query<Entity, With<PanelVisual>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    for panel in panels.iter() {
+        commands.entity(panel).despawn_recursive();
+    }
+    next_state.set(GameState::Game);
 }
 
 fn spawn_panels(
@@ -219,46 +221,9 @@ fn panel_slide_system(
         player.alpha = 0.;
         next_panel_state.set(PanelState::StandBy);
         if puzzle_panels.is_solved() {
+            send_bit_message(BitMessage::End(BitResult::Success));
             next_game_state.set(GameState::Result);
         }
-    }
-}
-
-fn result_init(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands
-        .spawn((
-            Text2d::new("Good job!"),
-            TextFont {
-                font: asset_server.load(FONT),
-                font_size: 48.,
-                ..default()
-            },
-            TextColor(Color::BLACK),
-            TextLayout::new_with_justify(JustifyText::Center),
-            Transform::from_xyz(0., 240., 10.),
-        ))
-        .insert(ResultTimer {
-            timer: Timer::new(Duration::from_secs(2), TimerMode::Once),
-        });
-    println!("result init");
-}
-
-fn result_puzzle(
-    mut commands: Commands,
-    mut timer_query: Query<(Entity, &mut ResultTimer)>,
-    time: Res<Time>,
-    mut p_q: Query<(Entity, &mut PanelVisual)>,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
-    //println!("result main");
-    let (timer_entity, mut timer) = timer_query.single_mut();
-    timer.timer.tick(time.delta());
-    if timer.timer.finished() {
-        commands.entity(timer_entity).despawn();
-        for (entity, _panel) in &mut p_q {
-            commands.entity(entity).despawn_recursive();
-        }
-        next_state.set(GameState::Game);
     }
 }
 
@@ -305,9 +270,6 @@ fn mouse_events_puzzle(
             println!("{}", *puzzle_panels);
             println!("released dir = {dir}");
         }
-        //if puzzle_panels.is_solved() {
-        //    next_state.set(Puzzle15GameState::Result);
-        //}
         next_state.set(PanelState::Slide);
     };
 }
