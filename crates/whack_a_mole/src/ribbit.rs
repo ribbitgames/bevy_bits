@@ -1,26 +1,24 @@
-use bevy::log::info;
-use bevy::prelude::NextState;
+use bevy::prelude::*;
 use bits_helpers::RibbitMessageHandler;
 use ribbit_bits::{BitDuration, BitResult};
 
-use crate::GameState;
+use crate::{GameProgress, GameState};
 
 #[derive(Default, Clone, Copy)]
 pub struct WhackAMole;
 
 impl RibbitMessageHandler for WhackAMole {
     fn restart(world: &mut bevy::prelude::World) {
-        info!("Restarting WhachAMole");
-
         let mut next_state = world.resource_mut::<NextState<GameState>>();
-        next_state.set(GameState::Game);
+        next_state.set(GameState::Reset);
     }
 
-    fn end(_world: &mut bevy::prelude::World) -> BitResult {
-        info!("Ending WhackAMole");
+    fn end(world: &mut World) -> BitResult {
+        let mut next_state = world.resource_mut::<NextState<GameState>>();
+        next_state.set(GameState::Result);
 
-        // Player did not complete the game
-        BitResult::Failure
+        let progress = world.resource::<GameProgress>();
+        BitResult::HighestScore(progress.score.into())
     }
 
     fn duration(_world: &mut bevy::prelude::World) -> BitDuration {

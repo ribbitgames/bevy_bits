@@ -54,29 +54,6 @@ impl TimeUI {
 }
 
 #[derive(Resource, Default)]
-pub struct CenterTextUI {
-    text: String,
-    visibility: Visibility,
-    is_dirty: bool,
-}
-
-impl CenterTextUI {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn update(&mut self, new_text: String) {
-        self.text = new_text;
-        self.is_dirty = true;
-    }
-
-    pub fn set_visiblity(&mut self, new_visibility: Visibility) {
-        self.visibility = new_visibility;
-        self.is_dirty = true;
-    }
-}
-
-#[derive(Resource, Default)]
 pub struct BottomTextUI {
     text: String,
     visibility: Visibility,
@@ -117,18 +94,9 @@ impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ScoreUI::new())
             .insert_resource(TimeUI::new())
-            .insert_resource(CenterTextUI::new())
             .insert_resource(BottomTextUI::new())
             .add_systems(Startup, setup)
-            .add_systems(
-                Update,
-                (
-                    update_score,
-                    update_time,
-                    update_center_text,
-                    update_bottom_text,
-                ),
-            );
+            .add_systems(Update, (update_score, update_time, update_bottom_text));
     }
 }
 
@@ -226,19 +194,6 @@ fn update_time(
             *visibility = time.visibility;
         }
         time.is_dirty = false;
-    }
-}
-
-fn update_center_text(
-    mut center_text: ResMut<CenterTextUI>,
-    mut query: Query<(&CenterText, &mut Text, &mut Visibility)>,
-) {
-    if center_text.is_dirty {
-        for (_, mut text, mut visibility) in &mut query {
-            *text = Text::new(center_text.text.clone());
-            *visibility = center_text.visibility;
-        }
-        center_text.is_dirty = false;
     }
 }
 
