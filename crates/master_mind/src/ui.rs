@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::utils::Duration;
 
 const BUTTON_NORMAL: Color = Color::srgb(0.15, 0.15, 0.15);
 const BUTTON_HOVERED: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -13,28 +12,13 @@ pub struct ButtonEvent {
     pub key_code: KeyCode,
 }
 
-#[derive(Event)]
-pub struct ShowMessageEvent {
-    pub message: String,
-}
-
-#[derive(Event)]
-pub struct EndMessageEvent;
-
-#[derive(Component)]
-struct MessageTimer {
-    timer: Timer,
-}
-
 pub struct UIPlugin;
 
 impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<ButtonEvent>()
-            .add_event::<ShowMessageEvent>()
-            .add_event::<EndMessageEvent>()
             .add_systems(Startup, setup)
-            .add_systems(Update, (button_system, show_message_system, update_message));
+            .add_systems(Update, button_system);
     }
 }
 
@@ -232,38 +216,6 @@ fn button_system(
                 *color = BUTTON_NORMAL.into();
                 border_color.0 = BUTTON_FRAME_NORMAL;
             }
-        }
-    }
-}
-
-fn show_message_system(mut commands: Commands, mut events: EventReader<ShowMessageEvent>) {
-    for event in events.read() {
-        commands
-            .spawn((
-                Text::from(event.message.clone()),
-                TextFont {
-                    font_size: 32.,
-                    ..default()
-                },
-                Transform::from_translation(Vec3::new(0., 0., 10.)),
-            ))
-            .insert(MessageTimer {
-                timer: Timer::new(Duration::from_secs(2), TimerMode::Once),
-            });
-    }
-}
-
-fn update_message(
-    mut commands: Commands,
-    mut query: Query<(Entity, &mut MessageTimer)>,
-    time: Res<Time>,
-    mut event: EventWriter<EndMessageEvent>,
-) {
-    for (entity, mut message) in &mut query {
-        message.timer.tick(time.delta());
-        if message.timer.finished() {
-            commands.entity(entity).despawn();
-            event.send(EndMessageEvent);
         }
     }
 }
