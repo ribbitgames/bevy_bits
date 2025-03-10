@@ -3,7 +3,7 @@ use bevy::prelude::NextState;
 use bits_helpers::RibbitMessageHandler;
 use ribbit_bits::{BitDuration, BitResult};
 
-use crate::GameState;
+use crate::{GameData, GameState};
 
 #[derive(Default, Clone, Copy)]
 pub struct MathQuiz;
@@ -14,6 +14,9 @@ impl RibbitMessageHandler for MathQuiz {
 
         let mut next_state = world.resource_mut::<NextState<GameState>>();
         next_state.set(GameState::Welcome);
+
+        let mut game_data = world.resource_mut::<GameData>();
+        *game_data = GameData::default();
     }
 
     fn end(world: &mut bevy::prelude::World) -> BitResult {

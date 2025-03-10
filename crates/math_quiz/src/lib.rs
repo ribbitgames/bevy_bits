@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use bevy::time::Timer;
-use bits_helpers::welcome_screen::{despawn_welcome_screen, WelcomeScreenElement};
-use bits_helpers::FONT;
+use bits_helpers::welcome_screen::{WelcomeScreenElement, despawn_welcome_screen};
+use bits_helpers::{FONT, send_bit_message};
 use ribbit::MathQuiz;
+use ribbit_bits::{BitMessage, BitResult};
 
 mod ribbit;
 
@@ -40,15 +41,6 @@ struct AnswerBox {
 struct TimerText;
 
 #[derive(Component)]
-struct RestartButton;
-
-#[derive(Component)]
-struct GameOverElement;
-
-#[derive(Component)]
-struct BlurredBackground;
-
-#[derive(Component)]
 struct CleanupMarker;
 
 #[derive(Component)]
@@ -78,15 +70,12 @@ pub fn run() {
         .add_systems(OnExit(GameState::Welcome), despawn_welcome_screen)
         .add_systems(OnEnter(GameState::Playing), spawn_game_elements)
         .add_systems(OnExit(GameState::Playing), cleanup_marked_entities)
-        .add_systems(OnEnter(GameState::GameOver), spawn_game_over_screen)
-        .add_systems(OnExit(GameState::GameOver), cleanup_marked_entities)
         .add_systems(
             Update,
             (
                 handle_welcome_input.run_if(in_state(GameState::Welcome)),
                 (update_timer, check_answer, handle_feedback_timer)
                     .run_if(in_state(GameState::Playing)),
-                handle_restart.run_if(in_state(GameState::GameOver)),
             ),
         )
         .run();
@@ -403,6 +392,9 @@ fn handle_feedback_timer(
             if game_data.last_answer_correct {
                 if game_data.current_stage > 4 {
                     next_state.set(GameState::GameOver);
+                    send_bit_message(BitMessage::End(BitResult::FastestDuration(
+                        game_data.timer.elapsed(),
+                    )));
                 } else {
                     generate_question(
                         &mut commands,
@@ -413,6 +405,7 @@ fn handle_feedback_timer(
                 }
             } else {
                 next_state.set(GameState::GameOver);
+                send_bit_message(BitMessage::End(BitResult::Failure));
             }
             game_data.feedback_timer = None;
             game_data.waiting_for_feedback = false;
@@ -428,112 +421,6 @@ fn update_timer(
     game_data.timer.tick(time.delta());
     if let Ok(mut text) = timer_query.get_single_mut() {
         text.0 = format!("Time: {:.1}", game_data.timer.elapsed_secs());
-    }
-}
-
-fn spawn_game_over_screen(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    game_data: Res<GameData>,
-) {
-    let message = if game_data.current_stage > 4 {
-        format!(
-            "Congratulations!\nYou completed all stages\nin {:.1} seconds",
-            game_data.timer.elapsed_secs()
-        )
-    } else {
-        format!("Game Over!\nYou reached stage {}", game_data.current_stage)
-    };
-
-    commands.spawn((
-        Node {
-            position_type: PositionType::Absolute,
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            ..default()
-        },
-        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.7)),
-        BlurredBackground,
-        GameOverElement,
-        CleanupMarker,
-    ));
-
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
-            GameOverElement,
-            CleanupMarker,
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn((
-                    Node {
-                        padding: UiRect::all(Val::Px(20.0)),
-                        max_width: Val::Percent(80.0),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.8)),
-                    GameOverElement,
-                ))
-                .with_children(|parent| {
-                    parent.spawn((
-                        Text::new(message),
-                        TextFont {
-                            font: asset_server.load(FONT),
-                            font_size: 32.0,
-                            ..default()
-                        },
-                        TextColor(Color::WHITE),
-                        TextLayout::new_with_justify(JustifyText::Center),
-                    ));
-                });
-
-            parent
-                .spawn((
-                    Node {
-                        width: Val::Px(200.0),
-                        height: Val::Px(65.0),
-                        margin: UiRect::all(Val::Px(20.0)),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                    BackgroundColor(Color::BLACK),
-                    Button,
-                    RestartButton,
-                    GameOverElement,
-                ))
-                .with_children(|parent| {
-                    parent.spawn((
-                        Text::new("Restart"),
-                        TextFont {
-                            font: asset_server.load(FONT),
-                            font_size: 40.0,
-                            ..default()
-                        },
-                        TextColor(Color::WHITE),
-                    ));
-                });
-        });
-}
-
-fn handle_restart(
-    mut next_state: ResMut<NextState<GameState>>,
-    mut game_data: ResMut<GameData>,
-    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<RestartButton>)>,
-) {
-    for interaction in &mut interaction_query {
-        if *interaction == Interaction::Pressed {
-            *game_data = GameData::default();
-            next_state.set(GameState::Playing);
-        }
     }
 }
 
