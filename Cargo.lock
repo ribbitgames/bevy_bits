@@ -546,7 +546,6 @@ dependencies = [
  "ribbit_bits",
  "strum",
  "syn",
- "tower_tumble",
  "wasm-bindgen",
  "web-sys",
  "whack_a_mole",
@@ -2770,6 +2769,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
+name = "jelly_joust"
+version = "0.0.1"
+dependencies = [
+ "avian2d",
+ "bevy",
+ "bits_helpers",
+ "fastrand",
+ "rand",
+ "ribbit_bits",
+ "strum",
+]
+
+[[package]]
 name = "jni"
 version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4769,18 +4781,6 @@ dependencies = [
  "indexmap",
  "toml_datetime",
  "winnow",
-]
-
-[[package]]
-name = "tower_tumble"
-version = "0.0.1"
-dependencies = [
- "avian2d",
- "bevy",
- "bits_helpers",
- "fastrand",
- "ribbit_bits",
- "strum",
 ]
 
 [[package]]
