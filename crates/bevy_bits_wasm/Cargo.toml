@@ -19,7 +19,7 @@ master_mind = { path = "../master_mind" }
 math_quiz = { path = "../math_quiz" }
 memoji = { path = "../memoji" }
 puzzle15 = { path = "../puzzle15" }
-tower_tumble = { path = "../tower_tumble" }
+#tower_tumble = { path = "../tower_tumble" }
 whack_a_mole = { path = "../whack_a_mole" }
 wheres_waldo = { path = "../wheres_waldo" }
 
