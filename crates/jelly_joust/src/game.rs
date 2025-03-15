@@ -8,7 +8,7 @@ use bits_helpers::input::{
     just_pressed_world_position, just_released_world_position, pressed_world_position,
 };
 use bits_helpers::welcome_screen::{
-    WelcomeScreenElement, despawn_welcome_screen, spawn_welcome_screen_shape,
+    WelcomeScreenElement, despawn_welcome_screen, spawn_welcome_screen,
 };
 use bits_helpers::{WINDOW_HEIGHT, WINDOW_WIDTH};
 
@@ -23,7 +23,16 @@ impl Plugin for GamePlugin {
             .insert_resource(PlatformTiltState::default())
             .insert_resource(SwipeState::default())
             .insert_resource(AiState::default())
-            .add_systems(OnEnter(GameState::Welcome), spawn_welcome_screen)
+            .add_systems(
+                OnEnter(GameState::Welcome),
+                |commands: Commands, asset_server: Res<AssetServer>| {
+                    spawn_welcome_screen(
+                        commands,
+                        asset_server,
+                        "Jelly Joust\n\nSwipe to swing your sword!",
+                    );
+                },
+            )
             .add_systems(Update, start_game.run_if(in_state(GameState::Welcome)))
             .add_systems(OnEnter(GameState::Playing), spawn_game_entities)
             .add_systems(
@@ -59,7 +68,7 @@ struct Ground;
 
 #[derive(Component)]
 struct Sword {
-    is_player: bool, // Removed unused `owner` field
+    is_player: bool,
 }
 
 #[derive(Resource, Default)]
@@ -87,24 +96,8 @@ const KNIGHT_SIZE: f32 = 50.0;
 const PLATFORM_WIDTH: f32 = WINDOW_WIDTH * 0.8;
 const PLATFORM_HEIGHT: f32 = 20.0;
 const SWORD_LENGTH: f32 = 40.0;
+const SWORD_WIDTH: f32 = 10.0;
 const GROUND_HEIGHT: f32 = 20.0;
-
-fn spawn_welcome_screen(
-    commands: Commands,
-    asset_server: Res<AssetServer>,
-    meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<ColorMaterial>>,
-) {
-    spawn_welcome_screen_shape(
-        commands,
-        asset_server,
-        meshes,
-        materials,
-        "Swipe to swing your sword!",
-        Mesh::from(Circle::new(KNIGHT_SIZE)),
-        Color::srgb(0.0, 1.0, 0.0),
-    );
-}
 
 fn start_game(
     mut next_state: ResMut<NextState<GameState>>,
@@ -218,17 +211,18 @@ fn spawn_game_entities(
         .spawn((
             Sprite {
                 color: Color::srgb(0.5, 0.5, 0.5),
-                custom_size: Some(Vec2::new(SWORD_LENGTH, 10.0)),
+                custom_size: Some(Vec2::new(SWORD_WIDTH, SWORD_LENGTH)),
                 ..default()
             },
             Transform::from_xyz(
                 (-PLATFORM_WIDTH).mul_add(0.25, KNIGHT_SIZE / 2.0),
-                platform_y + PLATFORM_HEIGHT / 2.0 + KNIGHT_SIZE / 2.0,
+                platform_y + PLATFORM_HEIGHT / 2.0 + KNIGHT_SIZE / 2.0 + SWORD_LENGTH / 2.0,
                 0.0,
-            ),
+            )
+            .with_rotation(Quat::from_rotation_z(-std::f32::consts::FRAC_PI_4)), // 45° downward angle
             Visibility::Visible,
             RigidBody::Dynamic,
-            Collider::rectangle(SWORD_LENGTH, 10.0),
+            Collider::rectangle(SWORD_WIDTH, SWORD_LENGTH),
             Mass(1.0),
             Sword { is_player: true },
         ))
@@ -236,25 +230,26 @@ fn spawn_game_entities(
     commands.spawn(
         RevoluteJoint::new(player, player_sword)
             .with_local_anchor_1(Vec2::new(KNIGHT_SIZE / 2.0, 0.0))
-            .with_local_anchor_2(Vec2::new(-SWORD_LENGTH / 2.0, 0.0))
-            .with_angle_limits(-1.0, 1.0),
+            .with_local_anchor_2(Vec2::new(0.0, -SWORD_LENGTH / 2.0))
+            .with_angle_limits(-1.5, 1.5), // Wider swing range (±85.9°)
     );
 
     let opponent_sword = commands
         .spawn((
             Sprite {
                 color: Color::srgb(0.5, 0.5, 0.5),
-                custom_size: Some(Vec2::new(SWORD_LENGTH, 10.0)),
+                custom_size: Some(Vec2::new(SWORD_WIDTH, SWORD_LENGTH)),
                 ..default()
             },
             Transform::from_xyz(
                 PLATFORM_WIDTH.mul_add(0.25, -(KNIGHT_SIZE / 2.0)),
-                platform_y + PLATFORM_HEIGHT / 2.0 + KNIGHT_SIZE / 2.0,
+                platform_y + PLATFORM_HEIGHT / 2.0 + KNIGHT_SIZE / 2.0 + SWORD_LENGTH / 2.0,
                 0.0,
-            ),
+            )
+            .with_rotation(Quat::from_rotation_z(-std::f32::consts::FRAC_PI_4)),
             Visibility::Visible,
             RigidBody::Dynamic,
-            Collider::rectangle(SWORD_LENGTH, 10.0),
+            Collider::rectangle(SWORD_WIDTH, SWORD_LENGTH),
             Mass(1.0),
             Sword { is_player: false },
         ))
@@ -262,8 +257,8 @@ fn spawn_game_entities(
     commands.spawn(
         RevoluteJoint::new(opponent, opponent_sword)
             .with_local_anchor_1(Vec2::new(-KNIGHT_SIZE / 2.0, 0.0))
-            .with_local_anchor_2(Vec2::new(SWORD_LENGTH / 2.0, 0.0))
-            .with_angle_limits(-1.0, 1.0),
+            .with_local_anchor_2(Vec2::new(0.0, -SWORD_LENGTH / 2.0))
+            .with_angle_limits(-1.5, 1.5),
     );
 
     // Start AI timer
@@ -301,7 +296,7 @@ fn player_swing(
             let swipe = current_pos - start_pos;
             for (sword, mut ang_vel) in &mut swords {
                 if sword.is_player {
-                    let swing_strength = (swipe.x / 50.0).clamp(-1.0, 1.0) * 30.0;
+                    let swing_strength = (swipe.x / 50.0).clamp(-1.0, 1.0) * 40.0; // Increased max strength
                     ang_vel.0 = swing_strength;
                 }
             }

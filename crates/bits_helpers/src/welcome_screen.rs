@@ -5,22 +5,13 @@ use crate::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 #[derive(Component)]
 pub struct WelcomeScreenElement;
 
-pub fn spawn_welcome_screen_shape(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    action: &str,
-    shape: Mesh,
-    shape_color: Color,
-) {
+pub fn spawn_welcome_screen(mut commands: Commands, asset_server: Res<AssetServer>, action: &str) {
     // Background
     commands.spawn((
         Sprite::from_color(Color::BLACK, Vec2::new(WINDOW_WIDTH, WINDOW_HEIGHT)),
         WelcomeScreenElement,
     ));
 
-    // "Mash this shape" text
     commands.spawn((
         Text::new(action),
         TextFont {
@@ -37,14 +28,6 @@ pub fn spawn_welcome_screen_shape(
             align_items: AlignItems::Center,
             ..default()
         },
-        WelcomeScreenElement,
-    ));
-
-    // The shape
-    commands.spawn((
-        Mesh2d(meshes.add(shape)),
-        MeshMaterial2d(materials.add(ColorMaterial::from(shape_color))),
-        Transform::from_xyz(0.0, 0.0, 1.0),
         WelcomeScreenElement,
     ));
 
