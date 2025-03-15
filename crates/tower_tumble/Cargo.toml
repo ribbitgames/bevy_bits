@@ -8,10 +8,8 @@ license.workspace = true
 [dependencies]
 bits_helpers.workspace = true
 ribbit_bits.workspace = true
-
-
 bevy.workspace = true
-bevy_rapier2d.workspace = true
+avian2d = "0.2.1"
 fastrand.workspace = true
 strum.workspace = true
 

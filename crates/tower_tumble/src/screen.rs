@@ -66,7 +66,6 @@ fn try_spawn_welcome_screen(
         return;
     }
 
-    // Create a UI root node
     let ui_root = commands
         .spawn((
             Node {
@@ -80,7 +79,6 @@ fn try_spawn_welcome_screen(
         ))
         .id();
 
-    // Spawn the welcome text as a child of the root
     let welcome_text = commands
         .spawn((
             Text::new("Tower Tumble\n\nCarefully remove\nblocks without\ntoppling the tower\n\nClick to Start"),
@@ -94,7 +92,6 @@ fn try_spawn_welcome_screen(
         ))
         .id();
 
-    // Build the hierarchy
     commands.entity(ui_root).add_child(welcome_text);
 }
 
@@ -122,7 +119,6 @@ fn try_spawn_level_complete(
     let time_bonus = (game_progress.level_timer.remaining_secs() as u32) * 5;
     game_progress.add_time_bonus();
 
-    // Create a UI overlay
     let overlay = commands
         .spawn((
             Node {
@@ -137,7 +133,6 @@ fn try_spawn_level_complete(
         ))
         .id();
 
-    // Add the level complete text as a child
     let complete_text = commands
         .spawn((
             Text::new(format!(
@@ -157,7 +152,6 @@ fn try_spawn_level_complete(
         ))
         .id();
 
-    // Build the hierarchy
     commands.entity(overlay).add_child(complete_text);
 }
 
@@ -172,7 +166,6 @@ fn handle_level_complete_input(
 }
 
 fn spawn_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Create UI root node
     let ui_root = commands
         .spawn((
             Node {
@@ -185,7 +178,6 @@ fn spawn_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         ))
         .id();
 
-    // Score - top left
     let score_text = commands
         .spawn((
             Text::new("Score: 0"),
@@ -205,7 +197,6 @@ fn spawn_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         ))
         .id();
 
-    // Level - top right
     let level_text = commands
         .spawn((
             Text::new("Level: 1"),
@@ -225,7 +216,6 @@ fn spawn_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         ))
         .id();
 
-    // Timer - below level
     let timer_text = commands
         .spawn((
             Text::new("Time: 90"),
@@ -245,7 +235,6 @@ fn spawn_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         ))
         .id();
 
-    // Blocks - below score
     let blocks_text = commands
         .spawn((
             Text::new("Blocks: 0/15"),
@@ -265,7 +254,6 @@ fn spawn_game_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         ))
         .id();
 
-    // Build the hierarchy
     commands
         .entity(ui_root)
         .add_child(score_text)
