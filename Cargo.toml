@@ -1,6 +1,6 @@
 [workspace]
 members = ["crates/*"]
-exclude = ["crates/emoji_cascade"]
+exclude = ["crates/emoji_cascade", "crates/tower_tumble"]
 resolver = "3"
 
 [workspace.package]
