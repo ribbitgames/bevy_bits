@@ -3,11 +3,14 @@
     reason = "allow attributes are needed for wasm"
 )]
 
+use std::time::Duration;
+
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::render::RenderPlugin;
 use bevy::render::settings::{WgpuSettings, WgpuSettingsPriority};
 use bevy::window::{WindowMode, WindowResolution};
+use bevy_framepace::{FramepaceSettings, Limiter};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::ribbit_simulation::RibbitSimulation;
@@ -91,6 +94,7 @@ pub fn get_default_app<T: RibbitMessageHandler>(bit_name: &str, bit_version: &st
     // This plugin is useful to preserve battery life on mobile.
     // https://github.com/aevyrie/bevy_framepace
     app.add_plugins(bevy_framepace::FramepacePlugin);
+    app.add_systems(Startup, framepace_plugin_setup);
 
     // Add this new code to set the clear color to black
     app.insert_resource(ClearColor(Color::BLACK));
@@ -108,4 +112,8 @@ pub fn get_default_app<T: RibbitMessageHandler>(bit_name: &str, bit_version: &st
     }
 
     app
+}
+
+fn framepace_plugin_setup(mut framepace: ResMut<FramepaceSettings>) {
+    framepace.limiter = Limiter::Manual(Duration::from_secs_f64(1.0 / 60.0));
 }
