@@ -1,8 +1,15 @@
+use std::f32::consts::SQRT_2;
+
 use bevy::prelude::*;
 use bevy::text::{TextColor, TextFont};
 use bevy::utils::default;
+use bits_helpers::input::{
+    just_pressed_world_position, just_released_world_position, pressed_world_position,
+};
+use bits_helpers::send_bit_message;
 use maze::MazeGenerator;
 use ribbit::Maze;
+use ribbit_bits::{BitMessage, BitResult};
 
 mod maze;
 mod ribbit;
@@ -55,6 +62,9 @@ enum GameState {
 #[derive(Component)]
 struct MainCamera;
 
+#[derive(Component)]
+struct LifespanGame;
+
 #[derive(Component, Default)]
 struct MazePlayer {
     is_moving: bool,
@@ -69,9 +79,27 @@ struct MazeItem {
     pos: IVec2,
 }
 
+#[derive(Resource, Default)]
+struct GameManager {
+    count: usize,
+}
+
+const VIRTUAL_CONTROLLER_FRAME_SIZE: f32 = 64.0;
+const VIRTUAL_CONTROLLER_LEVER_SIZE: f32 = 32.0;
+const VIRTUAL_CONTROLLER_THRESHOLD: f32 = 0.5;
+const VIRTUAL_CONTROLLER_NEUTRAL: f32 = 0.25;
+const VIRTUAL_CONTROLLER_COLOR: Color = Color::srgba(0.75, 0.75, 0.75, 0.5);
+
+#[derive(Component, Default)]
+struct VirtualControllerFrame;
+
+#[derive(Component, Default)]
+struct VirtualControllerLever;
+
 pub fn run() {
     bits_helpers::get_default_app::<Maze>(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
         .init_state::<GameState>()
+        .insert_resource(GameManager::default())
         .add_systems(OnEnter(GameState::Game), reset_maze)
         .add_systems(
             Update,
@@ -81,12 +109,18 @@ pub fn run() {
                 gridbase_player_move_system.run_if(in_state(GameState::Game)),
                 game_result.run_if(in_state(GameState::Result)),
                 keyboard_events_maze.run_if(in_state(GameState::Game)),
+                input_events_maze.run_if(in_state(GameState::Game)),
             ),
         )
         .run();
 }
 
-fn init_maze(mut commands: Commands, mut next_state: ResMut<NextState<GameState>>) {
+fn init_maze(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
     println!("init");
     // Camera
     commands.spawn(Camera2d).insert(MainCamera);
@@ -95,6 +129,8 @@ fn init_maze(mut commands: Commands, mut next_state: ResMut<NextState<GameState>
     // Spawn maze grid (It needs only once)
     spawn_grid(&mut commands);
     spawn_objective(&mut commands);
+    // Virtual controller
+    spawn_virtual_controller(&mut commands, &mut meshes, &mut materials);
     next_state.set(GameState::Game);
 }
 
@@ -102,7 +138,11 @@ fn spawn_grid(commands: &mut Commands) {
     let room_size = Vec2::new(TILE_SIZE - WALL_DEPTH, TILE_SIZE - WALL_DEPTH);
     for y in 0..MAZE_SIZE_Y {
         for x in 0..MAZE_SIZE_X {
-            let grid_pos = GridPos { x, y, priority: 0. };
+            let grid_pos = GridPos {
+                x,
+                y,
+                priority: -10.,
+            };
             commands
                 .spawn((
                     Sprite::from_color(Color::WHITE, Vec2::new(TILE_SIZE, TILE_SIZE)),
@@ -116,30 +156,72 @@ fn spawn_grid(commands: &mut Commands) {
 }
 
 fn spawn_objective(commands: &mut Commands) {
-    commands.spawn((
-        Text::new("Collect  !"),
-        TextFont {
-            font_size: 48.,
+    commands
+        .spawn(Node {
+            width: Val::Percent(100.),
+            height: Val::Percent(100.),
+            display: Display::Grid,
+            //grid_template_rows: RepeatedGridTrack::fr(3, 1.),
             ..default()
-        },
-        TextColor(Color::WHITE),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(10.0),
-            left: Val::Px(10.0),
-            ..default()
-        },
-        TextLayout::new_with_justify(JustifyText::Center),
-    ));
+        })
+        .with_children(|parent| {
+            parent.spawn((
+                Node {
+                    align_self: AlignSelf::Start,
+                    justify_self: JustifySelf::Center,
+                    ..default()
+                },
+                Text::new("Collect  !"),
+                TextFont {
+                    font_size: 42.,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ));
+        });
 
     commands.spawn((
         Sprite::from_color(Color::srgb(1., 1., 0.), Vec2::new(32., 32.)),
-        Transform::from_xyz(72., 240., 10.),
+        Transform::from_xyz(72., 296., 1.),
     ));
 }
 
-fn reset_maze(mut commands: Commands, mut maze_query: Query<&mut MazeGenerator>) {
+fn spawn_virtual_controller(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<ColorMaterial>>,
+) {
+    let shape_frame = meshes.add(Annulus::new(
+        VIRTUAL_CONTROLLER_FRAME_SIZE * 0.875,
+        VIRTUAL_CONTROLLER_FRAME_SIZE,
+    ));
+
+    let shape_lever = meshes.add(Circle::new(VIRTUAL_CONTROLLER_LEVER_SIZE));
+
+    commands.spawn((
+        Mesh2d(shape_frame),
+        MeshMaterial2d(materials.add(VIRTUAL_CONTROLLER_COLOR)),
+        Transform::from_xyz(0., 0., 10.),
+        VirtualControllerFrame,
+        Visibility::Hidden,
+    ));
+    commands.spawn((
+        Mesh2d(shape_lever),
+        MeshMaterial2d(materials.add(VIRTUAL_CONTROLLER_COLOR)),
+        Transform::from_xyz(0., 0., 10.),
+        VirtualControllerLever,
+        Visibility::Hidden,
+    ));
+}
+
+fn reset_maze(
+    mut commands: Commands,
+    mut game_manager: ResMut<GameManager>,
+    mut maze_query: Query<&mut MazeGenerator>,
+    mut clear_query: Query<Entity, With<LifespanGame>>,
+) {
     println!("reset");
+    clear_maze(&mut commands, &mut clear_query);
     let mut maze = maze_query.single_mut();
     // Generate a new maze
     maze.generate();
@@ -166,6 +248,14 @@ fn reset_maze(mut commands: Commands, mut maze_query: Query<&mut MazeGenerator>)
             spawn_item(&mut commands, *deadend);
         }
     }
+
+    game_manager.count = 0;
+}
+
+fn clear_maze(commands: &mut Commands, query: &mut Query<Entity, With<LifespanGame>>) {
+    for entity in query {
+        commands.entity(entity).despawn_recursive();
+    }
 }
 
 fn spawn_maze(commands: &mut Commands, maze: &MazeGenerator) {
@@ -173,30 +263,34 @@ fn spawn_maze(commands: &mut Commands, maze: &MazeGenerator) {
 
     for y in 0..maze.height() {
         for x in 0..maze.width() {
-            let grid_pos = GridPos { x, y, priority: 1. };
+            let grid_pos = GridPos { x, y, priority: 0. };
             let pos: Vec3 = grid_pos.into();
             if maze.can_go(IVec2::new(x as i32, y as i32), IVec2::new(1, 0)) {
                 commands.spawn((
                     Sprite::from_color(Color::BLACK, room_size),
                     Transform::from_translation(pos + Vec3::new(2., 0., 0.)),
+                    LifespanGame,
                 ));
             }
             if maze.can_go(IVec2::new(x as i32, y as i32), IVec2::new(0, 1)) {
                 commands.spawn((
                     Sprite::from_color(Color::BLACK, room_size),
                     Transform::from_translation(pos + Vec3::new(0., -2., 0.)),
+                    LifespanGame,
                 ));
             }
             if maze.can_go(IVec2::new(x as i32, y as i32), IVec2::new(-1, 0)) {
                 commands.spawn((
                     Sprite::from_color(Color::BLACK, room_size),
                     Transform::from_translation(pos + Vec3::new(-2., 0., 0.)),
+                    LifespanGame,
                 ));
             }
             if maze.can_go(IVec2::new(x as i32, y as i32), IVec2::new(0, -1)) {
                 commands.spawn((
                     Sprite::from_color(Color::BLACK, room_size),
                     Transform::from_translation(pos + Vec3::new(0., 2., 0.)),
+                    LifespanGame,
                 ));
             }
         }
@@ -214,6 +308,7 @@ fn spawn_item(commands: &mut Commands, pos: IVec2) {
         Sprite::from_color(Color::srgb(1., 1., 0.), Vec2::new(ITEM_SIZE, ITEM_SIZE)),
         Transform::from(grid_pos),
         MazeItem { pos },
+        LifespanGame,
     ));
 }
 
@@ -232,18 +327,26 @@ fn spawn_player(commands: &mut Commands, pos: IVec2) {
             next_pos: pos,
             ..Default::default()
         },
+        LifespanGame,
     ));
 }
 
 fn item_collect_system(
     mut commands: Commands,
+    mut game_manager: ResMut<GameManager>,
     player_query: Query<&MazePlayer>,
     mut item_query: Query<(&mut MazeItem, Entity)>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     let player = player_query.single();
     for (item, entity) in &mut item_query {
         if player.pos == item.pos {
             commands.entity(entity).despawn();
+            game_manager.count += 1;
+            if game_manager.count >= NUM_ITEMS {
+                send_bit_message(BitMessage::End(BitResult::Success));
+                next_state.set(GameState::Result);
+            }
         }
     }
 }
@@ -271,6 +374,93 @@ fn keyboard_events_maze(
         player.input.x = 0;
         player.input.y = 0;
     }
+}
+
+fn input_events_maze(
+    window: Query<&Window>,
+    camera: Query<(&Camera, &GlobalTransform)>,
+    mouse_button_input: Res<ButtonInput<MouseButton>>,
+    touch_input: Res<Touches>,
+    mut player_query: Query<&mut MazePlayer>,
+    mut frame_query: Query<
+        (&mut Transform, &mut Visibility),
+        (
+            With<VirtualControllerFrame>,
+            Without<VirtualControllerLever>,
+        ),
+    >,
+    mut lever_query: Query<
+        (&mut Transform, &mut Visibility),
+        (
+            With<VirtualControllerLever>,
+            Without<VirtualControllerFrame>,
+        ),
+    >,
+) {
+    if let Some(world_position) =
+        just_pressed_world_position(&mouse_button_input, &touch_input, &window, &camera)
+    {
+        let (mut frame, mut frame_visibility) = frame_query.single_mut();
+        frame.translation.x = world_position.x;
+        frame.translation.y = world_position.y;
+        *frame_visibility = Visibility::Inherited;
+        let (_, mut lever_visiblity) = lever_query.single_mut();
+        *lever_visiblity = Visibility::Inherited;
+    };
+
+    if let Some(world_position) =
+        pressed_world_position(&mouse_button_input, &touch_input, &window, &camera)
+    {
+        let (frame, _) = frame_query.single_mut();
+        let (mut lever, _) = lever_query.single_mut();
+        let diff = Vec2::new(
+            world_position.x - frame.translation.x,
+            world_position.y - frame.translation.y,
+        );
+        let limit = VIRTUAL_CONTROLLER_FRAME_SIZE - VIRTUAL_CONTROLLER_LEVER_SIZE;
+        let dist = limit.mul_add(
+            -VIRTUAL_CONTROLLER_NEUTRAL,
+            diff.length()
+                .clamp(limit * VIRTUAL_CONTROLLER_NEUTRAL, limit),
+        );
+        let input = (diff.normalize() * dist).normalize();
+        let offset = input * limit;
+        lever.translation.x = frame.translation.x + offset.x;
+        lever.translation.y = frame.translation.y + offset.y;
+        if input.length() < VIRTUAL_CONTROLLER_THRESHOLD {
+            return;
+        }
+        //println!("{input}");
+        let mut player = player_query.single_mut();
+        let dot_x = input.dot(Vec2::X);
+        let dot_y = input.dot(Vec2::Y);
+        let inv_sqrt_2 = 1. / SQRT_2;
+        if dot_y > inv_sqrt_2 {
+            player.input.x = 0;
+            player.input.y = -1;
+        } else if dot_y < -inv_sqrt_2 {
+            player.input.x = 0;
+            player.input.y = 1;
+        } else if dot_x < -inv_sqrt_2 {
+            player.input.x = -1;
+            player.input.y = 0;
+        } else if dot_x > inv_sqrt_2 {
+            player.input.x = 1;
+            player.input.y = 0;
+        } else {
+            player.input.x = 0;
+            player.input.y = 0;
+        }
+    };
+
+    if let Some(_world_position) =
+        just_released_world_position(&mouse_button_input, &touch_input, &window, &camera)
+    {
+        let (_, mut frame_visibility) = frame_query.single_mut();
+        *frame_visibility = Visibility::Hidden;
+        let (_, mut lever_visibility) = lever_query.single_mut();
+        *lever_visibility = Visibility::Hidden;
+    };
 }
 
 fn gridbase_player_move_system(
