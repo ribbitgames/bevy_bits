@@ -2,8 +2,9 @@ use bevy::prelude::*;
 use bevy::utils::Duration;
 use bits_helpers::emoji::{self, AtlasValidation, EmojiAtlas, EmojiPlugin};
 use bits_helpers::input::just_pressed_world_position;
-use bits_helpers::{WINDOW_HEIGHT, WINDOW_WIDTH};
+use bits_helpers::{WINDOW_HEIGHT, WINDOW_WIDTH, send_bit_message};
 use ribbit::WhackAMole;
+use ribbit_bits::{BitMessage, BitResult};
 use ui::{BottomTextUI, ScoreUI, TimeUI};
 
 mod ribbit;
@@ -336,6 +337,7 @@ fn update_game_timer(
     time_text.update(game_timer.timer.remaining());
     if game_timer.timer.finished() {
         //commands.entity(entity).despawn();
+        send_bit_message(BitMessage::End(BitResult::Success));
         next_state.set(GameState::Result);
     }
 }
