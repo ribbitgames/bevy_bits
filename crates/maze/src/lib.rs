@@ -3,6 +3,7 @@ use std::f32::consts::SQRT_2;
 use bevy::prelude::*;
 use bevy::text::{TextColor, TextFont};
 use bevy::utils::default;
+use bits_helpers::emoji::{self, AtlasValidation, EMOJI_SIZE, EmojiAtlas, EmojiPlugin};
 use bits_helpers::input::{
     just_pressed_world_position, just_released_world_position, pressed_world_position,
 };
@@ -82,6 +83,7 @@ struct MazeItem {
 #[derive(Resource, Default)]
 struct GameManager {
     count: usize,
+    keyboard: bool,
 }
 
 const VIRTUAL_CONTROLLER_FRAME_SIZE: f32 = 64.0;
@@ -98,13 +100,15 @@ struct VirtualControllerLever;
 
 pub fn run() {
     bits_helpers::get_default_app::<Maze>(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+        .add_plugins(EmojiPlugin)
         .init_state::<GameState>()
         .insert_resource(GameManager::default())
+        .add_systems(OnEnter(GameState::Init), init_enter)
         .add_systems(OnEnter(GameState::Game), reset_maze)
         .add_systems(
             Update,
             (
-                init_maze.run_if(in_state(GameState::Init)),
+                init.run_if(in_state(GameState::Init)),
                 item_collect_system.run_if(in_state(GameState::Game)),
                 gridbase_player_move_system.run_if(in_state(GameState::Game)),
                 game_result.run_if(in_state(GameState::Result)),
@@ -115,11 +119,10 @@ pub fn run() {
         .run();
 }
 
-fn init_maze(
+fn init_enter(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut next_state: ResMut<NextState<GameState>>,
 ) {
     println!("init");
     // Camera
@@ -127,11 +130,22 @@ fn init_maze(
     // Maze Generator
     commands.spawn(MazeGenerator::new(MAZE_SIZE_X, MAZE_SIZE_Y));
     // Spawn maze grid (It needs only once)
-    spawn_grid(&mut commands);
+    //spawn_grid(&mut commands);
     spawn_objective(&mut commands);
     // Virtual controller
     spawn_virtual_controller(&mut commands, &mut meshes, &mut materials);
-    next_state.set(GameState::Game);
+}
+
+fn init(
+    mut commands: Commands,
+    validation: Res<AtlasValidation>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if emoji::is_emoji_system_ready(&validation) {
+        // Spawn maze grid (It needs only once)
+        spawn_grid(&mut commands);
+        next_state.set(GameState::Game);
+    }
 }
 
 fn spawn_grid(commands: &mut Commands) {
@@ -219,6 +233,8 @@ fn reset_maze(
     mut game_manager: ResMut<GameManager>,
     mut maze_query: Query<&mut MazeGenerator>,
     mut clear_query: Query<Entity, With<LifespanGame>>,
+    atlas: Res<EmojiAtlas>,
+    validation: Res<AtlasValidation>,
 ) {
     println!("reset");
     clear_maze(&mut commands, &mut clear_query);
@@ -243,7 +259,7 @@ fn reset_maze(
             break;
         }
         if i == 0 {
-            spawn_player(&mut commands, *deadend);
+            spawn_player(&mut commands, *deadend, &atlas, &validation);
         } else {
             spawn_item(&mut commands, *deadend);
         }
@@ -312,13 +328,18 @@ fn spawn_item(commands: &mut Commands, pos: IVec2) {
     ));
 }
 
-fn spawn_player(commands: &mut Commands, pos: IVec2) {
+fn spawn_player(
+    commands: &mut Commands,
+    pos: IVec2,
+    atlas: &Res<EmojiAtlas>,
+    validation: &Res<AtlasValidation>,
+) {
     let grid_pos = GridPos {
         x: pos.x as usize,
         y: pos.y as usize,
         priority: 3.,
     };
-
+    /*
     commands.spawn((
         Sprite::from_color(Color::srgb(0., 1., 0.), Vec2::new(PLAYER_SIZE, PLAYER_SIZE)),
         Transform::from(grid_pos),
@@ -329,6 +350,28 @@ fn spawn_player(commands: &mut Commands, pos: IVec2) {
         },
         LifespanGame,
     ));
+    */
+    let indices = emoji::get_random_emojis(atlas, validation, 1);
+    if let Some(id) = emoji::spawn_emoji(
+        commands,
+        atlas,
+        validation,
+        *indices.first().expect(""),
+        Transform::from(grid_pos).with_scale(Vec3::new(
+            PLAYER_SIZE / EMOJI_SIZE.x as f32,
+            PLAYER_SIZE / EMOJI_SIZE.y as f32,
+            1.,
+        )),
+    ) {
+        commands
+            .entity(id)
+            .insert(MazePlayer {
+                pos,
+                next_pos: pos,
+                ..Default::default()
+            })
+            .insert(LifespanGame);
+    }
 }
 
 fn item_collect_system(
@@ -355,22 +398,27 @@ const fn game_result() {}
 
 fn keyboard_events_maze(
     keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut game_manager: ResMut<GameManager>,
     mut player_query: Query<&mut MazePlayer>,
 ) {
     let mut player = player_query.single_mut();
     if keyboard_input.pressed(KeyCode::ArrowUp) || keyboard_input.pressed(KeyCode::KeyW) {
         player.input.x = 0;
         player.input.y = -1;
+        game_manager.keyboard = true;
     } else if keyboard_input.pressed(KeyCode::ArrowDown) || keyboard_input.pressed(KeyCode::KeyS) {
         player.input.x = 0;
         player.input.y = 1;
+        game_manager.keyboard = true;
     } else if keyboard_input.pressed(KeyCode::ArrowLeft) || keyboard_input.pressed(KeyCode::KeyA) {
         player.input.x = -1;
         player.input.y = 0;
+        game_manager.keyboard = true;
     } else if keyboard_input.pressed(KeyCode::ArrowRight) || keyboard_input.pressed(KeyCode::KeyD) {
         player.input.x = 1;
         player.input.y = 0;
-    } else {
+        game_manager.keyboard = true;
+    } else if game_manager.keyboard {
         player.input.x = 0;
         player.input.y = 0;
     }
@@ -381,6 +429,7 @@ fn input_events_maze(
     camera: Query<(&Camera, &GlobalTransform)>,
     mouse_button_input: Res<ButtonInput<MouseButton>>,
     touch_input: Res<Touches>,
+    mut game_manager: ResMut<GameManager>,
     mut player_query: Query<&mut MazePlayer>,
     mut frame_query: Query<
         (&mut Transform, &mut Visibility),
@@ -406,6 +455,7 @@ fn input_events_maze(
         *frame_visibility = Visibility::Inherited;
         let (_, mut lever_visiblity) = lever_query.single_mut();
         *lever_visiblity = Visibility::Inherited;
+        game_manager.keyboard = false;
     };
 
     if let Some(world_position) =
@@ -427,11 +477,15 @@ fn input_events_maze(
         let offset = input * limit;
         lever.translation.x = frame.translation.x + offset.x;
         lever.translation.y = frame.translation.y + offset.y;
+        let mut player = player_query.single_mut();
         if input.length() < VIRTUAL_CONTROLLER_THRESHOLD {
+            if !game_manager.keyboard {
+                player.input.x = 0;
+                player.input.y = 0;
+            }
             return;
         }
         //println!("{input}");
-        let mut player = player_query.single_mut();
         let dot_x = input.dot(Vec2::X);
         let dot_y = input.dot(Vec2::Y);
         let inv_sqrt_2 = 1. / SQRT_2;
@@ -460,6 +514,12 @@ fn input_events_maze(
         *frame_visibility = Visibility::Hidden;
         let (_, mut lever_visibility) = lever_query.single_mut();
         *lever_visibility = Visibility::Hidden;
+
+        let mut player = player_query.single_mut();
+        if !game_manager.keyboard {
+            player.input.x = 0;
+            player.input.y = 0;
+        }
     };
 }
 
