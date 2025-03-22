@@ -26,44 +26,66 @@ pub struct TimerDisplay;
 pub struct Resting(pub Timer); // Tracks if a marble is resting on a platform
 
 pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Spawn platforms
-    for i in 0..3 {
-        let y = -WINDOW_HEIGHT / 2.0 + 100.0 + (i as f32 * 150.0);
-        commands.spawn((
-            Sprite {
-                color: Color::srgb(0.5, 0.5, 0.5), // Gray
-                custom_size: Some(config::PLATFORM_SIZE),
-                ..default()
-            },
-            Transform::from_xyz(0.0, y, 0.0),
-            Platform {
-                width: config::PLATFORM_SIZE.x,
-            },
-            RigidBody::Dynamic,
-            Collider::rectangle(config::PLATFORM_SIZE.x, config::PLATFORM_SIZE.y),
-            Mass(10.0),
-            Friction::new(0.05), // Very low friction
-            LockedAxes::new().lock_rotation(),
-        ));
-    }
+    // in case we want to restore 3 paddles //
+    //let platform_spacing = 150.0;
+    //let base_y = -WINDOW_HEIGHT / 2.0 + 100.0;
 
-    // Spawn buckets with adjusted spacing
+    //for i in 0..3 {
+    //    let y = base_y + (i as f32 * platform_spacing);
+    //    commands.spawn((
+    //        Sprite {
+    //            color: Color::srgb(0.5, 0.5, 0.5),
+    //            custom_size: Some(config::PLATFORM_SIZE),
+    //            ..default()
+    //        },
+    //        Transform::from_xyz(0.0, y, 0.0),
+    //        Platform {
+    //            width: config::PLATFORM_SIZE.x,
+    //        },
+    //        RigidBody::Static,
+    //        Collider::rectangle(config::PLATFORM_SIZE.x, config::PLATFORM_SIZE.y),
+    //        Friction::new(0.05),
+    //        LockedAxes::new().lock_rotation(),
+    //    ));
+    //}
+
+    // Single paddle closer to buckets //
+    commands.spawn((
+        Sprite {
+            color: Color::srgb(0.5, 0.5, 0.5),
+            custom_size: Some(config::PLATFORM_SIZE),
+            ..default()
+        },
+        Transform::from_xyz(
+            0.0,
+            -WINDOW_HEIGHT / 2.0 + config::BUCKET_SIZE.y + 30.0,
+            0.0,
+        ),
+        Platform {
+            width: config::PLATFORM_SIZE.x,
+        },
+        RigidBody::Static,
+        Collider::rectangle(config::PLATFORM_SIZE.x, config::PLATFORM_SIZE.y),
+        Friction::new(0.05),
+        LockedAxes::new().lock_rotation(),
+    ));
+
     let colors = [
-        Color::srgb(1.0, 0.0, 0.0), // Red
-        Color::srgb(0.0, 1.0, 0.0), // Green
-        Color::srgb(0.0, 0.0, 1.0), // Blue
+        Color::srgb(1.0, 0.0, 0.0),
+        Color::srgb(0.0, 1.0, 0.0),
+        Color::srgb(0.0, 0.0, 1.0),
     ];
     for (i, &color) in colors.iter().enumerate() {
-        let x = -WINDOW_WIDTH / 2.0 + 60.0 + (i as f32 * 120.0); // Adjusted spacing to 120px
+        let x = -WINDOW_WIDTH / 2.0 + 60.0 + (i as f32 * 120.0);
         commands.spawn((
             Sprite {
-                color: color,
+                color,
                 custom_size: Some(config::BUCKET_SIZE),
                 ..default()
             },
             Transform::from_xyz(x, -WINDOW_HEIGHT / 2.0 + config::BUCKET_SIZE.y / 2.0, 0.0),
             Bucket {
-                color: color,
+                color,
                 width: config::BUCKET_SIZE.x,
             },
             RigidBody::Static,
@@ -72,7 +94,6 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
         ));
     }
 
-    // Spawn score text
     commands.spawn((
         Text2d::new("Score: 0"),
         TextFont {
@@ -85,7 +106,6 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
         ScoreDisplay,
     ));
 
-    // Spawn timer text
     commands.spawn((
         Text2d::new("Time: 30"),
         TextFont {
@@ -113,11 +133,11 @@ pub fn handle_input(
         just_pressed_world_position(&mouse_input, &touch_input, &windows, &camera)
     {
         let color = match fastrand::u32(0..3) {
-            0 => Color::srgb(1.0, 0.0, 0.0), // Red
-            1 => Color::srgb(0.0, 1.0, 0.0), // Green
-            _ => Color::srgb(0.0, 0.0, 1.0), // Blue
+            0 => Color::srgb(1.0, 0.0, 0.0),
+            1 => Color::srgb(0.0, 1.0, 0.0),
+            _ => Color::srgb(0.0, 0.0, 1.0),
         };
-        let horizontal_velocity = fastrand::f32() * 200.0 - 100.0; // Random horizontal velocity (-100 to 100)
+        let horizontal_velocity = fastrand::f32() * 200.0 - 100.0;
         commands.spawn((
             Transform::from_xyz(position.x, WINDOW_HEIGHT / 2.0, 0.0),
             Marble {
@@ -126,28 +146,23 @@ pub fn handle_input(
             },
             Circle {
                 radius: config::MARBLE_SIZE / 2.0,
-                color: color,
+                color,
             },
             RigidBody::Dynamic,
             Collider::circle(config::MARBLE_SIZE / 2.0),
-            Restitution::new(1.5), // Increased for more bounce
+            Restitution::new(2.0),
             Friction::new(0.05),
-            LinearDamping(0.0),
-            AngularDamping(0.0),
-            LinearVelocity(Vec2::new(horizontal_velocity, 0.0)), // Add initial horizontal velocity
+            LinearDamping(0.1),
+            AngularDamping(0.1),
+            GravityScale(1.0),
+            LinearVelocity(Vec2::new(horizontal_velocity, 0.0)),
             Mass(1.0),
         ));
     }
 }
 
 pub fn move_platforms(
-    mut query_set: ParamSet<(
-        Query<(&mut Transform, &Platform), (With<Platform>, Without<Marble>)>,
-        Query<
-            (&Transform, &mut LinearVelocity, &Circle, &Marble),
-            (With<Marble>, Without<Platform>),
-        >,
-    )>,
+    mut platform_query: Query<(&mut Transform, &Platform), With<Platform>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     touch_input: Res<Touches>,
     windows: Query<&Window>,
@@ -156,36 +171,87 @@ pub fn move_platforms(
     if let Some(world_position) =
         pressed_world_position(&mouse_input, &touch_input, &windows, &camera)
     {
-        // Collect platform data
-        let mut platform_data: Vec<(f32, f32, f32)> = Vec::new();
-        for (mut transform, platform) in query_set.p0().iter_mut() {
+        if let Ok((mut transform, platform)) = platform_query.get_single_mut() {
             let platform_radius = platform.width / 2.0;
             let new_x = world_position.x.clamp(
                 -WINDOW_WIDTH / 2.0 + platform_radius,
                 WINDOW_WIDTH / 2.0 - platform_radius,
             );
-            let _dx = new_x - transform.translation.x; // Unused, prefixed with _
             transform.translation.x = new_x;
-            platform_data.push((
-                transform.translation.x,
-                transform.translation.y,
-                platform.width,
-            ));
-        }
-
-        // Update marbles based on platform movement
-        for (marble_transform, mut velocity, circle, _marble) in query_set.p1().iter_mut() {
-            for &(platform_x, platform_y, platform_width) in &platform_data {
-                if (marble_transform.translation.y - platform_y).abs() < 10.0 // Close to platform
-                    && (marble_transform.translation.x - platform_x).abs() < platform_width / 2.0 + circle.radius
-                {
-                    let dx = world_position.x - platform_x;
-                    velocity.x += dx * 0.1; // Gentle push
-                }
-            }
         }
     }
 }
+
+// in case we want to restore multiple paddles
+// pub fn move_platforms(
+//     mut query_set: ParamSet<(
+//         Query<(&mut Transform, &Platform), (With<Platform>, Without<Marble>)>,
+//         Query<
+//             (&Transform, &mut LinearVelocity, &Circle, &Marble),
+//             (With<Marble>, Without<Platform>),
+//         >,
+//     )>,
+//     mouse_input: Res<ButtonInput<MouseButton>>,
+//     touch_input: Res<Touches>,
+//     windows: Query<&Window>,
+//     camera: Query<(&Camera, &GlobalTransform)>,
+// ) {
+//     if let Some(world_position) =
+//         pressed_world_position(&mouse_input, &touch_input, &windows, &camera)
+//     {
+//         // Get a reference to p0 first and keep it
+//         let mut platforms = query_set.p0();
+
+//         // Find the minimum distance to any platform
+//         let min_distance = platforms
+//             .iter()
+//             .map(|(transform, _)| (transform.translation.y - world_position.y).abs())
+//             .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+//             .unwrap_or(f32::MAX);
+
+//         // Find the closest platform
+//         let closest_platform = platforms.iter_mut().find(|(transform, _)| {
+//             (transform.translation.y - world_position.y).abs() == min_distance
+//         });
+
+//         // Move only the closest platform
+//         if let Some((mut transform, platform)) = closest_platform {
+//             let platform_radius = platform.width / 2.0;
+//             let new_x = world_position.x.clamp(
+//                 -WINDOW_WIDTH / 2.0 + platform_radius,
+//                 WINDOW_WIDTH / 2.0 - platform_radius,
+//             );
+//             transform.translation.x = new_x;
+//         }
+
+//         // Collect platform data for updating marbles
+//         let platform_data: Vec<(f32, f32, f32)> = platforms
+//             .iter()
+//             .map(|(transform, platform)| {
+//                 (
+//                     transform.translation.x,
+//                     transform.translation.y,
+//                     platform.width,
+//                 )
+//             })
+//             .collect();
+
+//         // Now access p1
+//         let mut marbles = query_set.p1();
+
+//         for (marble_transform, mut velocity, circle, _marble) in marbles.iter_mut() {
+//             for &(platform_x, platform_y, platform_width) in &platform_data {
+//                 if (marble_transform.translation.y - platform_y).abs() < 10.0
+//                     && (marble_transform.translation.x - platform_x).abs()
+//                         < platform_width / 2.0 + circle.radius
+//                 {
+//                     let dx = world_position.x - platform_x;
+//                     velocity.x += dx * 0.1; // Gentle push
+//                 }
+//             }
+//         }
+//     }
+// }
 
 pub fn update_game(
     mut commands: Commands,
@@ -201,7 +267,7 @@ pub fn update_game(
     spawn_timer.timer.tick(time.delta());
 
     if spawn_timer.timer.just_finished() {
-        let color = Color::srgb(0.5, 0.5, 0.5); // Gray
+        let color = Color::srgb(0.5, 0.5, 0.5);
         let horizontal_velocity = fastrand::f32() * 200.0 - 100.0;
         commands.spawn((
             Transform::from_xyz(
@@ -215,14 +281,15 @@ pub fn update_game(
             },
             Circle {
                 radius: config::MARBLE_SIZE / 2.0,
-                color: color,
+                color,
             },
             RigidBody::Dynamic,
             Collider::circle(config::MARBLE_SIZE / 2.0),
-            Restitution::new(1.5), // Increased for more bounce
+            Restitution::new(2.0),
             Friction::new(0.05),
-            LinearDamping(0.0),
-            AngularDamping(0.0),
+            LinearDamping(0.1),
+            AngularDamping(0.1),
+            GravityScale(1.0),
             LinearVelocity(Vec2::new(horizontal_velocity, 0.0)),
             Mass(1.0),
             Resting(Timer::new(Duration::from_secs(1), TimerMode::Once)),
@@ -242,7 +309,7 @@ pub fn update_game(
         .collect();
 
     // Process marbles
-    for (marble_entity, mut transform, circle, mut resting, marble) in marble_query.iter_mut() {
+    for (marble_entity, transform, circle, mut resting, marble) in marble_query.iter_mut() {
         resting.0.tick(time.delta());
         let marble_pos = transform.translation.truncate();
         for (bucket_pos, bucket_color, bucket_width) in &buckets {
