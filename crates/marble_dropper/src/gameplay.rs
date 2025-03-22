@@ -66,7 +66,8 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
         },
         RigidBody::Static,
         Collider::rectangle(config::PLATFORM_SIZE.x, config::PLATFORM_SIZE.y),
-        Friction::new(0.05),
+        Friction::new(0.0),    // Reduce friction to 0 to prevent velocity loss
+        Restitution::new(1.0), // Ensure the paddle is perfectly bouncy
         LockedAxes::new().lock_rotation(),
     ));
 
@@ -285,10 +286,10 @@ pub fn update_game(
             },
             RigidBody::Dynamic,
             Collider::circle(config::MARBLE_SIZE / 2.0),
-            Restitution::new(1.75),
-            Friction::new(0.05),
-            LinearDamping(0.1),
-            AngularDamping(0.1),
+            Restitution::new(1.0), // Reduce to 1.0 for more controlled bounces
+            Friction::new(0.0),    // Remove friction to prevent velocity loss
+            LinearDamping(0.0),    // Remove damping to retain momentum
+            AngularDamping(0.0),   // Remove angular damping
             GravityScale(1.0),
             LinearVelocity(Vec2::new(horizontal_velocity, downward_velocity)),
             Mass(1.0),
