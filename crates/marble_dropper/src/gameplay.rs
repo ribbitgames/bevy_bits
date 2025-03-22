@@ -46,8 +46,8 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
         },
         RigidBody::Static,
         Collider::rectangle(config::PLATFORM_SIZE.x, config::PLATFORM_SIZE.y),
-        Friction::new(0.0),    // No friction to prevent velocity loss
-        Restitution::new(1.0), // Perfectly bouncy
+        Friction::new(0.0), // No friction to prevent velocity loss
+        Restitution::new(0.5),
         LockedAxes::new().lock_rotation(),
     ));
 
@@ -159,15 +159,26 @@ pub fn update_game(
     // Spawn marbles
     if spawn_timer.timer.just_finished() {
         let is_colored = fastrand::f32() < 0.75;
-        let color = if is_colored {
-            match fastrand::u32(0..3) {
-                0 => Color::srgb(1.0, 0.0, 0.0), // Red
-                1 => Color::srgb(0.0, 1.0, 0.0), // Green
-                _ => Color::srgb(0.0, 0.0, 1.0), // Blue
+        let color: Color;
+        let target_bucket_x: f32;
+
+        if is_colored {
+            let random_color = fastrand::u32(0..3);
+            if random_color == 0 {
+                color = Color::srgb(1.0, 0.0, 0.0); // Red
+                target_bucket_x = -WINDOW_WIDTH / 2.0 + 60.0; // Red bucket position
+            } else if random_color == 1 {
+                color = Color::srgb(0.0, 1.0, 0.0); // Green
+                target_bucket_x = -WINDOW_WIDTH / 2.0 + 180.0; // Green bucket position
+            } else {
+                color = Color::srgb(0.0, 0.0, 1.0); // Blue
+                target_bucket_x = -WINDOW_WIDTH / 2.0 + 300.0; // Blue bucket position
             }
         } else {
-            Color::srgb(0.5, 0.5, 0.5) // Grey
-        };
+            color = Color::srgb(0.5, 0.5, 0.5); // Grey
+            let random_bucket = fastrand::u32(0..3);
+            target_bucket_x = (random_bucket as f32).mul_add(120.0, -WINDOW_WIDTH / 2.0 + 60.0);
+        }
 
         let spawn_x =
             fastrand::f32().mul_add(WINDOW_WIDTH - config::MARBLE_SIZE, -(WINDOW_WIDTH / 2.0));
@@ -176,8 +187,19 @@ pub fn update_game(
             WINDOW_WIDTH / 2.0 - config::MARBLE_SIZE / 2.0,
         );
 
-        let downward_velocity = -fastrand::f32().mul_add(200.0, 100.0);
-        let horizontal_velocity = fastrand::f32().mul_add(200.0, -100.0);
+        // Calculate direction towards target bucket
+        let start_position = Vec2::new(clamped_spawn_x, WINDOW_HEIGHT / 2.0);
+        let target_position = Vec2::new(
+            target_bucket_x,
+            -WINDOW_HEIGHT / 2.0 + config::BUCKET_SIZE.y / 2.0,
+        );
+        let direction_vector = target_position - start_position;
+        let normalized_direction = direction_vector.normalize();
+
+        // Set initial velocity towards bucket with some randomness
+        let base_speed = fastrand::f32().mul_add(200.0, 300.0); // Speed between 300 and 500
+        let velocity_x = normalized_direction.x * base_speed;
+        let velocity_y = normalized_direction.y * base_speed;
 
         commands.spawn((
             Transform::from_xyz(clamped_spawn_x, WINDOW_HEIGHT / 2.0, 0.0),
@@ -191,12 +213,12 @@ pub fn update_game(
             },
             RigidBody::Dynamic,
             Collider::circle(config::MARBLE_SIZE / 2.0),
-            Restitution::new(1.0),
+            Restitution::new(0.5),
             Friction::new(0.0),
             LinearDamping(0.0),
             AngularDamping(0.0),
             GravityScale(1.0),
-            LinearVelocity(Vec2::new(horizontal_velocity, downward_velocity)),
+            LinearVelocity(Vec2::new(velocity_x, velocity_y)),
             Mass(1.0),
             Resting(Timer::new(Duration::from_secs(1), TimerMode::Once)),
         ));
