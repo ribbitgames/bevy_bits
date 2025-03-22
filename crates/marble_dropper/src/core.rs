@@ -50,11 +50,13 @@ pub struct SpawnTimer {
     pub spawn_rate: f32,
 }
 
+// marble spawning
 impl Default for SpawnTimer {
     fn default() -> Self {
+        let random_rate = fastrand::f32().mul_add(2.0 - 0.75, 0.75);
         Self {
-            timer: Timer::from_seconds(2.0, TimerMode::Repeating),
-            spawn_rate: 2.0,
+            timer: Timer::from_seconds(random_rate, TimerMode::Repeating),
+            spawn_rate: random_rate,
         }
     }
 }

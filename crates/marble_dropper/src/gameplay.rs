@@ -3,7 +3,7 @@ use std::time::Duration;
 use avian2d::prelude::*;
 use bevy::prelude::*;
 use bits_helpers::floating_score::spawn_floating_score;
-use bits_helpers::input::{just_pressed_world_position, pressed_world_position};
+use bits_helpers::input::pressed_world_position;
 use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH, send_bit_message};
 use ribbit_bits::{BitMessage, BitResult};
 
@@ -122,43 +122,8 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
     commands.insert_resource(GameTimer::default());
 }
 
-pub fn handle_input(
-    mut commands: Commands,
-    mouse_input: Res<ButtonInput<MouseButton>>,
-    touch_input: Res<Touches>,
-    windows: Query<&Window>,
-    camera: Query<(&Camera, &GlobalTransform)>,
-) {
-    if let Some(position) =
-        just_pressed_world_position(&mouse_input, &touch_input, &windows, &camera)
-    {
-        let color = match fastrand::u32(0..3) {
-            0 => Color::srgb(1.0, 0.0, 0.0),
-            1 => Color::srgb(0.0, 1.0, 0.0),
-            _ => Color::srgb(0.0, 0.0, 1.0),
-        };
-        let horizontal_velocity = fastrand::f32().mul_add(200.0, -100.0);
-        commands.spawn((
-            Transform::from_xyz(position.x, WINDOW_HEIGHT / 2.0, 0.0),
-            Marble {
-                size: config::MARBLE_SIZE,
-                is_target: true,
-            },
-            Circle {
-                radius: config::MARBLE_SIZE / 2.0,
-                color,
-            },
-            RigidBody::Dynamic,
-            Collider::circle(config::MARBLE_SIZE / 2.0),
-            Restitution::new(1.75),
-            Friction::new(0.05),
-            LinearDamping(0.1),
-            AngularDamping(0.1),
-            GravityScale(1.0),
-            LinearVelocity(Vec2::new(horizontal_velocity, 0.0)),
-            Mass(1.0),
-        ));
-    }
+pub const fn handle_input() {
+    // No marble spawning here anymore; input only handles paddle movement
 }
 
 pub fn move_platforms(
@@ -267,7 +232,18 @@ pub fn update_game(
     spawn_timer.timer.tick(time.delta());
 
     if spawn_timer.timer.just_finished() {
-        let color = Color::srgb(0.5, 0.5, 0.5);
+        // Randomly decide if this marble is colored (75% chance) or grey (25% chance)
+        let is_colored = fastrand::f32() < 0.75;
+        let color = if is_colored {
+            match fastrand::u32(0..3) {
+                0 => Color::srgb(1.0, 0.0, 0.0),
+                1 => Color::srgb(0.0, 1.0, 0.0),
+                _ => Color::srgb(0.0, 0.0, 1.0),
+            }
+        } else {
+            Color::srgb(0.5, 0.5, 0.5)
+        };
+
         let horizontal_velocity = fastrand::f32().mul_add(200.0, -100.0);
         commands.spawn((
             Transform::from_xyz(
@@ -277,7 +253,7 @@ pub fn update_game(
             ),
             Marble {
                 size: config::MARBLE_SIZE,
-                is_target: false,
+                is_target: is_colored,
             },
             Circle {
                 radius: config::MARBLE_SIZE / 2.0,
