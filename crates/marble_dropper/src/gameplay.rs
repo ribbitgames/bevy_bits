@@ -1,11 +1,14 @@
 use std::time::Duration;
 
-use avian2d::prelude::*;
+use avian2d::collision::contact_reporting::CollisionStarted; // Corrected import path
+use avian2d::prelude::{
+    AngularDamping, Collider, Friction, GravityScale, LinearDamping, LinearVelocity, LockedAxes,
+    Mass, Restitution, RigidBody,
+};
 use bevy::prelude::*;
 use bits_helpers::floating_score::spawn_floating_score;
 use bits_helpers::input::pressed_world_position;
-use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH, send_bit_message};
-use ribbit_bits::{BitMessage, BitResult};
+use bits_helpers::{FONT, WINDOW_HEIGHT, WINDOW_WIDTH};
 
 use crate::core::{Bucket, GameState, GameTimer, Marble, Platform, Score, SpawnTimer, config};
 
@@ -26,30 +29,7 @@ pub struct TimerDisplay;
 pub struct Resting(pub Timer); // Tracks if a marble is resting on a platform
 
 pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // in case we want to restore 3 paddles //
-    //let platform_spacing = 150.0;
-    //let base_y = -WINDOW_HEIGHT / 2.0 + 100.0;
-
-    //for i in 0..3 {
-    //    let y = base_y + (i as f32 * platform_spacing);
-    //    commands.spawn((
-    //        Sprite {
-    //            color: Color::srgb(0.5, 0.5, 0.5),
-    //            custom_size: Some(config::PLATFORM_SIZE),
-    //            ..default()
-    //        },
-    //        Transform::from_xyz(0.0, y, 0.0),
-    //        Platform {
-    //            width: config::PLATFORM_SIZE.x,
-    //        },
-    //        RigidBody::Static,
-    //        Collider::rectangle(config::PLATFORM_SIZE.x, config::PLATFORM_SIZE.y),
-    //        Friction::new(0.05),
-    //        LockedAxes::new().lock_rotation(),
-    //    ));
-    //}
-
-    // Single paddle closer to buckets //
+    // Spawn a single platform
     commands.spawn((
         Sprite {
             color: Color::srgb(0.5, 0.5, 0.5),
@@ -66,15 +46,16 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
         },
         RigidBody::Static,
         Collider::rectangle(config::PLATFORM_SIZE.x, config::PLATFORM_SIZE.y),
-        Friction::new(0.0),    // Reduce friction to 0 to prevent velocity loss
-        Restitution::new(1.0), // Ensure the paddle is perfectly bouncy
+        Friction::new(0.0),    // No friction to prevent velocity loss
+        Restitution::new(1.0), // Perfectly bouncy
         LockedAxes::new().lock_rotation(),
     ));
 
+    // Spawn buckets
     let colors = [
-        Color::srgb(1.0, 0.0, 0.0),
-        Color::srgb(0.0, 1.0, 0.0),
-        Color::srgb(0.0, 0.0, 1.0),
+        Color::srgb(1.0, 0.0, 0.0), // Red
+        Color::srgb(0.0, 1.0, 0.0), // Green
+        Color::srgb(0.0, 0.0, 1.0), // Blue
     ];
     for (i, &color) in colors.iter().enumerate() {
         let x = (i as f32).mul_add(120.0, -WINDOW_WIDTH / 2.0 + 60.0);
@@ -95,6 +76,7 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
         ));
     }
 
+    // Spawn score display
     commands.spawn((
         Text2d::new("Score: 0"),
         TextFont {
@@ -107,6 +89,7 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
         ScoreDisplay,
     ));
 
+    // Spawn timer display
     commands.spawn((
         Text2d::new("Time: 30"),
         TextFont {
@@ -119,12 +102,9 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
         TimerDisplay,
     ));
 
+    // Initialize resources
     commands.insert_resource(SpawnTimer::default());
     commands.insert_resource(GameTimer::default());
-}
-
-pub const fn handle_input() {
-    // No marble spawning here anymore; input only handles paddle movement
 }
 
 pub fn move_platforms(
@@ -148,91 +128,36 @@ pub fn move_platforms(
     }
 }
 
-// in case we want to restore multiple paddles
-// pub fn move_platforms(
-//     mut query_set: ParamSet<(
-//         Query<(&mut Transform, &Platform), (With<Platform>, Without<Marble>)>,
-//         Query<
-//             (&Transform, &mut LinearVelocity, &Circle, &Marble),
-//             (With<Marble>, Without<Platform>),
-//         >,
-//     )>,
-//     mouse_input: Res<ButtonInput<MouseButton>>,
-//     touch_input: Res<Touches>,
-//     windows: Query<&Window>,
-//     camera: Query<(&Camera, &GlobalTransform)>,
-// ) {
-//     if let Some(world_position) =
-//         pressed_world_position(&mouse_input, &touch_input, &windows, &camera)
-//     {
-//         // Get a reference to p0 first and keep it
-//         let mut platforms = query_set.p0();
-
-//         // Find the minimum distance to any platform
-//         let min_distance = platforms
-//             .iter()
-//             .map(|(transform, _)| (transform.translation.y - world_position.y).abs())
-//             .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-//             .unwrap_or(f32::MAX);
-
-//         // Find the closest platform
-//         let closest_platform = platforms.iter_mut().find(|(transform, _)| {
-//             (transform.translation.y - world_position.y).abs() == min_distance
-//         });
-
-//         // Move only the closest platform
-//         if let Some((mut transform, platform)) = closest_platform {
-//             let platform_radius = platform.width / 2.0;
-//             let new_x = world_position.x.clamp(
-//                 -WINDOW_WIDTH / 2.0 + platform_radius,
-//                 WINDOW_WIDTH / 2.0 - platform_radius,
-//             );
-//             transform.translation.x = new_x;
-//         }
-
-//         // Collect platform data for updating marbles
-//         let platform_data: Vec<(f32, f32, f32)> = platforms
-//             .iter()
-//             .map(|(transform, platform)| {
-//                 (
-//                     transform.translation.x,
-//                     transform.translation.y,
-//                     platform.width,
-//                 )
-//             })
-//             .collect();
-
-//         // Now access p1
-//         let mut marbles = query_set.p1();
-
-//         for (marble_transform, mut velocity, circle, _marble) in marbles.iter_mut() {
-//             for &(platform_x, platform_y, platform_width) in &platform_data {
-//                 if (marble_transform.translation.y - platform_y).abs() < 10.0
-//                     && (marble_transform.translation.x - platform_x).abs()
-//                         < platform_width / 2.0 + circle.radius
-//                 {
-//                     let dx = world_position.x - platform_x;
-//                     velocity.x += dx * 0.1; // Gentle push
-//                 }
-//             }
-//         }
-//     }
-// }
-
 pub fn update_game(
     mut commands: Commands,
     time: Res<Time>,
     mut spawn_timer: ResMut<SpawnTimer>,
-    mut score: ResMut<Score>,
+    score: ResMut<Score>,
     mut score_display: Query<&mut Text2d, With<ScoreDisplay>>,
-    bucket_query: Query<(&Transform, &Bucket), With<Bucket>>,
     asset_server: Res<AssetServer>,
     mut marble_query: Query<(Entity, &Transform, &Circle, &mut Resting, &Marble), With<Marble>>,
+    game_timer: Res<GameTimer>,
 ) {
     spawn_timer.timer.tick(time.delta());
 
+    // Adjust spawn rate based on game progression
+    let total_duration = game_timer.timer.duration().as_secs_f32();
+    let elapsed = total_duration - game_timer.timer.remaining_secs();
+    let chunk_duration = total_duration / config::TIME_CHUNKS as f32;
+    let current_chunk = (elapsed / chunk_duration).floor() as usize;
+
+    let new_spawn_rate = (current_chunk as f32).mul_add(-0.5, 1.5).max(0.5);
+    const EPSILON: f32 = 0.001;
+    if (new_spawn_rate - spawn_timer.spawn_rate).abs() > EPSILON {
+        spawn_timer.spawn_rate = new_spawn_rate;
+        spawn_timer
+            .timer
+            .set_duration(Duration::from_secs_f32(new_spawn_rate));
+        spawn_timer.timer.reset();
+    }
+
+    // Spawn marbles
     if spawn_timer.timer.just_finished() {
-        // Randomly decide if this marble is colored (75% chance) or grey (25% chance)
         let is_colored = fastrand::f32() < 0.75;
         let color = if is_colored {
             match fastrand::u32(0..3) {
@@ -244,7 +169,6 @@ pub fn update_game(
             Color::srgb(0.5, 0.5, 0.5) // Grey
         };
 
-        // Ensure spawn position is within screen bounds
         let spawn_x =
             fastrand::f32().mul_add(WINDOW_WIDTH - config::MARBLE_SIZE, -(WINDOW_WIDTH / 2.0));
         let clamped_spawn_x = spawn_x.clamp(
@@ -252,27 +176,8 @@ pub fn update_game(
             WINDOW_WIDTH / 2.0 - config::MARBLE_SIZE / 2.0,
         );
 
-        // Determine initial velocity
-        let downward_velocity = -fastrand::f32().mul_add(200.0, 100.0); // Always downward, between -100 and -300
-
-        let horizontal_velocity = if is_colored {
-            // Find the target bucket for colored marbles
-            let target_bucket_x = bucket_query
-                .iter()
-                .find(|(_, bucket)| bucket.color == color)
-                .map_or(0.0, |(transform, _)| transform.translation.x);
-
-            // Calculate direction toward the target bucket
-            let direction = if target_bucket_x > clamped_spawn_x {
-                1.0 // Move right
-            } else {
-                -1.0 // Move left
-            };
-            direction * fastrand::f32().mul_add(100.0, 50.0) // Speed between 50 and 150
-        } else {
-            // Random horizontal velocity for grey marbles
-            fastrand::f32().mul_add(200.0, -100.0) // Between -100 and 100
-        };
+        let downward_velocity = -fastrand::f32().mul_add(200.0, 100.0);
+        let horizontal_velocity = fastrand::f32().mul_add(200.0, -100.0);
 
         commands.spawn((
             Transform::from_xyz(clamped_spawn_x, WINDOW_HEIGHT / 2.0, 0.0),
@@ -286,10 +191,10 @@ pub fn update_game(
             },
             RigidBody::Dynamic,
             Collider::circle(config::MARBLE_SIZE / 2.0),
-            Restitution::new(1.0), // Reduce to 1.0 for more controlled bounces
-            Friction::new(0.0),    // Remove friction to prevent velocity loss
-            LinearDamping(0.0),    // Remove damping to retain momentum
-            AngularDamping(0.0),   // Remove angular damping
+            Restitution::new(1.0),
+            Friction::new(0.0),
+            LinearDamping(0.0),
+            AngularDamping(0.0),
             GravityScale(1.0),
             LinearVelocity(Vec2::new(horizontal_velocity, downward_velocity)),
             Mass(1.0),
@@ -299,54 +204,14 @@ pub fn update_game(
     }
 
     // Update score display
-    if let Some(mut score_text) = score_display.iter_mut().next() {
+    if let Ok(mut score_text) = score_display.get_single_mut() {
         *score_text = Text2d::new(format!("Score: {}", score.0));
     }
 
-    // Collect bucket data to avoid borrow conflicts
-    let buckets: Vec<(Vec2, Color, f32)> = bucket_query
-        .iter()
-        .map(|(transform, bucket)| (transform.translation.truncate(), bucket.color, bucket.width))
-        .collect();
-
-    // Process marbles
-    for (marble_entity, transform, circle, mut resting, marble) in &mut marble_query {
+    // Handle marbles that fall off-screen
+    for (marble_entity, transform, _circle, mut resting, marble) in &mut marble_query {
         resting.0.tick(time.delta());
         let marble_pos = transform.translation.truncate();
-        let marble_radius = circle.radius;
-
-        for (bucket_pos, bucket_color, bucket_width) in &buckets {
-            let bucket_half_width = *bucket_width / 2.0;
-            let bucket_half_height = config::BUCKET_SIZE.y / 2.0;
-
-            // Check if the marble's bounding box overlaps with the bucket's bounding box
-            let dx = (marble_pos.x - bucket_pos.x).abs();
-            let dy = (marble_pos.y - bucket_pos.y).abs();
-            if dx < (bucket_half_width + marble_radius) && dy < (bucket_half_height + marble_radius)
-            {
-                commands.entity(marble_entity).despawn();
-                if marble.is_target && circle.color == *bucket_color {
-                    score.0 += 5;
-                    spawn_floating_score(
-                        &mut commands,
-                        marble_pos,
-                        "+5",
-                        Color::srgb(0.0, 1.0, 0.0).into(),
-                        &asset_server,
-                    );
-                } else {
-                    score.0 -= 2;
-                    spawn_floating_score(
-                        &mut commands,
-                        marble_pos,
-                        "-2",
-                        Color::srgb(1.0, 0.0, 0.0).into(),
-                        &asset_server,
-                    );
-                }
-                break; // Exit the bucket loop since the marble has been handled
-            }
-        }
 
         if marble_pos.y < -WINDOW_HEIGHT / 2.0 - marble.size && resting.0.finished() {
             commands.entity(marble_entity).despawn();
@@ -355,6 +220,57 @@ pub fn update_game(
                     &mut commands,
                     Vec2::new(marble_pos.x, -WINDOW_HEIGHT / 2.0),
                     "MISSED!",
+                    Color::srgb(1.0, 0.0, 0.0).into(),
+                    &asset_server,
+                );
+            }
+        }
+    }
+}
+
+pub fn handle_marble_bucket_collisions(
+    mut commands: Commands,
+    mut collision_events: EventReader<CollisionStarted>,
+    marble_query: Query<(&Circle, &Marble)>,
+    bucket_query: Query<&Bucket>,
+    mut score: ResMut<Score>,
+    asset_server: Res<AssetServer>,
+    transform_query: Query<&Transform>,
+) {
+    for CollisionStarted(entity1, entity2) in collision_events.read() {
+        let (marble_entity, bucket_entity) = if marble_query.get(*entity1).is_ok() {
+            (*entity1, *entity2)
+        } else if marble_query.get(*entity2).is_ok() {
+            (*entity2, *entity1)
+        } else {
+            continue; // Neither entity is a marble
+        };
+
+        if let (Ok((circle, marble)), Ok(bucket)) = (
+            marble_query.get(marble_entity),
+            bucket_query.get(bucket_entity),
+        ) {
+            let marble_pos = transform_query
+                .get(marble_entity)
+                .map_or(Vec2::ZERO, |t| t.translation.truncate());
+
+            commands.entity(marble_entity).despawn();
+
+            if marble.is_target && circle.color == bucket.color {
+                score.0 += 5;
+                spawn_floating_score(
+                    &mut commands,
+                    marble_pos,
+                    "+5",
+                    Color::srgb(0.0, 1.0, 0.0).into(),
+                    &asset_server,
+                );
+            } else {
+                score.0 -= 2;
+                spawn_floating_score(
+                    &mut commands,
+                    marble_pos,
+                    "-2",
                     Color::srgb(1.0, 0.0, 0.0).into(),
                     &asset_server,
                 );
@@ -372,15 +288,16 @@ pub fn update_game_timer(
 ) {
     game_timer.timer.tick(time.delta());
 
-    // Update timer display
-    if let Some(mut timer_text) = timer_display.iter_mut().next() {
+    if let Ok(mut timer_text) = timer_display.get_single_mut() {
         let remaining = game_timer.timer.remaining_secs().ceil() as i32;
         *timer_text = Text2d::new(format!("Time: {remaining}"));
     }
 
     if game_timer.timer.just_finished() {
         next_state.set(GameState::GameOver);
-        send_bit_message(BitMessage::End(BitResult::HighestScore(score.0.into())));
+        bits_helpers::send_bit_message(ribbit_bits::BitMessage::End(
+            ribbit_bits::BitResult::HighestScore(score.0.into()),
+        ));
     }
 }
 

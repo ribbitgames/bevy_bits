@@ -10,7 +10,7 @@ pub mod welcome;
 use core::{GameState, GameTimer, Score};
 
 use gameplay::{
-    cleanup_game, handle_input, move_platforms, render_circles, spawn_game_elements, update_game,
+    cleanup_game, move_platforms, render_circles, spawn_game_elements, update_game,
     update_game_timer,
 };
 use physics::PhysicsPlugin;
@@ -39,8 +39,7 @@ pub fn run() {
         .add_systems(OnEnter(GameState::Playing), spawn_game_elements)
         .add_systems(
             Update,
-            (handle_input, move_platforms, update_game, update_game_timer)
-                .run_if(in_state(GameState::Playing)),
+            (move_platforms, update_game, update_game_timer).run_if(in_state(GameState::Playing)),
         )
         .add_systems(
             Update,

@@ -53,10 +53,10 @@ pub struct SpawnTimer {
 // marble spawning
 impl Default for SpawnTimer {
     fn default() -> Self {
-        let random_rate = fastrand::f32().mul_add(2.0 - 0.75, 0.75);
+        let base_spawn_rate = 1.5; // Initial spawn rate (slower)
         Self {
-            timer: Timer::from_seconds(random_rate, TimerMode::Repeating),
-            spawn_rate: random_rate,
+            timer: Timer::from_seconds(base_spawn_rate, TimerMode::Repeating),
+            spawn_rate: base_spawn_rate,
         }
     }
 }
@@ -70,4 +70,5 @@ pub mod config {
     pub const PLATFORM_SIZE: Vec2 = Vec2::new(100.0, 10.0);
     pub const BUCKET_SIZE: Vec2 = Vec2::new(60.0, 20.0);
     pub const GRAVITY: f32 = 980.0; // Pixels/second^2
+    pub const TIME_CHUNKS: usize = 3; // Divide game into 3 difficulty stages
 }
