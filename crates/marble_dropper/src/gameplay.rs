@@ -197,7 +197,7 @@ pub fn update_game(
         let normalized_direction = direction_vector.normalize();
 
         // Set initial velocity towards bucket with some randomness
-        let base_speed = fastrand::f32().mul_add(200.0, 300.0); // Speed between 300 and 500
+        let base_speed = fastrand::f32().mul_add(100.0, 150.0);
         let velocity_x = normalized_direction.x * base_speed;
         let velocity_y = normalized_direction.y * base_speed;
 
