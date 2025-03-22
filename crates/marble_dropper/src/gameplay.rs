@@ -76,7 +76,7 @@ pub fn spawn_game_elements(mut commands: Commands, asset_server: Res<AssetServer
         Color::srgb(0.0, 0.0, 1.0),
     ];
     for (i, &color) in colors.iter().enumerate() {
-        let x = -WINDOW_WIDTH / 2.0 + 60.0 + (i as f32 * 120.0);
+        let x = (i as f32).mul_add(120.0, -WINDOW_WIDTH / 2.0 + 60.0);
         commands.spawn((
             Sprite {
                 color,
@@ -137,7 +137,7 @@ pub fn handle_input(
             1 => Color::srgb(0.0, 1.0, 0.0),
             _ => Color::srgb(0.0, 0.0, 1.0),
         };
-        let horizontal_velocity = fastrand::f32() * 200.0 - 100.0;
+        let horizontal_velocity = fastrand::f32().mul_add(200.0, -100.0);
         commands.spawn((
             Transform::from_xyz(position.x, WINDOW_HEIGHT / 2.0, 0.0),
             Marble {
@@ -150,7 +150,7 @@ pub fn handle_input(
             },
             RigidBody::Dynamic,
             Collider::circle(config::MARBLE_SIZE / 2.0),
-            Restitution::new(2.0),
+            Restitution::new(1.75),
             Friction::new(0.05),
             LinearDamping(0.1),
             AngularDamping(0.1),
@@ -268,10 +268,10 @@ pub fn update_game(
 
     if spawn_timer.timer.just_finished() {
         let color = Color::srgb(0.5, 0.5, 0.5);
-        let horizontal_velocity = fastrand::f32() * 200.0 - 100.0;
+        let horizontal_velocity = fastrand::f32().mul_add(200.0, -100.0);
         commands.spawn((
             Transform::from_xyz(
-                fastrand::f32() * (WINDOW_WIDTH - config::MARBLE_SIZE) - WINDOW_WIDTH / 2.0,
+                fastrand::f32().mul_add(WINDOW_WIDTH - config::MARBLE_SIZE, -(WINDOW_WIDTH / 2.0)),
                 WINDOW_HEIGHT / 2.0,
                 0.0,
             ),
@@ -285,7 +285,7 @@ pub fn update_game(
             },
             RigidBody::Dynamic,
             Collider::circle(config::MARBLE_SIZE / 2.0),
-            Restitution::new(2.0),
+            Restitution::new(1.75),
             Friction::new(0.05),
             LinearDamping(0.1),
             AngularDamping(0.1),
@@ -309,7 +309,7 @@ pub fn update_game(
         .collect();
 
     // Process marbles
-    for (marble_entity, transform, circle, mut resting, marble) in marble_query.iter_mut() {
+    for (marble_entity, transform, circle, mut resting, marble) in &mut marble_query {
         resting.0.tick(time.delta());
         let marble_pos = transform.translation.truncate();
         for (bucket_pos, bucket_color, bucket_width) in &buckets {
@@ -370,7 +370,7 @@ pub fn update_game_timer(
     // Update timer display
     if let Some(mut timer_text) = timer_display.iter_mut().next() {
         let remaining = game_timer.timer.remaining_secs().ceil() as i32;
-        *timer_text = Text2d::new(format!("Time: {}", remaining));
+        *timer_text = Text2d::new(format!("Time: {remaining}"));
     }
 
     if game_timer.timer.just_finished() {
