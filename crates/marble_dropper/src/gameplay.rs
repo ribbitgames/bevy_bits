@@ -235,21 +235,46 @@ pub fn update_game(
         let is_colored = fastrand::f32() < 0.75;
         let color = if is_colored {
             match fastrand::u32(0..3) {
-                0 => Color::srgb(1.0, 0.0, 0.0),
-                1 => Color::srgb(0.0, 1.0, 0.0),
-                _ => Color::srgb(0.0, 0.0, 1.0),
+                0 => Color::srgb(1.0, 0.0, 0.0), // Red
+                1 => Color::srgb(0.0, 1.0, 0.0), // Green
+                _ => Color::srgb(0.0, 0.0, 1.0), // Blue
             }
         } else {
-            Color::srgb(0.5, 0.5, 0.5)
+            Color::srgb(0.5, 0.5, 0.5) // Grey
         };
 
-        let horizontal_velocity = fastrand::f32().mul_add(200.0, -100.0);
+        // Ensure spawn position is within screen bounds
+        let spawn_x =
+            fastrand::f32().mul_add(WINDOW_WIDTH - config::MARBLE_SIZE, -(WINDOW_WIDTH / 2.0));
+        let clamped_spawn_x = spawn_x.clamp(
+            -WINDOW_WIDTH / 2.0 + config::MARBLE_SIZE / 2.0,
+            WINDOW_WIDTH / 2.0 - config::MARBLE_SIZE / 2.0,
+        );
+
+        // Determine initial velocity
+        let downward_velocity = -fastrand::f32().mul_add(200.0, 100.0); // Always downward, between -100 and -300
+
+        let horizontal_velocity = if is_colored {
+            // Find the target bucket for colored marbles
+            let target_bucket_x = bucket_query
+                .iter()
+                .find(|(_, bucket)| bucket.color == color)
+                .map_or(0.0, |(transform, _)| transform.translation.x);
+
+            // Calculate direction toward the target bucket
+            let direction = if target_bucket_x > clamped_spawn_x {
+                1.0 // Move right
+            } else {
+                -1.0 // Move left
+            };
+            direction * fastrand::f32().mul_add(100.0, 50.0) // Speed between 50 and 150
+        } else {
+            // Random horizontal velocity for grey marbles
+            fastrand::f32().mul_add(200.0, -100.0) // Between -100 and 100
+        };
+
         commands.spawn((
-            Transform::from_xyz(
-                fastrand::f32().mul_add(WINDOW_WIDTH - config::MARBLE_SIZE, -(WINDOW_WIDTH / 2.0)),
-                WINDOW_HEIGHT / 2.0,
-                0.0,
-            ),
+            Transform::from_xyz(clamped_spawn_x, WINDOW_HEIGHT / 2.0, 0.0),
             Marble {
                 size: config::MARBLE_SIZE,
                 is_target: is_colored,
@@ -265,7 +290,7 @@ pub fn update_game(
             LinearDamping(0.1),
             AngularDamping(0.1),
             GravityScale(1.0),
-            LinearVelocity(Vec2::new(horizontal_velocity, 0.0)),
+            LinearVelocity(Vec2::new(horizontal_velocity, downward_velocity)),
             Mass(1.0),
             Resting(Timer::new(Duration::from_secs(1), TimerMode::Once)),
         ));
