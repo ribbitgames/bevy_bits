@@ -537,6 +537,7 @@ dependencies = [
  "fastrand",
  "flappy_gun",
  "heck",
+ "marble_dropper",
  "master_mind",
  "math_quiz",
  "memoji",

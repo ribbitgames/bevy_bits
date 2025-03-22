@@ -15,6 +15,7 @@ emoji_catcher = { path = "../emoji_catcher" }
 emoji_grabber = { path = "../emoji_grabber" }
 emoji_sequencer = { path = "../emoji_sequencer" }
 flappy_gun = { path = "../flappy_gun" }
+marble_dropper = { path = "../marble_dropper" }
 master_mind = { path = "../master_mind" }
 math_quiz = { path = "../math_quiz" }
 memoji = { path = "../memoji" }
