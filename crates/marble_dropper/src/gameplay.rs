@@ -226,7 +226,6 @@ pub fn update_game(
     mut score_display: Query<&mut Text2d, With<ScoreDisplay>>,
     bucket_query: Query<(&Transform, &Bucket), With<Bucket>>,
     asset_server: Res<AssetServer>,
-    mut next_state: ResMut<NextState<GameState>>,
     mut marble_query: Query<(Entity, &Transform, &Circle, &mut Resting, &Marble), With<Marble>>,
 ) {
     spawn_timer.timer.tick(time.delta());
@@ -288,10 +287,16 @@ pub fn update_game(
     for (marble_entity, transform, circle, mut resting, marble) in &mut marble_query {
         resting.0.tick(time.delta());
         let marble_pos = transform.translation.truncate();
+        let marble_radius = circle.radius;
+
         for (bucket_pos, bucket_color, bucket_width) in &buckets {
-            let dx = marble_pos.x - bucket_pos.x;
-            if dx.abs() < (*bucket_width + marble.size) / 2.0
-                && marble_pos.y < bucket_pos.y + config::BUCKET_SIZE.y
+            let bucket_half_width = *bucket_width / 2.0;
+            let bucket_half_height = config::BUCKET_SIZE.y / 2.0;
+
+            // Check if the marble's bounding box overlaps with the bucket's bounding box
+            let dx = (marble_pos.x - bucket_pos.x).abs();
+            let dy = (marble_pos.y - bucket_pos.y).abs();
+            if dx < (bucket_half_width + marble_radius) && dy < (bucket_half_height + marble_radius)
             {
                 commands.entity(marble_entity).despawn();
                 if marble.is_target && circle.color == *bucket_color {
@@ -313,12 +318,13 @@ pub fn update_game(
                         &asset_server,
                     );
                 }
+                break; // Exit the bucket loop since the marble has been handled
             }
         }
+
         if marble_pos.y < -WINDOW_HEIGHT / 2.0 - marble.size && resting.0.finished() {
             commands.entity(marble_entity).despawn();
             if marble.is_target {
-                score.0 -= 5;
                 spawn_floating_score(
                     &mut commands,
                     Vec2::new(marble_pos.x, -WINDOW_HEIGHT / 2.0),
@@ -326,9 +332,6 @@ pub fn update_game(
                     Color::srgb(1.0, 0.0, 0.0).into(),
                     &asset_server,
                 );
-                next_state.set(GameState::GameOver);
-                send_bit_message(BitMessage::End(BitResult::HighestScore(score.0.into())));
-                return;
             }
         }
     }
