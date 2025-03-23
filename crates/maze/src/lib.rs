@@ -22,7 +22,7 @@ const TILE_SIZE: f32 = 24.;
 const WALL_DEPTH: f32 = 4.;
 
 const NUM_ITEMS: usize = 3;
-const ITEM_SIZE: f32 = TILE_SIZE * 0.5;
+const ITEM_SIZE: f32 = TILE_SIZE * 0.625;
 
 const PLAYER_SIZE: f32 = TILE_SIZE * 0.75;
 const MOVE_SPEED: f32 = 4.0; // tile size / sec
@@ -193,11 +193,12 @@ fn spawn_objective(commands: &mut Commands) {
                 TextColor(Color::WHITE),
             ));
         });
-
+    /*
     commands.spawn((
         Sprite::from_color(Color::srgb(1., 1., 0.), Vec2::new(32., 32.)),
         Transform::from_xyz(72., 296., 1.),
     ));
+    */
 }
 
 fn spawn_virtual_controller(
@@ -252,6 +253,8 @@ fn reset_maze(
         deadends.swap(i, j);
     }
 
+    let indices = emoji::get_random_emojis(&atlas, &validation, 2);
+
     // Rest of the function remains the same
     let loop_num = (NUM_ITEMS + 1).min(deadends.len());
     for (i, deadend) in deadends.iter().enumerate() {
@@ -259,10 +262,37 @@ fn reset_maze(
             break;
         }
         if i == 0 {
-            spawn_player(&mut commands, *deadend, &atlas, &validation);
+            spawn_player(
+                &mut commands,
+                *deadend,
+                &atlas,
+                &validation,
+                *indices.first().expect(""),
+            );
         } else {
-            spawn_item(&mut commands, *deadend);
+            spawn_item(
+                &mut commands,
+                *deadend,
+                &atlas,
+                &validation,
+                *indices.last().expect(""),
+            );
         }
+    }
+
+    // for objective
+    if let Some(id) = emoji::spawn_emoji(
+        &mut commands,
+        &atlas,
+        &validation,
+        *indices.last().expect(""),
+        Transform::from_xyz(72., 296., 1.).with_scale(Vec3::new(
+            32. / EMOJI_SIZE.x as f32,
+            32. / EMOJI_SIZE.y as f32,
+            1.,
+        )),
+    ) {
+        commands.entity(id).insert(LifespanGame);
     }
 
     game_manager.count = 0;
@@ -313,19 +343,34 @@ fn spawn_maze(commands: &mut Commands, maze: &MazeGenerator) {
     }
 }
 
-fn spawn_item(commands: &mut Commands, pos: IVec2) {
+fn spawn_item(
+    commands: &mut Commands,
+    pos: IVec2,
+    atlas: &Res<EmojiAtlas>,
+    validation: &Res<AtlasValidation>,
+    index: usize,
+) {
     let grid_pos = GridPos {
         x: pos.x as usize,
         y: pos.y as usize,
         priority: 2.,
     };
-
-    commands.spawn((
-        Sprite::from_color(Color::srgb(1., 1., 0.), Vec2::new(ITEM_SIZE, ITEM_SIZE)),
-        Transform::from(grid_pos),
-        MazeItem { pos },
-        LifespanGame,
-    ));
+    if let Some(id) = emoji::spawn_emoji(
+        commands,
+        atlas,
+        validation,
+        index,
+        Transform::from(grid_pos).with_scale(Vec3::new(
+            ITEM_SIZE / EMOJI_SIZE.x as f32,
+            ITEM_SIZE / EMOJI_SIZE.y as f32,
+            1.,
+        )),
+    ) {
+        commands
+            .entity(id)
+            .insert(MazeItem { pos })
+            .insert(LifespanGame);
+    }
 }
 
 fn spawn_player(
@@ -333,30 +378,18 @@ fn spawn_player(
     pos: IVec2,
     atlas: &Res<EmojiAtlas>,
     validation: &Res<AtlasValidation>,
+    index: usize,
 ) {
     let grid_pos = GridPos {
         x: pos.x as usize,
         y: pos.y as usize,
         priority: 3.,
     };
-    /*
-    commands.spawn((
-        Sprite::from_color(Color::srgb(0., 1., 0.), Vec2::new(PLAYER_SIZE, PLAYER_SIZE)),
-        Transform::from(grid_pos),
-        MazePlayer {
-            pos,
-            next_pos: pos,
-            ..Default::default()
-        },
-        LifespanGame,
-    ));
-    */
-    let indices = emoji::get_random_emojis(atlas, validation, 1);
     if let Some(id) = emoji::spawn_emoji(
         commands,
         atlas,
         validation,
-        *indices.first().expect(""),
+        index,
         Transform::from(grid_pos).with_scale(Vec3::new(
             PLAYER_SIZE / EMOJI_SIZE.x as f32,
             PLAYER_SIZE / EMOJI_SIZE.y as f32,
